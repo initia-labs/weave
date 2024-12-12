@@ -13,9 +13,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  integration-tests:
-    name: Run Integration Tests
+  integration-tests-ubuntu:
+    name: Run Integration Tests on Ubuntu
     runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ^1.22
+
+      - name: Run Integration Tests
+        run: cd tests && go test -v ./...
+
+  integration-tests-macos:
+    name: Run Integration Tests on macOS
+    runs-on: macos-latest
 
     steps:
       - uses: actions/checkout@v4
