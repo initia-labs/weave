@@ -204,7 +204,8 @@ func TestGetActiveGrpc(t *testing.T) {
 	}
 	go func() {
 		if err := grpcServer.Serve(lis); err != nil {
-			t.Fatalf("failed to serve gRPC server: %v", err)
+			t.Errorf("failed to serve gRPC server: %v", err)
+			return
 		}
 	}()
 	defer grpcServer.Stop()

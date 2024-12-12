@@ -4,7 +4,7 @@ import (
 	"github.com/initia-labs/weave/types"
 )
 
-type RelayerState struct {
+type State struct {
 	weave       types.WeaveState
 	Config      map[string]string
 	IBCChannels []types.IBCChannelPair
@@ -26,20 +26,20 @@ type RelayerState struct {
 	hermesBinaryPath string
 }
 
-func NewRelayerState() RelayerState {
-	return RelayerState{
+func NewRelayerState() State {
+	return State{
 		weave:       types.NewWeaveState(),
 		Config:      make(map[string]string),
 		IBCChannels: make([]types.IBCChannelPair, 0),
 	}
 }
 
-func (state RelayerState) Clone() RelayerState {
+func (state State) Clone() State {
 	config := make(map[string]string)
 	for k, v := range state.Config {
 		config[k] = v
 	}
-	clone := RelayerState{
+	clone := State{
 		weave:       state.weave,
 		Config:      config,
 		IBCChannels: state.IBCChannels,

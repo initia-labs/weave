@@ -70,7 +70,7 @@ type SystemKeys struct {
 	Challenger      *SystemAccount `json:"challenger,omitempty"`
 }
 
-// Define the structure for the JSON data
+// Artifacts define the structure for the JSON data
 type Artifacts struct {
 	BridgeID                string `json:"BRIDGE_ID"`
 	ExecutorL1MonitorHeight string `json:"EXECUTOR_L1_MONITOR_HEIGHT"`

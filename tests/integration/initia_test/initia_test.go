@@ -29,24 +29,24 @@ func TestInitiaInitTestnetNoSync(t *testing.T) {
 	assert.NotNil(t, err)
 
 	steps := integration.Steps{
-		integration.PressEnter,
-		integration.TypeText("Moniker"),
-		integration.PressEnter,
-		integration.PressSpace,
-		integration.PressEnter,
-		integration.TypeText("3715cdb41efb45714eb534c3943c5947f4894787@34.143.179.242:26656"),
-		integration.PressEnter,
-		integration.TypeText("3715cdb41efb45714eb534c3943c5947f4894787@34.143.179.242:26656"),
-		integration.PressEnter,
+		integration.PressEnter,          // press enter to select Testnet
+		integration.TypeText("Moniker"), // type in the moniker
+		integration.PressEnter,          // press enter to confirm the moniker
+		integration.PressSpace,          // press space to enable REST
+		integration.PressEnter,          // press enter to confirm turning on only REST and not gRPC
+		integration.TypeText("3715cdb41efb45714eb534c3943c5947f4894787@34.143.179.242:26656"), // type in the seeds
+		integration.PressEnter, // press enter to confirm the seeds
+		integration.TypeText("3715cdb41efb45714eb534c3943c5947f4894787@34.143.179.242:26656"), // type in the persistent peers
+		integration.PressEnter, // press enter to confirm the persistent peers
 		integration.WaitFor(func() bool {
 			if _, err := os.Stat(initiaHome); os.IsNotExist(err) {
 				return false
 			}
 			return true
-		}),
-		integration.PressDown,
-		integration.PressDown,
-		integration.PressEnter,
+		}), // wait for the Initia app to be created
+		integration.PressDown,  // press down twice to select No Sync
+		integration.PressDown,  //
+		integration.PressEnter, // press enter to confirm selecting No Sync
 	}
 
 	finalModel := integration.RunProgramWithSteps(t, firstModel, steps)
@@ -97,37 +97,37 @@ func TestInitiaInitTestnetStatesync(t *testing.T) {
 	assert.NotNil(t, err)
 
 	steps := integration.Steps{
-		integration.PressEnter,
-		integration.TypeText("Moniker"),
-		integration.PressEnter,
-		integration.PressSpace,
-		integration.PressEnter,
-		integration.TypeText("3715cdb41efb45714eb534c3943c5947f4894787@34.143.179.242:26656"),
-		integration.PressEnter,
-		integration.TypeText("3715cdb41efb45714eb534c3943c5947f4894787@34.143.179.242:26656"),
-		integration.PressEnter,
+		integration.PressEnter,          // press enter to select Testnet
+		integration.TypeText("Moniker"), // type in the moniker
+		integration.PressEnter,          // press enter to confirm the moniker
+		integration.PressSpace,          // press space to enable REST
+		integration.PressEnter,          // press enter to confirm turning on only REST and not gRPC
+		integration.TypeText("3715cdb41efb45714eb534c3943c5947f4894787@34.143.179.242:26656"), // type in the seeds
+		integration.PressEnter, // press enter to confirm the seeds
+		integration.TypeText("3715cdb41efb45714eb534c3943c5947f4894787@34.143.179.242:26656"), // type in the persistent peers
+		integration.PressEnter, // press enter to confirm the persistent peers
 		integration.WaitFor(func() bool {
 			if _, err := os.Stat(initiaHome); os.IsNotExist(err) {
 				return false
 			}
 			return true
-		}),
-		integration.PressDown,
-		integration.PressEnter,
+		}), // wait for the Initia app to be created
+		integration.PressDown,  // press down once to select State Sync
+		integration.PressEnter, // press enter to confirm selecting State Sync
 		integration.WaitFor(func() bool {
 			return true
-		}),
-		integration.PressEnter,
-		integration.TypeText("https://initia-testnet-rpc.polkachu.com:443"),
-		integration.PressEnter,
+		}), // wait for the checking of existing data
+		integration.PressEnter, // press enter to proceed with syncing
+		integration.TypeText("https://initia-testnet-rpc.polkachu.com:443"), // type in the state sync rpc
+		integration.PressEnter, // press enter to confirm the rpc
 		integration.WaitFor(func() bool {
 			return true
-		}),
-		integration.TypeText("1d9b9512f925cf8808e7f76d71a788d82089fe76@65.108.198.118:25756"),
-		integration.PressEnter,
+		}), // wait for the fetching of the default value
+		integration.TypeText("1d9b9512f925cf8808e7f76d71a788d82089fe76@65.108.198.118:25756"), // type in the additional peer for state sync
+		integration.PressEnter, // press enter to confirm the peer
 		integration.WaitFor(func() bool {
 			return true
-		}),
+		}), // wait for the state sync setup
 	}
 
 	finalModel := integration.RunProgramWithSteps(t, firstModel, steps)
@@ -179,27 +179,27 @@ func TestInitiaInitLocal(t *testing.T) {
 	assert.NotNil(t, err)
 
 	steps := []integration.Step{
-		integration.PressDown,
-		integration.PressEnter,
+		integration.PressDown,  // press down once to select Local
+		integration.PressEnter, // press enter to confirm selecting Local
 		integration.WaitFor(func() bool {
 			return true
-		}),
-		integration.PressEnter,
-		integration.TypeText("ChainId-1"),
-		integration.PressEnter,
-		integration.TypeText("Moniker"),
-		integration.PressEnter,
-		integration.TypeText("0uinit"),
-		integration.PressEnter,
-		integration.PressEnter,
-		integration.PressEnter,
-		integration.PressEnter,
+		}), // wait for the fetching of Initia versions
+		integration.PressEnter,            // press enter to select the latest version available
+		integration.TypeText("ChainId-1"), // type in the chain id
+		integration.PressEnter,            // press enter to confirm the chain id
+		integration.TypeText("Moniker"),   // type in the moniker
+		integration.PressEnter,            // press enter to confirm the moniker
+		integration.TypeText("0uinit"),    // type in the gas price
+		integration.PressEnter,            // press enter to confirm the minimum gas price
+		integration.PressEnter,            // press enter to disable both REST and gRPC
+		integration.PressEnter,            // press enter to skip adding seeds
+		integration.PressEnter,            // press enter to skip adding persistent peers
 		integration.WaitFor(func() bool {
 			if _, err := os.Stat(initiaHome); os.IsNotExist(err) {
 				return false
 			}
 			return true
-		}),
+		}), // wait for the app to be created
 	}
 
 	finalModel := integration.RunProgramWithSteps(t, firstModel, steps)
@@ -251,27 +251,27 @@ func TestInitiaInitLocalExisting(t *testing.T) {
 	assert.NotNil(t, err)
 
 	steps := []integration.Step{
-		integration.PressDown,
-		integration.PressEnter,
+		integration.PressDown,  // press down to select Local
+		integration.PressEnter, // press enter to confirm selecting Local
 		integration.WaitFor(func() bool {
 			return true
-		}),
-		integration.PressEnter,
-		integration.TypeText("ChainId-1"),
-		integration.PressEnter,
-		integration.TypeText("Moniker"),
-		integration.PressEnter,
-		integration.TypeText("0uinit"),
-		integration.PressEnter,
-		integration.PressEnter,
-		integration.PressEnter,
-		integration.PressEnter,
+		}), // wait for the fetching of Initia versions
+		integration.PressEnter,            // press enter to select the latest version available
+		integration.TypeText("ChainId-1"), // type in the chain id
+		integration.PressEnter,            // press enter to confirm the chain id
+		integration.TypeText("Moniker"),   // type in the moniker
+		integration.PressEnter,            // press enter to confirm the moniker
+		integration.TypeText("0uinit"),    // type in the minimum gas price
+		integration.PressEnter,            // press enter to confirm the minimum gas price
+		integration.PressEnter,            // press enter to disable both REST and gRPC
+		integration.PressEnter,            // press enter to skip adding the seeds
+		integration.PressEnter,            // press enter to skip adding the persistent peers
 		integration.WaitFor(func() bool {
 			if _, err := os.Stat(initiaHome); os.IsNotExist(err) {
 				return false
 			}
 			return true
-		}),
+		}), // wait for the app to be created
 	}
 
 	finalModel := integration.RunProgramWithSteps(t, firstModel, steps)
@@ -318,22 +318,22 @@ func TestInitiaInitLocalExisting(t *testing.T) {
 	assert.Nil(t, err)
 
 	steps = []integration.Step{
-		integration.PressDown,
-		integration.PressEnter,
+		integration.PressDown,  // press down once to select Local
+		integration.PressEnter, // press enter to confirm selecting Local
 		integration.WaitFor(func() bool {
 			return true
-		}),
-		integration.PressEnter,
-		integration.TypeText("ChainId-2"),
-		integration.PressEnter,
+		}), // wait for the fetching of Initia versions
+		integration.PressEnter,            // press enter to select the latest version available
+		integration.TypeText("ChainId-2"), // type in the chain id
+		integration.PressEnter,            // press enter to confirm the chain id
 		integration.WaitFor(func() bool {
 			return true
-		}),
-		integration.PressEnter,
+		}), // wait for the checking of existing config
+		integration.PressEnter, // press enter to use current files
 		integration.WaitFor(func() bool {
 			return true
-		}),
-		integration.PressEnter,
+		}), // wait for the checking of existing genesis
+		integration.PressEnter, // press enter to use the current genesis
 	}
 
 	finalModel = integration.RunProgramWithSteps(t, firstModel, steps)
@@ -357,34 +357,34 @@ func TestInitiaInitLocalExisting(t *testing.T) {
 	assert.Nil(t, err)
 
 	steps = integration.Steps{
-		integration.PressDown,
-		integration.PressEnter,
+		integration.PressDown,  // press down once to select Local
+		integration.PressEnter, // press enter to confirm selecting Local
 		integration.WaitFor(func() bool {
 			return true
-		}),
-		integration.PressEnter,
-		integration.TypeText("ChainId-3"),
-		integration.PressEnter,
+		}), // wait for the fetching of Initia versions
+		integration.PressEnter,            // press enter to select the latest version available
+		integration.TypeText("ChainId-3"), // type in the chain id
+		integration.PressEnter,            // press enter to confirm the chain id
 		integration.WaitFor(func() bool {
 			return true
-		}),
-		integration.PressUp,
-		integration.PressEnter,
-		integration.TypeText("NewMoniker"),
-		integration.PressEnter,
-		integration.TypeText("0.015uinit"),
-		integration.PressEnter,
-		integration.PressSpace,
-		integration.PressDown,
-		integration.PressSpace,
-		integration.PressEnter,
-		integration.PressEnter,
-		integration.PressEnter,
+		}), // wait for the checking of existing config
+		integration.PressUp,                // press up once to select replacing the config
+		integration.PressEnter,             // press enter to confirm replacing the config
+		integration.TypeText("NewMoniker"), // type in the new moniker
+		integration.PressEnter,             // press enter to confirm the new moniker
+		integration.TypeText("0.015uinit"), // type in the new minimum gas price
+		integration.PressEnter,             // press enter to confirm the new minimum gas price
+		integration.PressSpace,             // press space to enable REST
+		integration.PressDown,              // press down once to move the cursor to gRPC
+		integration.PressSpace,             // press space to also enable gRPC
+		integration.PressEnter,             // press enter to confirm enabling both REST and gRPC
+		integration.PressEnter,             // press enter to skip adding the seeds
+		integration.PressEnter,             // press enter to skip adding the persistent peers
 		integration.WaitFor(func() bool {
 			return true
-		}),
-		integration.PressUp,
-		integration.PressEnter,
+		}), // wait for the checking of existing genesis
+		integration.PressUp,    // press up once to select replacing the genesis
+		integration.PressEnter, // press enter to confirm replacing the genesis
 	}
 
 	finalModel = integration.RunProgramWithSteps(t, firstModel, steps)

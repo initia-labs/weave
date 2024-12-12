@@ -237,6 +237,15 @@ func getBinaryURL(version string) string {
 }
 
 func GetInitiaBinaryPath(version string) string {
+	if strings.Contains(version, "@") {
+		parts := strings.Split(version, "@")
+		if len(parts) == 2 {
+			version = parts[1]
+		} else {
+			panic(fmt.Sprintf("invalid version format: %s", version))
+		}
+	}
+
 	userHome, err := os.UserHomeDir()
 	if err != nil {
 		panic(fmt.Sprintf("failed to get user home directory: %v", err))

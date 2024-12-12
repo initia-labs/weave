@@ -1,8 +1,8 @@
 package opinit_test
 
-const (
-	TestOPInitHome = ".opinit.weave.test"
-)
+//const (
+//	TestOPInitHome = ".opinit.weave.test"
+//)
 
 // func setupOPInitBots(t *testing.T) tea.Model {
 // 	ctx := context.NewAppContext(opinit_bots.NewOPInitBotsState())

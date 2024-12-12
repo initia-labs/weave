@@ -48,7 +48,8 @@ func TestGRPCClient_CheckHealth_Success(t *testing.T) {
 
 	go func() {
 		if err := server.Serve(lis); err != nil {
-			t.Fatalf("failed to serve mock gRPC server: %v", err)
+			t.Errorf("failed to serve mock gRPC server: %v", err)
+			return
 		}
 	}()
 	defer server.Stop()

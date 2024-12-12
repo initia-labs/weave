@@ -72,7 +72,7 @@ func (m *SubModel) Update(_ tea.Msg) (tea.Model, tea.Cmd) {
 func (m *SubModel) UpdateWithContext(ctx context.Context, parent weavecontext.BaseModelInterface, msg tea.Msg) (context.Context, *SubModel, tea.Cmd) {
 	input, cmd, done := m.TextInput.Update(msg)
 	if done {
-		state := weavecontext.PushPageAndGetState[RelayerState](parent)
+		state := weavecontext.PushPageAndGetState[State](parent)
 		res := strings.TrimSpace(input.Text)
 		state.Config[m.field.Name] = res
 		s := strings.Split(m.field.Name, ".")

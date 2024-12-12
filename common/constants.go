@@ -21,5 +21,4 @@ const (
 	OPinitAppName   = "opinitd"
 
 	HermesTempMnemonicFilename = "weave.mnemonic"
-	DefaultInitiaBech32Prefix  = "init"
 )

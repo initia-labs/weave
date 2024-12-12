@@ -42,7 +42,7 @@ type IBCChannelPair struct {
 	L2 Channel
 }
 
-// Define a minimal struct to parse just the counterparty field
+// MinimalIBCChannelResponse define a minimal struct to parse just the counterparty field
 type MinimalIBCChannelResponse struct {
 	Channel struct {
 		Counterparty Channel `json:"counterparty"`

@@ -38,7 +38,7 @@ func (m *FieldInputModel) Init() tea.Cmd {
 
 // Update delegates the update logic to the current active submodel
 func (m *FieldInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if model, cmd, handled := weavecontext.HandleCommonCommands[RelayerState](m, msg); handled {
+	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		if keyMsg, ok := msg.(tea.KeyMsg); ok && keyMsg.String() != "ctrl+t" {
 			m.subModels[m.currentIndex].Text = ""
 			m.subModels[m.currentIndex].Cursor = 0
@@ -66,7 +66,7 @@ func (m *FieldInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View delegates the view logic to the current active submodel
 func (m *FieldInputModel) View() string {
-	state := weavecontext.GetCurrentState[RelayerState](m.Ctx)
+	state := weavecontext.GetCurrentState[State](m.Ctx)
 	m.subModels[m.currentIndex].TextInput.ToggleTooltip = weavecontext.GetTooltip(m.Ctx)
 	return state.weave.Render() + m.subModels[m.currentIndex].View()
 }

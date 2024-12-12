@@ -86,13 +86,13 @@ func (m *RollupSelect) Init() tea.Cmd {
 }
 
 func (m *RollupSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if model, cmd, handled := weavecontext.HandleCommonCommands[RelayerState](m, msg); handled {
+	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
 	}
 
 	selected, cmd := m.Select(msg)
 	if selected != nil {
-		state := weavecontext.PushPageAndGetState[RelayerState](m)
+		state := weavecontext.PushPageAndGetState[State](m)
 
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, m.GetQuestion(), []string{}, string(*selected)))
 		switch *selected {
@@ -141,7 +141,7 @@ func (m *RollupSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *RollupSelect) View() string {
-	state := weavecontext.GetCurrentState[RelayerState](m.Ctx)
+	state := weavecontext.GetCurrentState[State](m.Ctx)
 	m.Selector.ToggleTooltip = weavecontext.GetTooltip(m.Ctx)
 	return state.weave.Render() + styles.RenderPrompt(
 		m.GetQuestion(),
@@ -174,7 +174,7 @@ func NewL1KeySelect(ctx context.Context) *L1KeySelect {
 		L1GenerateKey,
 		L1ImportKey,
 	}
-	state := weavecontext.GetCurrentState[RelayerState](ctx)
+	state := weavecontext.GetCurrentState[State](ctx)
 	if l1RelayerAddress, found := cosmosutils.GetHermesRelayerAddress(state.hermesBinaryPath, l1ChainId); found {
 		state.l1RelayerAddress = l1RelayerAddress
 		options = append([]L1KeySelectOption{L1ExistingKey}, options...)
@@ -200,13 +200,13 @@ func (m *L1KeySelect) Init() tea.Cmd {
 }
 
 func (m *L1KeySelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if model, cmd, handled := weavecontext.HandleCommonCommands[RelayerState](m, msg); handled {
+	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
 	}
 
 	selected, cmd := m.Select(msg)
 	if selected != nil {
-		state := weavecontext.PushPageAndGetState[RelayerState](m)
+		state := weavecontext.PushPageAndGetState[State](m)
 
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, m.GetQuestion(), []string{"relayer account key", fmt.Sprintf("L1 (%s)", m.chainId)}, string(*selected)))
 		state.l1KeyMethod = string(*selected)
@@ -217,7 +217,7 @@ func (m *L1KeySelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *L1KeySelect) View() string {
-	state := weavecontext.GetCurrentState[RelayerState](m.Ctx)
+	state := weavecontext.GetCurrentState[State](m.Ctx)
 	m.Selector.ToggleTooltip = weavecontext.GetTooltip(m.Ctx)
 	return state.weave.Render() + "\n" + styles.InformationMark + styles.BoldText(
 		"Relayer account keys with funds",
@@ -255,7 +255,7 @@ func NewL2KeySelect(ctx context.Context) *L2KeySelect {
 		L2GenerateKey,
 		L2ImportKey,
 	}
-	state := weavecontext.GetCurrentState[RelayerState](ctx)
+	state := weavecontext.GetCurrentState[State](ctx)
 	if l2RelayerAddress, found := cosmosutils.GetHermesRelayerAddress(state.hermesBinaryPath, l2ChainId); found {
 		state.l2RelayerAddress = l2RelayerAddress
 		options = append([]L2KeySelectOption{L2ExistingKey}, options...)
@@ -280,13 +280,13 @@ func (m *L2KeySelect) Init() tea.Cmd {
 }
 
 func (m *L2KeySelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if model, cmd, handled := weavecontext.HandleCommonCommands[RelayerState](m, msg); handled {
+	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
 	}
 
 	selected, cmd := m.Select(msg)
 	if selected != nil {
-		state := weavecontext.PushPageAndGetState[RelayerState](m)
+		state := weavecontext.PushPageAndGetState[State](m)
 
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, m.GetQuestion(), []string{"relayer account key", fmt.Sprintf("L2 (%s)", m.chainId)}, string(*selected)))
 		state.l2KeyMethod = string(*selected)
@@ -319,7 +319,7 @@ func (m *L2KeySelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *L2KeySelect) View() string {
-	state := weavecontext.GetCurrentState[RelayerState](m.Ctx)
+	state := weavecontext.GetCurrentState[State](m.Ctx)
 	m.Selector.ToggleTooltip = weavecontext.GetTooltip(m.Ctx)
 	return state.weave.Render() + styles.RenderPrompt(
 		m.GetQuestion(),
@@ -334,7 +334,7 @@ type GenerateL1RelayerKeyLoading struct {
 }
 
 func NewGenerateL1RelayerKeyLoading(ctx context.Context) *GenerateL1RelayerKeyLoading {
-	state := weavecontext.GetCurrentState[RelayerState](ctx)
+	state := weavecontext.GetCurrentState[State](ctx)
 	layerText := "L1"
 	if state.l1KeyMethod == string(L1GenerateKey) && state.l2KeyMethod == string(L2SameKey) {
 		layerText = "L1 and L2"
@@ -354,7 +354,7 @@ func waitGenerateL1RelayerKeyLoading(ctx context.Context) tea.Cmd {
 	return func() tea.Msg {
 		time.Sleep(1500 * time.Millisecond)
 
-		state := weavecontext.GetCurrentState[RelayerState](ctx)
+		state := weavecontext.GetCurrentState[State](ctx)
 		l1ChainId := MustGetL1ChainId(ctx)
 
 		relayerKey, err := cosmosutils.GenerateAndReplaceHermesKey(state.hermesBinaryPath, l1ChainId)
@@ -371,7 +371,7 @@ func waitGenerateL1RelayerKeyLoading(ctx context.Context) tea.Cmd {
 }
 
 func (m *GenerateL1RelayerKeyLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if model, cmd, handled := weavecontext.HandleCommonCommands[RelayerState](m, msg); handled {
+	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
 	}
 
@@ -379,7 +379,7 @@ func (m *GenerateL1RelayerKeyLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.loading = loader
 	if m.loading.Completing {
 		m.Ctx = m.loading.EndContext
-		state := weavecontext.PushPageAndGetState[RelayerState](m)
+		state := weavecontext.PushPageAndGetState[State](m)
 
 		switch L2KeySelectOption(state.l2KeyMethod) {
 		case L2ExistingKey, L2ImportKey:
@@ -397,7 +397,7 @@ func (m *GenerateL1RelayerKeyLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *GenerateL1RelayerKeyLoading) View() string {
-	state := weavecontext.GetCurrentState[RelayerState](m.Ctx)
+	state := weavecontext.GetCurrentState[State](m.Ctx)
 	return state.weave.Render() + "\n" + m.loading.View()
 }
 
@@ -421,7 +421,7 @@ func waitGenerateL2RelayerKeyLoading(ctx context.Context) tea.Cmd {
 	return func() tea.Msg {
 		time.Sleep(1500 * time.Millisecond)
 
-		state := weavecontext.GetCurrentState[RelayerState](ctx)
+		state := weavecontext.GetCurrentState[State](ctx)
 		l2ChainId := MustGetL2ChainId(ctx)
 
 		relayerKey, err := cosmosutils.GenerateAndReplaceHermesKey(state.hermesBinaryPath, l2ChainId)
@@ -438,7 +438,7 @@ func waitGenerateL2RelayerKeyLoading(ctx context.Context) tea.Cmd {
 }
 
 func (m *GenerateL2RelayerKeyLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if model, cmd, handled := weavecontext.HandleCommonCommands[RelayerState](m, msg); handled {
+	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
 	}
 
@@ -446,7 +446,7 @@ func (m *GenerateL2RelayerKeyLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.loading = loader
 	if m.loading.Completing {
 		m.Ctx = m.loading.EndContext
-		state := weavecontext.PushPageAndGetState[RelayerState](m)
+		state := weavecontext.PushPageAndGetState[State](m)
 
 		return NewKeysMnemonicDisplayInput(weavecontext.SetCurrentState(m.Ctx, state)), nil
 	}
@@ -454,7 +454,7 @@ func (m *GenerateL2RelayerKeyLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *GenerateL2RelayerKeyLoading) View() string {
-	state := weavecontext.GetCurrentState[RelayerState](m.Ctx)
+	state := weavecontext.GetCurrentState[State](m.Ctx)
 	return state.weave.Render() + "\n" + m.loading.View()
 }
 
@@ -484,13 +484,13 @@ func (m *KeysMnemonicDisplayInput) Init() tea.Cmd {
 }
 
 func (m *KeysMnemonicDisplayInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if model, cmd, handled := weavecontext.HandleCommonCommands[RelayerState](m, msg); handled {
+	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
 	}
 
 	input, cmd, done := m.TextInput.Update(msg)
 	if done {
-		state := weavecontext.PushPageAndGetState[RelayerState](m)
+		state := weavecontext.PushPageAndGetState[State](m)
 
 		extraText := " has"
 		if state.l1KeyMethod == string(L1GenerateKey) && state.l2KeyMethod == string(L2GenerateKey) {
@@ -511,7 +511,7 @@ func (m *KeysMnemonicDisplayInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *KeysMnemonicDisplayInput) View() string {
-	state := weavecontext.GetCurrentState[RelayerState](m.Ctx)
+	state := weavecontext.GetCurrentState[State](m.Ctx)
 	var mnemonicText string
 
 	if state.l1KeyMethod == string(L1GenerateKey) {
@@ -548,7 +548,7 @@ type ImportL1RelayerKeyInput struct {
 }
 
 func NewImportL1RelayerKeyInput(ctx context.Context) *ImportL1RelayerKeyInput {
-	state := weavecontext.GetCurrentState[RelayerState](ctx)
+	state := weavecontext.GetCurrentState[State](ctx)
 	layerText := "L1"
 	if state.l1KeyMethod == string(L1ImportKey) && state.l2KeyMethod == string(L2SameKey) {
 		layerText = "L1 and L2"
@@ -573,13 +573,13 @@ func (m *ImportL1RelayerKeyInput) Init() tea.Cmd {
 }
 
 func (m *ImportL1RelayerKeyInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if model, cmd, handled := weavecontext.HandleCommonCommands[RelayerState](m, msg); handled {
+	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
 	}
 
 	input, cmd, done := m.TextInput.Update(msg)
 	if done {
-		state := weavecontext.PushPageAndGetState[RelayerState](m)
+		state := weavecontext.PushPageAndGetState[State](m)
 
 		relayerKey, err := cosmosutils.RecoverAndReplaceHermesKey(state.hermesBinaryPath, MustGetL1ChainId(m.Ctx), input.Text)
 		if err != nil {
@@ -611,7 +611,7 @@ func (m *ImportL1RelayerKeyInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *ImportL1RelayerKeyInput) View() string {
-	state := weavecontext.GetCurrentState[RelayerState](m.Ctx)
+	state := weavecontext.GetCurrentState[State](m.Ctx)
 	return state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{"relayer account key", m.layerText}, styles.Question) + m.TextInput.View()
 }
 
@@ -641,13 +641,13 @@ func (m *ImportL2RelayerKeyInput) Init() tea.Cmd {
 }
 
 func (m *ImportL2RelayerKeyInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if model, cmd, handled := weavecontext.HandleCommonCommands[RelayerState](m, msg); handled {
+	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
 	}
 
 	input, cmd, done := m.TextInput.Update(msg)
 	if done {
-		state := weavecontext.PushPageAndGetState[RelayerState](m)
+		state := weavecontext.PushPageAndGetState[State](m)
 
 		relayerKey, err := cosmosutils.RecoverAndReplaceHermesKey(state.hermesBinaryPath, MustGetL2ChainId(m.Ctx), input.Text)
 		if err != nil {
@@ -666,7 +666,7 @@ func (m *ImportL2RelayerKeyInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *ImportL2RelayerKeyInput) View() string {
-	state := weavecontext.GetCurrentState[RelayerState](m.Ctx)
+	state := weavecontext.GetCurrentState[State](m.Ctx)
 	return state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{"relayer account key", "L2"}, styles.Question) + m.TextInput.View()
 }
 
@@ -688,27 +688,21 @@ func (m *FetchingBalancesLoading) Init() tea.Cmd {
 
 func waitFetchingBalancesLoading(ctx context.Context) tea.Cmd {
 	return func() tea.Msg {
-		state := weavecontext.GetCurrentState[RelayerState](ctx)
+		state := weavecontext.GetCurrentState[State](ctx)
 
 		l1Rest := MustGetL1ActiveLcd(ctx)
 		l1Balances, err := cosmosutils.QueryBankBalances(l1Rest, state.l1RelayerAddress)
 		if err != nil {
 			panic(fmt.Errorf("cannot fetch balance for l1: %v", err))
 		}
-		if l1Balances.IsZero() {
-			state.l1NeedsFunding = true
-		}
+		state.l1NeedsFunding = l1Balances.IsZero()
 
-		l2ChainId := MustGetL2ChainId(ctx)
-		l2Registry := registry.MustGetL2Registry(registry.InitiaL1Testnet, l2ChainId)
-		l2Rest := l2Registry.MustGetActiveLcd()
-		l2Balances, err := cosmosutils.QueryBankBalances(l2Rest, state.l2RelayerAddress)
+		querier := cosmosutils.NewInitiadQuerier(l1Rest)
+		l2Balances, err := querier.QueryBankBalances(state.l2RelayerAddress, MustGetL2ActiveRpc(ctx))
 		if err != nil {
 			panic(fmt.Errorf("cannot fetch balance for l2: %v", err))
 		}
-		if l2Balances.IsZero() {
-			state.l2NeedsFunding = true
-		}
+		state.l2NeedsFunding = l2Balances.IsZero()
 
 		return ui.EndLoading{
 			Ctx: weavecontext.SetCurrentState(ctx, state),
@@ -717,7 +711,7 @@ func waitFetchingBalancesLoading(ctx context.Context) tea.Cmd {
 }
 
 func (m *FetchingBalancesLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if model, cmd, handled := weavecontext.HandleCommonCommands[RelayerState](m, msg); handled {
+	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
 	}
 
@@ -725,7 +719,7 @@ func (m *FetchingBalancesLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.loading = loader
 	if m.loading.Completing {
 		m.Ctx = m.loading.EndContext
-		state := weavecontext.PushPageAndGetState[RelayerState](m)
+		state := weavecontext.PushPageAndGetState[State](m)
 
 		if !state.l1NeedsFunding && !state.l2NeedsFunding {
 			state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.NoSeparator, "Your relayer has been setup successfully. 🎉", []string{}, ""))
@@ -738,7 +732,7 @@ func (m *FetchingBalancesLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *FetchingBalancesLoading) View() string {
-	state := weavecontext.GetCurrentState[RelayerState](m.Ctx)
+	state := weavecontext.GetCurrentState[State](m.Ctx)
 	return state.weave.Render() + "\n" + m.loading.View()
 }
 
@@ -760,7 +754,7 @@ var (
 )
 
 func NewFundingAmountSelect(ctx context.Context) *FundingAmountSelect {
-	state := weavecontext.GetCurrentState[RelayerState](ctx)
+	state := weavecontext.GetCurrentState[State](ctx)
 	FundingDefaultPreset = FundingAmountSelectOption(fmt.Sprintf(
 		"○ Use the default preset\n    Total amount that will be transferred from Gas Station account:\n    %s %s on L1 %s\n    %s %s on L2 %s",
 		styles.BoldText(fmt.Sprintf("• L1 (%s):", MustGetL1ChainId(ctx)), styles.Cyan),
@@ -793,13 +787,13 @@ func (m *FundingAmountSelect) Init() tea.Cmd {
 }
 
 func (m *FundingAmountSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if model, cmd, handled := weavecontext.HandleCommonCommands[RelayerState](m, msg); handled {
+	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
 	}
 
 	selected, cmd := m.Select(msg)
 	if selected != nil {
-		state := weavecontext.PushPageAndGetState[RelayerState](m)
+		state := weavecontext.PushPageAndGetState[State](m)
 
 		switch *selected {
 		case FundingDefaultPreset:
@@ -834,7 +828,7 @@ func (m *FundingAmountSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *FundingAmountSelect) View() string {
-	state := weavecontext.GetCurrentState[RelayerState](m.Ctx)
+	state := weavecontext.GetCurrentState[State](m.Ctx)
 
 	var informationLayer, warningLayer string
 	if state.l1NeedsFunding && state.l2NeedsFunding {
@@ -897,13 +891,13 @@ func (m *FundDefaultPresetConfirmationInput) Init() tea.Cmd {
 }
 
 func (m *FundDefaultPresetConfirmationInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if model, cmd, handled := weavecontext.HandleCommonCommands[RelayerState](m, msg); handled {
+	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
 	}
 
 	input, cmd, done := m.TextInput.Update(msg)
 	if done {
-		_ = weavecontext.PushPageAndGetState[RelayerState](m)
+		_ = weavecontext.PushPageAndGetState[State](m)
 		model := NewFundDefaultPresetBroadcastLoading(m.Ctx)
 		return model, model.Init()
 	}
@@ -912,7 +906,7 @@ func (m *FundDefaultPresetConfirmationInput) Update(msg tea.Msg) (tea.Model, tea
 }
 
 func (m *FundDefaultPresetConfirmationInput) View() string {
-	state := weavecontext.GetCurrentState[RelayerState](m.Ctx)
+	state := weavecontext.GetCurrentState[State](m.Ctx)
 	formatSendMsg := func(coins, denom, keyName, address string) string {
 		return fmt.Sprintf(
 			"> Send %s to %s %s\n",
@@ -951,7 +945,7 @@ func (m *FundDefaultPresetBroadcastLoading) Init() tea.Cmd {
 
 func broadcastDefaultPresetFromGasStation(ctx context.Context) tea.Cmd {
 	return func() tea.Msg {
-		state := weavecontext.GetCurrentState[RelayerState](ctx)
+		state := weavecontext.GetCurrentState[State](ctx)
 		gasStationMnemonic := config.GetGasStationMnemonic()
 		cliTx := cosmosutils.NewInitiadTxExecutor(MustGetL1ActiveLcd(ctx))
 
@@ -971,7 +965,7 @@ func broadcastDefaultPresetFromGasStation(ctx context.Context) tea.Cmd {
 		res, err = cliTx.BroadcastMsgSend(
 			gasStationMnemonic,
 			state.l2RelayerAddress,
-			fmt.Sprintf("%s%s", state.l2FundingAmount, "l2/4b66eb60bf9f503ea97fe4dc96d5c604c1dca14ee988e21510ac4b087bf72671"),
+			fmt.Sprintf("%s%s", state.l2FundingAmount, MustGetL2GasDenom(ctx)),
 			MustGetL2GasPrices(ctx),
 			MustGetL2ActiveRpc(ctx),
 			MustGetL2ChainId(ctx),
@@ -988,7 +982,7 @@ func broadcastDefaultPresetFromGasStation(ctx context.Context) tea.Cmd {
 }
 
 func (m *FundDefaultPresetBroadcastLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if model, cmd, handled := weavecontext.HandleCommonCommands[RelayerState](m, msg); handled {
+	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
 	}
 
@@ -996,7 +990,7 @@ func (m *FundDefaultPresetBroadcastLoading) Update(msg tea.Msg) (tea.Model, tea.
 	m.loading = loader
 	if m.loading.Completing {
 		m.Ctx = m.loading.EndContext
-		state := weavecontext.PushPageAndGetState[RelayerState](m)
+		state := weavecontext.PushPageAndGetState[State](m)
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, "The relayer account has been funded on L1, with Tx Hash", []string{}, state.l1FundingTxHash))
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, "The relayer account has been funded on L2, with Tx Hash", []string{}, state.l2FundingTxHash))
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.NoSeparator, "Your relayer has been setup successfully. 🎉", []string{}, ""))
@@ -1007,7 +1001,7 @@ func (m *FundDefaultPresetBroadcastLoading) Update(msg tea.Msg) (tea.Model, tea.
 }
 
 func (m *FundDefaultPresetBroadcastLoading) View() string {
-	state := weavecontext.GetCurrentState[RelayerState](m.Ctx)
+	state := weavecontext.GetCurrentState[State](m.Ctx)
 	return state.weave.Render() + "\n" + m.loading.View()
 }
 
@@ -1037,13 +1031,13 @@ func (m *FundManuallyL1BalanceInput) Init() tea.Cmd {
 }
 
 func (m *FundManuallyL1BalanceInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if model, cmd, handled := weavecontext.HandleCommonCommands[RelayerState](m, msg); handled {
+	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
 	}
 
 	input, cmd, done := m.TextInput.Update(msg)
 	if done {
-		state := weavecontext.PushPageAndGetState[RelayerState](m)
+		state := weavecontext.PushPageAndGetState[State](m)
 		state.l1FundingAmount = input.Text
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.DotsSeparator, m.GetQuestion(), []string{"Relayer account", "L1"}, input.Text))
 
@@ -1054,7 +1048,7 @@ func (m *FundManuallyL1BalanceInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *FundManuallyL1BalanceInput) View() string {
-	state := weavecontext.GetCurrentState[RelayerState](m.Ctx)
+	state := weavecontext.GetCurrentState[State](m.Ctx)
 	return state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{"Relayer account", "L1"}, styles.Question) + m.TextInput.View()
 }
 
@@ -1084,13 +1078,13 @@ func (m *FundManuallyL2BalanceInput) Init() tea.Cmd {
 }
 
 func (m *FundManuallyL2BalanceInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if model, cmd, handled := weavecontext.HandleCommonCommands[RelayerState](m, msg); handled {
+	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
 	}
 
 	input, cmd, done := m.TextInput.Update(msg)
 	if done {
-		state := weavecontext.PushPageAndGetState[RelayerState](m)
+		state := weavecontext.PushPageAndGetState[State](m)
 		state.l2FundingAmount = input.Text
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.DotsSeparator, m.GetQuestion(), []string{"Relayer account", "L2"}, input.Text))
 
@@ -1101,7 +1095,7 @@ func (m *FundManuallyL2BalanceInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *FundManuallyL2BalanceInput) View() string {
-	state := weavecontext.GetCurrentState[RelayerState](m.Ctx)
+	state := weavecontext.GetCurrentState[State](m.Ctx)
 	return state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{"Relayer account", "L2"}, styles.Question) + m.TextInput.View()
 }
 
@@ -1155,14 +1149,14 @@ func (m *SelectingL1Network) Init() tea.Cmd {
 }
 
 func (m *SelectingL1Network) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if model, cmd, handled := weavecontext.HandleCommonCommands[RelayerState](m, msg); handled {
+	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
 	}
 
 	// Handle selection logic
 	selected, cmd := m.Select(msg)
 	if selected != nil {
-		state := weavecontext.PushPageAndGetState[RelayerState](m)
+		state := weavecontext.PushPageAndGetState[State](m)
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, m.GetQuestion(), []string{"Initia L1 network"}, string(*selected)))
 		switch *selected {
 		case Testnet:
@@ -1183,7 +1177,7 @@ func (m *SelectingL1Network) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *SelectingL1Network) View() string {
-	state := weavecontext.GetCurrentState[RelayerState](m.Ctx)
+	state := weavecontext.GetCurrentState[State](m.Ctx)
 	return state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{"Initia L1 network"}, styles.Question) + m.Selector.View()
 }
 
@@ -1220,15 +1214,15 @@ func (m *SelectingL2Network) GetQuestion() string {
 }
 
 func (m *SelectingL2Network) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if model, cmd, handled := weavecontext.HandleCommonCommands[RelayerState](m, msg); handled {
+	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
 	}
 
 	// Handle selection logic
 	selected, cmd := m.Select(msg)
 	if selected != nil {
-		state := weavecontext.PushPageAndGetState[RelayerState](m)
-		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, m.GetQuestion(), []string{"L2 network"}, string(*selected)))
+		state := weavecontext.PushPageAndGetState[State](m)
+		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, m.GetQuestion(), []string{"L2 network"}, *selected))
 		m.Ctx = weavecontext.SetCurrentState(m.Ctx, state)
 
 		re := regexp.MustCompile(`\(([^)]+)\)`)
@@ -1275,7 +1269,7 @@ func (m *SelectingL2Network) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *SelectingL2Network) View() string {
-	state := weavecontext.GetCurrentState[RelayerState](m.Ctx)
+	state := weavecontext.GetCurrentState[State](m.Ctx)
 	return state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{"L2 network"}, styles.Question) + m.Selector.View()
 }
 
@@ -1298,7 +1292,7 @@ func (m *TerminalState) Update(_ tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *TerminalState) View() string {
-	state := weavecontext.GetCurrentState[RelayerState](m.Ctx)
+	state := weavecontext.GetCurrentState[State](m.Ctx)
 	return state.weave.Render()
 }
 
@@ -1334,14 +1328,14 @@ func (m *SelectingL1NetworkRegistry) Init() tea.Cmd {
 }
 
 func (m *SelectingL1NetworkRegistry) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if model, cmd, handled := weavecontext.HandleCommonCommands[RelayerState](m, msg); handled {
+	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
 	}
 
 	// Handle selection logic
 	selected, cmd := m.Select(msg)
 	if selected != nil {
-		state := weavecontext.PushPageAndGetState[RelayerState](m)
+		state := weavecontext.PushPageAndGetState[State](m)
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, m.GetQuestion(), []string{"Initia L1 network"}, string(*selected)))
 		switch *selected {
 		case Testnet:
@@ -1373,7 +1367,7 @@ func (m *SelectingL1NetworkRegistry) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *SelectingL1NetworkRegistry) View() string {
-	state := weavecontext.GetCurrentState[RelayerState](m.Ctx)
+	state := weavecontext.GetCurrentState[State](m.Ctx)
 	return state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{"Initia L1 network"}, styles.Question) + m.Selector.View()
 }
 
@@ -1414,14 +1408,14 @@ func (m *SelectSettingUpIBCChannelsMethod) Init() tea.Cmd {
 }
 
 func (m *SelectSettingUpIBCChannelsMethod) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if model, cmd, handled := weavecontext.HandleCommonCommands[RelayerState](m, msg); handled {
+	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
 	}
 
 	// Handle selection logic
 	selected, cmd := m.Select(msg)
 	if selected != nil {
-		state := weavecontext.PushPageAndGetState[RelayerState](m)
+		state := weavecontext.PushPageAndGetState[State](m)
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, m.GetQuestion(), []string{""}, string(*selected)))
 		switch *selected {
 		case Basic:
@@ -1464,12 +1458,12 @@ func (m *SelectSettingUpIBCChannelsMethod) Update(msg tea.Msg) (tea.Model, tea.C
 }
 
 func (m *SelectSettingUpIBCChannelsMethod) View() string {
-	state := weavecontext.GetCurrentState[RelayerState](m.Ctx)
+	state := weavecontext.GetCurrentState[State](m.Ctx)
 	return state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{""}, styles.Question) + m.Selector.View()
 }
 
 func GetL1ChainId(ctx context.Context) (string, bool) {
-	state := weavecontext.GetCurrentState[RelayerState](ctx)
+	state := weavecontext.GetCurrentState[State](ctx)
 	if chainId, ok := state.Config["l1.chain_id"]; ok {
 		return chainId, ok
 	}
@@ -1486,7 +1480,7 @@ func MustGetL1ChainId(ctx context.Context) string {
 }
 
 func GetL2ChainId(ctx context.Context) (string, bool) {
-	state := weavecontext.GetCurrentState[RelayerState](ctx)
+	state := weavecontext.GetCurrentState[State](ctx)
 	if chainId, found := state.Config["l2.chain_id"]; found {
 		return chainId, found
 	}
@@ -1503,7 +1497,7 @@ func MustGetL2ChainId(ctx context.Context) string {
 }
 
 func GetL1ActiveLcd(ctx context.Context) (string, bool) {
-	state := weavecontext.GetCurrentState[RelayerState](ctx)
+	state := weavecontext.GetCurrentState[State](ctx)
 	if lcd, found := state.Config["l1.lcd_address"]; found {
 		return lcd, found
 	}
@@ -1520,7 +1514,7 @@ func MustGetL1ActiveLcd(ctx context.Context) string {
 }
 
 func GetL1ActiveRpc(ctx context.Context) (string, bool) {
-	state := weavecontext.GetCurrentState[RelayerState](ctx)
+	state := weavecontext.GetCurrentState[State](ctx)
 	if rpc, found := state.Config["l1.rpc_address"]; found {
 		return rpc, found
 	}
@@ -1537,7 +1531,7 @@ func MustGetL1ActiveRpc(ctx context.Context) string {
 }
 
 func GetL2ActiveRpc(ctx context.Context) (string, bool) {
-	state := weavecontext.GetCurrentState[RelayerState](ctx)
+	state := weavecontext.GetCurrentState[State](ctx)
 	if rpc, found := state.Config["l2.rpc_address"]; found {
 		return rpc, found
 	}
@@ -1554,7 +1548,7 @@ func MustGetL2ActiveRpc(ctx context.Context) string {
 }
 
 func GetL1GasDenom(ctx context.Context) (string, bool) {
-	state := weavecontext.GetCurrentState[RelayerState](ctx)
+	state := weavecontext.GetCurrentState[State](ctx)
 	if denom, found := state.Config["l1.gas_price.denom"]; found {
 		return denom, found
 	}
@@ -1572,7 +1566,7 @@ func MustGetL1GasDenom(ctx context.Context) string {
 }
 
 func GetL2GasDenom(ctx context.Context) (string, bool) {
-	state := weavecontext.GetCurrentState[RelayerState](ctx)
+	state := weavecontext.GetCurrentState[State](ctx)
 	if denom, found := state.Config["l2.gas_price.denom"]; found {
 		return denom, found
 	}
@@ -1591,7 +1585,7 @@ func MustGetL2GasDenom(ctx context.Context) string {
 
 func MustGetL1GasPrices(ctx context.Context) string {
 	denom := MustGetL1GasDenom(ctx)
-	state := weavecontext.GetCurrentState[RelayerState](ctx)
+	state := weavecontext.GetCurrentState[State](ctx)
 	price, ok := state.Config["l1.gas_price.price"]
 	if !ok {
 		panic("cannot get l1 gas price from state")
@@ -1602,7 +1596,7 @@ func MustGetL1GasPrices(ctx context.Context) string {
 
 func MustGetL2GasPrices(ctx context.Context) string {
 	denom := MustGetL2GasDenom(ctx)
-	state := weavecontext.GetCurrentState[RelayerState](ctx)
+	state := weavecontext.GetCurrentState[State](ctx)
 	amount, ok := state.Config["l2.gas_price.price"]
 	if !ok {
 		panic("cannot get l2 gas denom from state")
@@ -1644,13 +1638,13 @@ func (m *FillPortOnL1) Init() tea.Cmd {
 }
 
 func (m *FillPortOnL1) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if model, cmd, handled := weavecontext.HandleCommonCommands[RelayerState](m, msg); handled {
+	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
 	}
 
 	input, cmd, done := m.TextInput.Update(msg)
 	if done {
-		state := weavecontext.PushPageAndGetState[RelayerState](m)
+		state := weavecontext.PushPageAndGetState[State](m)
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.DotsSeparator, m.GetQuestion(), []string{"L1", m.extra}, m.TextInput.Text))
 		state.IBCChannels = append(state.IBCChannels, types.IBCChannelPair{})
 		state.IBCChannels[m.idx].L1.PortID = m.TextInput.Text
@@ -1661,7 +1655,7 @@ func (m *FillPortOnL1) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *FillPortOnL1) View() string {
-	state := weavecontext.GetCurrentState[RelayerState](m.Ctx)
+	state := weavecontext.GetCurrentState[State](m.Ctx)
 	return state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{"L1", m.extra}, styles.Question) + m.TextInput.View()
 }
 
@@ -1700,13 +1694,13 @@ func (m *FillChannelL1) Init() tea.Cmd {
 }
 
 func (m *FillChannelL1) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if model, cmd, handled := weavecontext.HandleCommonCommands[RelayerState](m, msg); handled {
+	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
 	}
 
 	input, cmd, done := m.TextInput.Update(msg)
 	if done {
-		state := weavecontext.PushPageAndGetState[RelayerState](m)
+		state := weavecontext.PushPageAndGetState[State](m)
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.DotsSeparator, m.GetQuestion(), []string{"L1", m.port, m.extra}, m.TextInput.Text))
 		state.IBCChannels[m.idx].L1.ChannelID = m.TextInput.Text
 		return NewFillPortOnL2(weavecontext.SetCurrentState(m.Ctx, state), m.idx), nil
@@ -1716,7 +1710,7 @@ func (m *FillChannelL1) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *FillChannelL1) View() string {
-	state := weavecontext.GetCurrentState[RelayerState](m.Ctx)
+	state := weavecontext.GetCurrentState[State](m.Ctx)
 	return state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{"L1", m.port, m.extra}, styles.Question) + m.TextInput.View()
 }
 
@@ -1753,13 +1747,13 @@ func (m *FillPortOnL2) Init() tea.Cmd {
 }
 
 func (m *FillPortOnL2) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if model, cmd, handled := weavecontext.HandleCommonCommands[RelayerState](m, msg); handled {
+	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
 	}
 
 	input, cmd, done := m.TextInput.Update(msg)
 	if done {
-		state := weavecontext.PushPageAndGetState[RelayerState](m)
+		state := weavecontext.PushPageAndGetState[State](m)
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.DotsSeparator, m.GetQuestion(), []string{"L2", m.extra}, m.TextInput.Text))
 		state.IBCChannels[m.idx].L2.PortID = m.TextInput.Text
 		return NewFillChannelL2(weavecontext.SetCurrentState(m.Ctx, state), m.TextInput.Text, m.idx), nil
@@ -1769,7 +1763,7 @@ func (m *FillPortOnL2) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *FillPortOnL2) View() string {
-	state := weavecontext.GetCurrentState[RelayerState](m.Ctx)
+	state := weavecontext.GetCurrentState[State](m.Ctx)
 	return state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{"L2", m.extra}, styles.Question) + m.TextInput.View()
 }
 
@@ -1808,13 +1802,13 @@ func (m *FillChannelL2) Init() tea.Cmd {
 }
 
 func (m *FillChannelL2) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if model, cmd, handled := weavecontext.HandleCommonCommands[RelayerState](m, msg); handled {
+	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
 	}
 
 	input, cmd, done := m.TextInput.Update(msg)
 	if done {
-		state := weavecontext.PushPageAndGetState[RelayerState](m)
+		state := weavecontext.PushPageAndGetState[State](m)
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.DotsSeparator, m.GetQuestion(), []string{"L2", m.port, m.extra}, m.TextInput.Text))
 		state.IBCChannels[m.idx].L2.ChannelID = m.TextInput.Text
 		return NewAddMoreIBCChannels(weavecontext.SetCurrentState(m.Ctx, state), m.idx), nil
@@ -1824,7 +1818,7 @@ func (m *FillChannelL2) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *FillChannelL2) View() string {
-	state := weavecontext.GetCurrentState[RelayerState](m.Ctx)
+	state := weavecontext.GetCurrentState[State](m.Ctx)
 	return state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{"L2", m.port, m.extra}, styles.Question) + m.TextInput.View()
 }
 
@@ -1858,14 +1852,14 @@ func (m *AddMoreIBCChannels) Init() tea.Cmd {
 }
 
 func (m *AddMoreIBCChannels) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if model, cmd, handled := weavecontext.HandleCommonCommands[RelayerState](m, msg); handled {
+	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
 	}
 
 	selected, cmd := m.Select(msg)
 	if selected != nil {
-		state := weavecontext.PushPageAndGetState[RelayerState](m)
-		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, m.GetQuestion(), []string{""}, string(*selected)))
+		state := weavecontext.PushPageAndGetState[State](m)
+		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, m.GetQuestion(), []string{""}, *selected))
 
 		return NewFillPortOnL1(weavecontext.SetCurrentState(m.Ctx, state), m.idx), nil
 	}
@@ -1873,7 +1867,7 @@ func (m *AddMoreIBCChannels) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *AddMoreIBCChannels) View() string {
-	state := weavecontext.GetCurrentState[RelayerState](m.Ctx)
+	state := weavecontext.GetCurrentState[State](m.Ctx)
 	return state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{""}, styles.Question) + m.Selector.View()
 }
 
@@ -1910,13 +1904,13 @@ func (m *IBCChannelsCheckbox) Init() tea.Cmd {
 }
 
 func (m *IBCChannelsCheckbox) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if model, cmd, handled := weavecontext.HandleCommonCommands[RelayerState](m, msg); handled {
+	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
 	}
 	cb, cmd, done := m.Select(msg)
 	_ = cb
 	if done {
-		state := weavecontext.PushPageAndGetState[RelayerState](m)
+		state := weavecontext.PushPageAndGetState[State](m)
 		ibcChannels := make([]types.IBCChannelPair, 0)
 		for idx := 1; idx < len(m.pairs); idx++ {
 			if m.Selected[idx] {
@@ -1953,7 +1947,7 @@ func (m *IBCChannelsCheckbox) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *IBCChannelsCheckbox) View() string {
-	state := weavecontext.GetCurrentState[RelayerState](m.Ctx)
+	state := weavecontext.GetCurrentState[State](m.Ctx)
 	if m.alert {
 		return state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{}, styles.Question) + "\n" + m.CheckBox.View() + "\n" + styles.Text("Please select at least one IBC channel to proceed to the next step.", styles.Yellow) + "\n"
 	}
@@ -1988,13 +1982,13 @@ func (m *FillL2LCD) Init() tea.Cmd {
 }
 
 func (m *FillL2LCD) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if model, cmd, handled := weavecontext.HandleCommonCommands[RelayerState](m, msg); handled {
+	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
 	}
 
 	input, cmd, done := m.TextInput.Update(msg)
 	if done {
-		state := weavecontext.PushPageAndGetState[RelayerState](m)
+		state := weavecontext.PushPageAndGetState[State](m)
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.DotsSeparator, m.GetQuestion(), []string{"L2", "LCD_address", m.extra}, m.TextInput.Text))
 
 		// TODO: should have loading state for this
@@ -2002,7 +1996,7 @@ func (m *FillL2LCD) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var res types.ChannelsResponse
 		_, err := httpClient.Get(input.Text, "/ibc/core/channel/v1/channels", nil, &res)
 		if err != nil {
-			m.err = fmt.Errorf("Unable to call the LCD endpoint '%s'. Please verify that the address is correct and reachablem", input.Text)
+			m.err = fmt.Errorf("unable to call the LCD endpoint '%s'. Please verify that the address is correct and reachablem", input.Text)
 			return m, cmd
 		}
 
@@ -2024,7 +2018,7 @@ func (m *FillL2LCD) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *FillL2LCD) View() string {
-	state := weavecontext.GetCurrentState[RelayerState](m.Ctx)
+	state := weavecontext.GetCurrentState[State](m.Ctx)
 	if m.err != nil {
 		return state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{"L2", "LCD_address", m.extra}, styles.Question) + m.TextInput.ViewErr(m.err)
 	}
@@ -2044,38 +2038,38 @@ func NewSettingUpRelayer(ctx context.Context) *SettingUpRelayer {
 	}
 }
 
-// Utility function for determining Hermes binary URL, panicking on errors
+// getHermesBinaryURL is a utility function for determining Hermes binary URL, panicking on errors
 func getHermesBinaryURL(version string) string {
 	baseURL := "https://github.com/informalsystems/hermes/releases/download"
-	arch := runtime.GOARCH
-	os := runtime.GOOS
+	goarch := runtime.GOARCH
+	goos := runtime.GOOS
 
 	var binaryType string
-	switch arch {
+	switch goarch {
 	case "amd64":
-		arch = "x86_64"
+		goarch = "x86_64"
 	case "arm64":
-		arch = "aarch64"
+		goarch = "aarch64"
 	default:
-		panic(fmt.Sprintf("Unsupported architecture: %s", arch))
+		panic(fmt.Sprintf("Unsupported architecture: %s", goarch))
 	}
 
-	switch os {
+	switch goos {
 	case "darwin":
 		binaryType = "apple-darwin"
 	case "linux":
 		binaryType = "unknown-linux-gnu"
 	default:
-		panic(fmt.Sprintf("Unsupported operating system: %s", os))
+		panic(fmt.Sprintf("Unsupported operating system: %s", goos))
 	}
 
-	fileName := fmt.Sprintf("hermes-%s-%s-%s.tar.gz", version, arch, binaryType)
+	fileName := fmt.Sprintf("hermes-%s-%s-%s.tar.gz", version, goarch, binaryType)
 	return fmt.Sprintf("%s/%s/%s", baseURL, version, fileName)
 }
 
 func WaitSettingUpRelayer(ctx context.Context) tea.Cmd {
 	return func() tea.Msg {
-		state := weavecontext.GetCurrentState[RelayerState](ctx)
+		state := weavecontext.GetCurrentState[State](ctx)
 
 		// Get Hermes binary URL based on OS and architecture
 		hermesURL := getHermesBinaryURL(HermesVersion)
@@ -2135,7 +2129,7 @@ func (m *SettingUpRelayer) Init() tea.Cmd {
 }
 
 func (m *SettingUpRelayer) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if model, cmd, handled := weavecontext.HandleCommonCommands[RelayerState](m, msg); handled {
+	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
 	}
 
@@ -2143,14 +2137,14 @@ func (m *SettingUpRelayer) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.loading = loader
 	if m.loading.Completing {
 		m.Ctx = m.loading.EndContext
-		state := weavecontext.PushPageAndGetState[RelayerState](m)
+		state := weavecontext.PushPageAndGetState[State](m)
 		return NewL1KeySelect(weavecontext.SetCurrentState(m.Ctx, state)), nil
 	}
 	return m, cmd
 }
 
 func (m *SettingUpRelayer) View() string {
-	state := weavecontext.GetCurrentState[RelayerState](m.Ctx)
+	state := weavecontext.GetCurrentState[State](m.Ctx)
 	return state.weave.Render() + "\n" + m.loading.View()
 }
 

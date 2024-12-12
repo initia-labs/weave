@@ -76,7 +76,7 @@ func TestSelectingL1NetworkUpdateWithNavigation(t *testing.T) {
 	assert.IsType(t, &FieldInputModel{}, newModel)
 
 	// Verify the configuration state
-	state := weavecontext.GetCurrentState[RelayerState](ctx)
+	state := weavecontext.GetCurrentState[State](ctx)
 	assert.Equal(t, "initiation-2", state.Config["l1.chain_id"])
 	assert.NotEmpty(t, state.Config["l1.rpc_address"])
 	assert.NotEmpty(t, state.Config["l1.grpc_address"])
@@ -118,7 +118,7 @@ func TestSelectingL1NetworkRegistryUpdate(t *testing.T) {
 			assert.IsType(t, tc.expectedModel, newModel, "Expected the resulting model to match the expected type.")
 
 			// Verify the configuration state
-			state := weavecontext.GetCurrentState[RelayerState](ctx)
+			state := weavecontext.GetCurrentState[State](ctx)
 			assert.NotEmpty(t, state.Config["l1.chain_id"], "Chain ID should not be empty.")
 			assert.NotEmpty(t, state.Config["l1.rpc_address"], "RPC address should not be empty.")
 			assert.NotEmpty(t, state.Config["l1.grpc_address"], "gRPC address should not be empty.")
@@ -185,7 +185,7 @@ func TestSelectSettingUpIBCChannelsMethodUpdate(t *testing.T) {
 }
 
 func TestStateAccessors(t *testing.T) {
-	// Create a mock RelayerState
+	// Create a mock State
 	state := NewRelayerState()
 	state.Config = map[string]string{
 		"l1.chain_id":        "testnet-chain-id",
@@ -417,7 +417,7 @@ func TestIBCChannelsCheckboxUpdateWithConditions(t *testing.T) {
 
 			settingModel := updatedModel.(*SettingUpRelayer)
 			// Verify the state update
-			state := weavecontext.GetCurrentState[RelayerState](settingModel.Ctx)
+			state := weavecontext.GetCurrentState[State](settingModel.Ctx)
 			require.Len(t, state.IBCChannels, tc.expectedLength, "Unexpected number of selected channels")
 			assert.Equal(t, tc.expectedPairs, state.IBCChannels, "Selected channels do not match expected pairs")
 		})

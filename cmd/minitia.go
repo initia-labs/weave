@@ -63,13 +63,13 @@ func loadAndParseMinitiaConfig(path string) (*types.MinitiaConfig, error) {
 	}
 	defer file.Close()
 
-	var config types.MinitiaConfig
+	var minitiaConfig types.MinitiaConfig
 	decoder := json.NewDecoder(file)
-	if err = decoder.Decode(&config); err != nil {
+	if err = decoder.Decode(&minitiaConfig); err != nil {
 		return nil, err
 	}
 
-	return &config, nil
+	return &minitiaConfig, nil
 }
 
 func minitiaLaunchCommand() *cobra.Command {
@@ -88,11 +88,11 @@ func minitiaLaunchCommand() *cobra.Command {
 			}
 
 			if configPath != "" {
-				config, err := loadAndParseMinitiaConfig(configPath)
+				minitiaConfig, err := loadAndParseMinitiaConfig(configPath)
 				if err != nil {
 					return fmt.Errorf("failed to load config: %w", err)
 				}
-				cmd.SetContext(context.WithValue(cmd.Context(), minitiaConfigKey{}, config))
+				cmd.SetContext(context.WithValue(cmd.Context(), minitiaConfigKey{}, minitiaConfig))
 			}
 
 			if vm != "" {
@@ -112,7 +112,7 @@ func minitiaLaunchCommand() *cobra.Command {
 
 			configPath, _ := cmd.Flags().GetString(FlagWithConfig)
 			if configPath != "" {
-				config, ok := cmd.Context().Value(minitiaConfigKey{}).(*types.MinitiaConfig)
+				minitiaConfig, ok := cmd.Context().Value(minitiaConfigKey{}).(*types.MinitiaConfig)
 				if !ok {
 					return fmt.Errorf("failed to retrieve configuration from context")
 				}
@@ -123,7 +123,7 @@ func minitiaLaunchCommand() *cobra.Command {
 					return err
 				}
 
-				state.PrepareLaunchingWithConfig(vm, version, downloadURL, configPath, config)
+				state.PrepareLaunchingWithConfig(vm, version, downloadURL, configPath, minitiaConfig)
 			}
 
 			force, _ := cmd.Flags().GetBool(FlagForce)

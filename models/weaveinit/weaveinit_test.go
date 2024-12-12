@@ -9,12 +9,12 @@ import (
 func TestGetWeaveInitOptions(t *testing.T) {
 	testCases := []struct {
 		flags    string
-		expected []WeaveInitOption
+		expected []Option
 	}{
-		{"", []WeaveInitOption{RunL1NodeOption}},
-		{"minitia_launch", []WeaveInitOption{RunL1NodeOption, LaunchNewMinitiaOption}},
-		{"minitia_launch,opinit_bots", []WeaveInitOption{RunL1NodeOption, LaunchNewMinitiaOption, SetupOPBotsKeys, InitializeOPBotsOption}},
-		{"minitia_launch,opinit_bots,relayer", []WeaveInitOption{RunL1NodeOption, LaunchNewMinitiaOption, SetupOPBotsKeys, InitializeOPBotsOption, StartRelayerOption}},
+		{"", []Option{RunL1NodeOption}},
+		{"minitia_launch", []Option{RunL1NodeOption, LaunchNewMinitiaOption}},
+		{"minitia_launch,opinit_bots", []Option{RunL1NodeOption, LaunchNewMinitiaOption, SetupOPBotsKeys, InitializeOPBotsOption}},
+		{"minitia_launch,opinit_bots,relayer", []Option{RunL1NodeOption, LaunchNewMinitiaOption, SetupOPBotsKeys, InitializeOPBotsOption, StartRelayerOption}},
 	}
 
 	for _, tc := range testCases {

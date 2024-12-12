@@ -6,22 +6,22 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// ContextKey is a custom type to prevent key collisions in the context
-type ContextKey string
+// Key is a custom type to prevent key collisions in the context
+type Key string
 
 const (
-	PageKey          ContextKey = "currentPage"
-	StateKey         ContextKey = "currentState"
-	PageStackKey     ContextKey = "pageStack"
-	TooltipToggleKey ContextKey = "tooltipToggle"
+	PageKey          Key = "currentPage"
+	StateKey         Key = "currentState"
+	PageStackKey     Key = "pageStack"
+	TooltipToggleKey Key = "tooltipToggle"
 
-	InitiaHomeKey  ContextKey = "initiaHome"
-	MinitiaHomeKey ContextKey = "minitiaHome"
-	OPInitHomeKey  ContextKey = "opInitHomeKey"
+	InitiaHomeKey  Key = "initiaHome"
+	MinitiaHomeKey Key = "minitiaHome"
+	OPInitHomeKey  Key = "opInitHomeKey"
 )
 
 var (
-	ExistingContextKey = []ContextKey{
+	ExistingContextKey = []Key{
 		PageKey,
 		StateKey,
 		PageStackKey,

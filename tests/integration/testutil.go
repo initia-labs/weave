@@ -180,8 +180,8 @@ func SetupGasStation(t *testing.T) tea.Model {
 	firstModel := models.NewGasStationMnemonicInput(ctx)
 
 	steps := Steps{
-		TypeText(GasStationMnemonic),
-		PressEnter,
+		TypeText(GasStationMnemonic), // type in the mnemonic
+		PressEnter,                   // press enter to confirm
 	}
 
 	return RunProgramWithSteps(t, firstModel, steps)

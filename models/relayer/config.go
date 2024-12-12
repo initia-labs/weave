@@ -58,7 +58,7 @@ func transformToPacketFilter(pairs []types.IBCChannelPair, isL1 bool) PacketFilt
 	return packetFilter
 }
 
-func createHermesConfig(state RelayerState) {
+func createHermesConfig(state State) {
 	// Define the template directly in a variable
 	const configTemplate = `
 # The global section has parameters that apply globally to the relayer operation.

@@ -13,39 +13,39 @@ import (
 	"github.com/initia-labs/weave/ui"
 )
 
-type WeaveInitState struct {
+type State struct {
 	weave types.WeaveState
 }
 
-func NewWeaveInitState() WeaveInitState {
-	return WeaveInitState{
+func NewWeaveInitState() State {
+	return State{
 		weave: types.NewWeaveState(),
 	}
 }
 
-func (e WeaveInitState) Clone() WeaveInitState {
-	return WeaveInitState{
+func (e State) Clone() State {
+	return State{
 		weave: e.weave.Clone(),
 	}
 }
 
 type WeaveInit struct {
-	ui.Selector[WeaveInitOption]
+	ui.Selector[Option]
 	weavecontext.BaseModel
 }
 
-type WeaveInitOption string
+type Option string
 
 const (
-	RunL1NodeOption        WeaveInitOption = "Run L1 Node"
-	LaunchNewMinitiaOption WeaveInitOption = "Launch New Minitia"
-	SetupOPBotsKeys        WeaveInitOption = "Setup OPInit Bots Keys"
-	InitializeOPBotsOption WeaveInitOption = "Initialize OPInit Bots"
-	StartRelayerOption     WeaveInitOption = "Start a Relayer"
+	RunL1NodeOption        Option = "Run L1 Node"
+	LaunchNewMinitiaOption Option = "Launch New Minitia"
+	SetupOPBotsKeys        Option = "Setup OPInit Bots Keys"
+	InitializeOPBotsOption Option = "Initialize OPInit Bots"
+	StartRelayerOption     Option = "Start a Relayer"
 )
 
-func GetWeaveInitOptions() []WeaveInitOption {
-	options := []WeaveInitOption{
+func GetWeaveInitOptions() []Option {
+	options := []Option{
 		RunL1NodeOption,
 	}
 
@@ -76,7 +76,7 @@ func NewWeaveInit() *WeaveInit {
 
 	return &WeaveInit{
 		BaseModel: weavecontext.BaseModel{Ctx: ctx, CannotBack: true},
-		Selector: ui.Selector[WeaveInitOption]{
+		Selector: ui.Selector[Option]{
 			Options:    GetWeaveInitOptions(),
 			Cursor:     0,
 			CannotBack: true,
@@ -90,7 +90,7 @@ func (m *WeaveInit) Init() tea.Cmd {
 }
 
 func (m *WeaveInit) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if model, cmd, handled := weavecontext.HandleCommonCommands[WeaveInitState](m, msg); handled {
+	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
 	}
 
