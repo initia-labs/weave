@@ -2,6 +2,7 @@ package initia
 
 const (
 	DefaultGasPriceDenom string = "uinit"
+	CosmovisorVersion    string = "v1.7.0"
 )
 
 var (

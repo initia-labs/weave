@@ -928,13 +928,19 @@ func initializeApp(ctx context.Context) tea.Cmd {
 		weaveDataPath := filepath.Join(userHome, common.WeaveDataDirectory)
 		binaryPath := cosmosutils.GetInitiaBinaryPath(nodeVersion)
 		cosmosutils.MustInstallInitiaBinary(nodeVersion, url, binaryPath)
-
+		cosmovisorPath := cosmosutils.MustInstallCosmovisor(CosmovisorVersion)
 		initiaHome := weavecontext.GetInitiaHome(ctx)
 		if _, err := os.Stat(initiaHome); os.IsNotExist(err) {
 			runCmd := exec.Command(binaryPath, "init", state.moniker, "--chain-id", state.chainId, "--home", initiaHome)
 			if err := runCmd.Run(); err != nil {
 				panic(fmt.Sprintf("failed to run initiad init: %v", err))
 			}
+			runCmd = exec.Command(cosmovisorPath, "init", binaryPath)
+			runCmd.Env = append(runCmd.Env, "DAEMON_NAME=initiad", "DAEMON_HOME="+initiaHome)
+			if err := runCmd.Run(); err != nil {
+				panic(fmt.Sprintf("failed to run cosmovisor init: %v", err))
+			}
+
 		}
 
 		initiaConfigPath := weavecontext.GetInitiaConfigDirectory(ctx)

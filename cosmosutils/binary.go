@@ -284,3 +284,61 @@ func MustInstallInitiaBinary(version, url, binaryPath string) {
 
 	io.SetLibraryPaths(filepath.Dir(binaryPath))
 }
+
+func MustInstallCosmovisor(version string) string {
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		panic(fmt.Sprintf("failed to get user home directory: %v", err))
+	}
+	targetDirectory := filepath.Join(userHome, common.WeaveDataDirectory)
+	tarballPath := filepath.Join(userHome, common.WeaveDataDirectory, "cosmovisor.tar.gz")
+	extractedPath := filepath.Join(targetDirectory, fmt.Sprintf("cosmovisor@%s", version))
+
+	binaryPath := filepath.Join(userHome, common.WeaveDataDirectory, fmt.Sprintf("cosmovisor@%s", version), "cosmovisor")
+
+	// Determine the OS and architecture
+	osType := runtime.GOOS
+	arch := runtime.GOARCH
+	if osType == "darwin" {
+		arch = "amd64"
+	}
+
+	// Generate the URL dynamically
+	supportedCombinations := map[string]string{
+		"linux-amd64":  "cosmovisor-%s-linux-amd64.tar.gz",
+		"linux-arm64":  "cosmovisor-%s-linux-arm64.tar.gz",
+		"darwin-amd64": "cosmovisor-%s-darwin-amd64.tar.gz",
+	}
+
+	key := fmt.Sprintf("%s-%s", osType, arch)
+	template, exists := supportedCombinations[key]
+	if !exists {
+		panic(fmt.Sprintf("unsupported combination of OS and architecture: %s-%s", osType, arch))
+	}
+
+	url := fmt.Sprintf("https://github.com/cosmos/cosmos-sdk/releases/download/cosmovisor%%2F%s/%s", version, fmt.Sprintf(template, version))
+
+	// Check if the binary already exists
+	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
+		// Ensure the extracted path exists
+		if _, err := os.Stat(extractedPath); os.IsNotExist(err) {
+			err := os.MkdirAll(extractedPath, os.ModePerm)
+			if err != nil {
+				panic(fmt.Sprintf("failed to create cosmovisor directory: %v", err))
+			}
+		}
+
+		// Download and extract the tarball
+		if err = io.DownloadAndExtractTarGz(url, tarballPath, extractedPath); err != nil {
+			panic(fmt.Sprintf("failed to download and extract cosmovisor binary: %v", err))
+		}
+
+		// Set permissions for the binary
+		err = os.Chmod(binaryPath, 0755)
+		if err != nil {
+			panic(fmt.Sprintf("failed to set permissions for cosmovisor binary: %v", err))
+		}
+	}
+
+	return binaryPath
+}
