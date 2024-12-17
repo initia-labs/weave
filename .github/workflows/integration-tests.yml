@@ -41,5 +41,3 @@ jobs:
 
       - name: Run Integration Tests
         run: cd tests && go test -v ./...
-
-  
