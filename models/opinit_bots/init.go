@@ -55,7 +55,7 @@ var defaultExecutorFields = []*Field{
 
 var defaultChallengerFields = []*Field{
 	// Listen Address
-	{Name: "listen_address", Type: StringField, Question: "Specify listen address of the bot", Highlights: []string{"listen address"}, Placeholder: `Press tab to use "localhost:3000"`, DefaultValue: "localhost:3000", ValidateFn: common.ValidateEmptyString, Tooltip: &tooltip.ListenAddressTooltip},
+	{Name: "listen_address", Type: StringField, Question: "Specify listen address of the bot", Highlights: []string{"listen address"}, Placeholder: `Press tab to use "localhost:3001"`, DefaultValue: "localhost:3001", ValidateFn: common.ValidateEmptyString, Tooltip: &tooltip.ListenAddressTooltip},
 
 	// L1 Node Configuration
 	{Name: "l1_node.rpc_address", Type: StringField, Question: "Specify L1 RPC endpoint", Highlights: []string{"L1 RPC endpoint"}, Placeholder: "Add RPC address ex. http://localhost:26657", ValidateFn: common.ValidateURL, Tooltip: &tooltip.L1RPCEndpointTooltip},
