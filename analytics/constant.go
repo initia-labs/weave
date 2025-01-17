@@ -1,7 +1,10 @@
 package analytics
 
+var (
+	AmplitudeKey = "2f88e103ec6463ae4af81f0ef6c16c09"
+)
+
 const (
-	AmplitudeKey = "aba1be3e2335dd5b8b060e977d93410b"
 
 	// Component
 	AnalyticsComponent  Component = "analytics"

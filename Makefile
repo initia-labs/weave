@@ -27,7 +27,7 @@ check_version:
 LDFLAGS := -X github.com/initia-labs/weave/cmd.Version=$(WEAVE_VERSION)
 
 dev: check_version
-	go install -ldflags "$(LDFLAGS) -X github.com/initia-labs/weave/config.DevMode=true" .
+	go install -ldflags "$(LDFLAGS) -X github.com/initia-labs/weave/analytics.AmplitudeKey=aba1be3e2335dd5b8b060e977d93410b" .
 
 # Build targets
 build: check_version $(BUILDDIR)

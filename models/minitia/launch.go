@@ -3017,17 +3017,10 @@ func (m *LaunchingNewMinitiaLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.HandlePanic(fmt.Errorf("failed to encode payload: %v", err))
 		}
 
-		link := fmt.Sprintf("%s/custom-network/add/link?config=%s", InitiaScanURL, encodedPayload)
+		state.scanLink = fmt.Sprintf("%s/custom-network/add/link?config=%s", InitiaScanURL, encodedPayload)
 		scanText := fmt.Sprintf(
-			"\n✨ %s 🪄 (We already started the rollup app for you)\n%s\n\n%s",
+			"\n✨ %s 🪄 (We already started the rollup app for you)\n",
 			styles.BoldText("Explore your new rollup here", styles.White),
-			common.WrapText(link),
-			fmt.Sprintf(
-				"%s %s\n  %s\n\n",
-				styles.Text("i", styles.Yellow),
-				styles.BoldUnderlineText("Important", styles.Yellow),
-				styles.Text("Open this in Chrome is recommended because some browsers may not support localhost access from a different host, or edit your browser's settings to allow it if necessary.", styles.Yellow),
-			),
 		)
 
 		state.weave.PushPreviousResponse(scanText)
@@ -3042,6 +3035,8 @@ func (m *LaunchingNewMinitiaLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		if state.feeWhitelistAccounts != "" {
+			time.Sleep(1 * time.Second)
+
 			cache := make(map[string]bool)
 			for _, acc := range strings.Split(state.feeWhitelistAccounts, ",") {
 				cache[acc] = true
@@ -3073,7 +3068,7 @@ func (m *LaunchingNewMinitiaLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.HandlePanic(fmt.Errorf("failed to create update params message: %v", err))
 
 			}
-			time.Sleep(time.Second)
+
 			runCmd := exec.Command(state.binaryPath, "tx", "opchild", "execute-messages", messageJsonPath,
 				"--from", "Validator", "--keyring-backend", "test",
 				"--chain-id", state.chainId, "-y",
@@ -3114,5 +3109,10 @@ func (m *TerminalState) Update(_ tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *TerminalState) View() string {
 	state := weavecontext.GetCurrentState[LaunchState](m.Ctx)
-	return m.WrapView(state.weave.Render())
+	return m.WrapView(state.weave.Render()) + state.scanLink + fmt.Sprintf(
+		"\n\n%s %s\n%s\n",
+		styles.Text("i", styles.Yellow),
+		styles.BoldUnderlineText("Important", styles.Yellow),
+		styles.Text("Open this in Chrome is recommended because some browsers may not support localhost access from a different host, or edit your browser's settings to allow it if necessary.", styles.Yellow),
+	)
 }

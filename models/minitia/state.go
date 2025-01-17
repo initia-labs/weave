@@ -63,6 +63,7 @@ type LaunchState struct {
 	existingConfigPath       string
 
 	feeWhitelistAccounts string
+	scanLink             string
 }
 
 func (ls LaunchState) Clone() LaunchState {
@@ -113,6 +114,7 @@ func (ls LaunchState) Clone() LaunchState {
 		launchFromExistingConfig:          ls.launchFromExistingConfig,
 		existingConfigPath:                ls.existingConfigPath,
 		feeWhitelistAccounts:              ls.feeWhitelistAccounts,
+		scanLink:                          ls.scanLink,
 	}
 
 	copy(clone.genesisAccounts, ls.genesisAccounts)
