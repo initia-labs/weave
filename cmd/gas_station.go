@@ -115,12 +115,23 @@ func showGasStationBalance() error {
 		return err
 	}
 
-	maxWidth := getMaxWidth(initiaL1TestnetBalances, celestiaTestnetBalance, celestiaMainnetBalance)
+	// Convert micro units to standard units
+	convertedInitiaBalances := initiaL1TestnetBalances.ConvertMicroUnits(map[string]string{
+		"uinit": "INIT",
+	})
+	convertedCelestiaTestnetBalance := celestiaTestnetBalance.ConvertMicroUnits(map[string]string{
+		"utia": "TIA",
+	})
+	convertedCelestiaMainnetBalance := celestiaMainnetBalance.ConvertMicroUnits(map[string]string{
+		"utia": "TIA",
+	})
+
+	maxWidth := getMaxWidth(convertedInitiaBalances, convertedCelestiaTestnetBalance, convertedCelestiaMainnetBalance)
 	if maxWidth < len(cosmosutils.NoBalancesText) {
 		maxWidth = len(cosmosutils.NoBalancesText)
 	}
-	fmt.Printf("\n⛽️ Initia Address: %s\n\nTestnet\n%s\n\n", initiaGasStationAddress, initiaL1TestnetBalances.Render(maxWidth))
-	fmt.Printf("⛽️ Celestia Address: %s\n\nTestnet\n%s\nMainnet\n%s\n\n", celestiaGasStationAddress, celestiaTestnetBalance.Render(maxWidth), celestiaMainnetBalance.Render(maxWidth))
+	fmt.Printf("\n⛽️ Initia Address: %s\n\nTestnet\n%s\n\n", initiaGasStationAddress, convertedInitiaBalances.Render(maxWidth))
+	fmt.Printf("⛽️ Celestia Address: %s\n\nTestnet\n%s\nMainnet\n%s\n\n", celestiaGasStationAddress, convertedCelestiaTestnetBalance.Render(maxWidth), convertedCelestiaMainnetBalance.Render(maxWidth))
 	fmt.Printf("💧 You can get testnet INIT from -> https://faucet.testnet.initia.xyz.\n💧 For testnet TIA, please refer to -> https://docs.celestia.org/how-to-guides/mocha-testnet#mocha-testnet-faucet\n")
 
 	return nil

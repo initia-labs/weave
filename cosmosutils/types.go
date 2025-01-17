@@ -101,3 +101,22 @@ type OPChildParams struct {
 type OPChildParamsResponse struct {
 	Params OPChildParams `protobuf:"bytes,1,opt,name=params,proto3" json:"params,omitempty"`
 }
+
+// ConvertMicroUnits converts micro denominations to their standard units (e.g., uinit -> INIT)
+func (c *Coins) ConvertMicroUnits(denomMap map[string]string) *Coins {
+	result := make(Coins, len(*c))
+	for i, coin := range *c {
+		denom := coin.Denom
+		if newDenom, ok := denomMap[denom]; ok {
+			val, _ := new(big.Int).SetString(coin.Amount, 10)
+			div := new(big.Int).SetInt64(1_000_000)
+			result[i] = Coin{
+				Amount: new(big.Int).Div(val, div).String(),
+				Denom:  newDenom,
+			}
+		} else {
+			result[i] = coin
+		}
+	}
+	return &result
+}
