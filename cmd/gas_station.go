@@ -89,6 +89,16 @@ func getMaxWidth(coinGroups ...*cosmosutils.Coins) int {
 	return maxAmountWidth + maxDenomWidth + 1
 }
 
+// showGasStationBalance retrieves and displays the balances for Gas Station accounts on Initia and Celestia networks.
+// It converts the balances from micro units to standard units and renders them with network-specific addresses.
+// The function performs the following steps:
+// 1. Retrieve the Gas Station mnemonic from configuration
+// 2. Generate Bech32 addresses for Initia and Celestia
+// 3. Fetch balances for Initia L1 Testnet and Celestia Testnet and Mainnet
+// 4. Convert balances from micro units to standard units
+// 5. Calculate maximum display width for consistent formatting
+// 6. Print addresses and balances with faucet links for testnet tokens
+// Returns an error if any step in address generation or balance retrieval fails.
 func showGasStationBalance() error {
 	gasStationMnemonic := config.GetGasStationMnemonic()
 	initiaGasStationAddress, err := crypto.MnemonicToBech32Address("init", gasStationMnemonic)
