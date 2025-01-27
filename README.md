@@ -22,7 +22,35 @@ Its primary purpose is to solve several key challenges:
 
 ## Installation
 
+### On macOS
+
+Install _Weave_ via [Homebrew](https://brew.sh/):
+
+```bash
+brew install initia-labs/tap/weave
+```
+
+### On Linux
+
+Install _Weave_ by downloading the appropriate binary for your architecture using `wget`:
+
+**For x86_86 (amd64)**
+
+```bash
+wget https://github.com/initia-labs/weave/releases/download/v0.1.1/weave-0.1.1-linux-amd64.tar.gz
+tar -xvf weave-0.1.1-linux-amd64.tar.gz
+```
+
+**For arm64**
+
+```bash
+wget https://github.com/initia-labs/weave/releases/download/v0.1.1/weave-0.1.1-linux-arm64.tar.gz
+tar -xvf weave-0.1.1-linux-arm64.tar.gz
+```
+
 ### Building from Scratch
+
+To build _Weave_ from source, you will need a working Go environment and `make`. Follow these steps:
 
 ```bash
 git clone https://github.com/initia-labs/weave.git
