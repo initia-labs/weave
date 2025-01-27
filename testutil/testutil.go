@@ -8,13 +8,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/initia-labs/weave/config"
-	"github.com/initia-labs/weave/context"
-	"github.com/initia-labs/weave/models"
-
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/initia-labs/weave/config"
+	"github.com/initia-labs/weave/context"
+	"github.com/initia-labs/weave/models"
 )
 
 const (

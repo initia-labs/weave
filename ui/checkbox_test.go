@@ -5,8 +5,9 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/initia-labs/weave/analytics"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/initia-labs/weave/analytics"
 )
 
 func TestMain(m *testing.M) {

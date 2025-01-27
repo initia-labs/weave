@@ -2,6 +2,7 @@ package cosmosutils
 
 import (
 	"fmt"
+
 	"github.com/initia-labs/weave/client"
 )
 

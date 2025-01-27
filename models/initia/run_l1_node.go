@@ -633,9 +633,8 @@ func (m *SeedsInput) View() string {
 type PersistentPeersInput struct {
 	ui.TextInput
 	weavecontext.BaseModel
-	question     string
-	defaultValue string
-	highlights   []string
+	question   string
+	highlights []string
 }
 
 func NewPersistentPeersInput(ctx context.Context) (*PersistentPeersInput, error) {
@@ -652,15 +651,14 @@ func NewPersistentPeersInput(ctx context.Context) (*PersistentPeersInput, error)
 	state := weavecontext.GetCurrentState[RunL1NodeState](ctx)
 	if state.network != string(Local) {
 		persistentPeers, err := cosmosutils.FetchPolkachuPersistentPeers(state.chainType)
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch default persistent peers: %w", err)
+		if err == nil {
+			model.WithDefaultValue(persistentPeers)
+			model.WithPlaceholder("Press tab to use persistent peers from Polkachu")
+			return model, nil
 		}
-		model.defaultValue = persistentPeers
-		model.WithDefaultValue(persistentPeers)
-		model.WithPlaceholder("Press tab to use persistent peers from Polkachu")
-	} else {
-		model.WithPlaceholder("Enter in the format `id@ip:port`. You can add multiple seeds by separating them with a comma (,)")
 	}
+
+	model.WithPlaceholder("Enter in the format `id@ip:port`. You can add multiple seeds by separating them with a comma (,)")
 
 	return model, nil
 }
@@ -1418,11 +1416,7 @@ func (m *ExistingDataChecker) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return model, nil
 			case string(StateSync):
 				m.Ctx = weavecontext.SetCurrentState(m.Ctx, state)
-				model, err := NewStateSyncEndpointInput(m.Ctx)
-				if err != nil {
-					return m, m.HandlePanic(err)
-				}
-				return model, nil
+				return NewStateSyncEndpointInput(m.Ctx), nil
 			}
 			return NewTerminalState(weavecontext.SetCurrentState(m.Ctx, state)), tea.Quit
 		} else {
@@ -1513,11 +1507,7 @@ func (m *ExistingDataReplaceSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return model, nil
 			case string(StateSync):
-				model, err := NewStateSyncEndpointInput(m.Ctx)
-				if err != nil {
-					return m, m.HandlePanic(err)
-				}
-				return model, nil
+				return NewStateSyncEndpointInput(m.Ctx), nil
 			}
 		}
 		return NewTerminalState(weavecontext.SetCurrentState(m.Ctx, state)), tea.Quit
@@ -1540,11 +1530,6 @@ type SnapshotEndpointInput struct {
 }
 
 func NewSnapshotEndpointInput(ctx context.Context) (*SnapshotEndpointInput, error) {
-	state := weavecontext.GetCurrentState[RunL1NodeState](ctx)
-	defaultSnapshot, err := cosmosutils.FetchPolkachuSnapshotDownloadURL(PolkachuChainIdSlugMap[state.chainId])
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch snapshot url from Polkachu: %v", err)
-	}
 	model := &SnapshotEndpointInput{
 		TextInput: ui.NewTextInput(false),
 		BaseModel: weavecontext.BaseModel{Ctx: ctx},
@@ -1553,8 +1538,16 @@ func NewSnapshotEndpointInput(ctx context.Context) (*SnapshotEndpointInput, erro
 			"snapshot endpoint",
 		},
 	}
-	model.WithPlaceholder(fmt.Sprintf("Press tab to use the latest snapshot provided by Polkachu (%s)", defaultSnapshot))
-	model.WithDefaultValue(defaultSnapshot)
+
+	state := weavecontext.GetCurrentState[RunL1NodeState](ctx)
+	defaultSnapshot, err := cosmosutils.FetchPolkachuSnapshotDownloadURL(PolkachuChainIdSlugMap[state.chainId])
+	if err == nil {
+		model.WithPlaceholder(fmt.Sprintf("Press tab to use the latest snapshot provided by Polkachu (%s)", defaultSnapshot))
+		model.WithDefaultValue(defaultSnapshot)
+	} else {
+		model.WithPlaceholder("Enter the snapshot endpoint")
+	}
+
 	return model, nil
 }
 
@@ -1603,12 +1596,7 @@ type StateSyncEndpointInput struct {
 	highlights []string
 }
 
-func NewStateSyncEndpointInput(ctx context.Context) (*StateSyncEndpointInput, error) {
-	state := weavecontext.GetCurrentState[RunL1NodeState](ctx)
-	defaultStateSync, err := cosmosutils.FetchPolkachuStateSyncURL(state.chainType)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch state sync rpc server from Polkachu: %v", err)
-	}
+func NewStateSyncEndpointInput(ctx context.Context) *StateSyncEndpointInput {
 	model := &StateSyncEndpointInput{
 		TextInput: ui.NewTextInput(false),
 		BaseModel: weavecontext.BaseModel{Ctx: ctx},
@@ -1618,10 +1606,17 @@ func NewStateSyncEndpointInput(ctx context.Context) (*StateSyncEndpointInput, er
 		},
 	}
 	model.WithValidatorFn(common.ValidateEmptyString)
-	model.WithPlaceholder(fmt.Sprintf("Press tab to use the latest state sync RPC server provided by Polkachu (%s)", defaultStateSync))
-	model.WithDefaultValue(defaultStateSync)
 
-	return model, nil
+	state := weavecontext.GetCurrentState[RunL1NodeState](ctx)
+	defaultStateSync, err := cosmosutils.FetchPolkachuStateSyncURL(state.chainType)
+	if err == nil {
+		model.WithPlaceholder(fmt.Sprintf("Press tab to use the latest state sync RPC server provided by Polkachu (%s)", defaultStateSync))
+		model.WithDefaultValue(defaultStateSync)
+	} else {
+		model.WithPlaceholder("Enter an RPC endpoint to be used for state sync")
+	}
+
+	return model
 }
 
 func (m *StateSyncEndpointInput) GetQuestion() string {
@@ -1668,11 +1663,6 @@ type AdditionalStateSyncPeersInput struct {
 }
 
 func NewAdditionalStateSyncPeersInput(ctx context.Context) (*AdditionalStateSyncPeersInput, error) {
-	state := weavecontext.GetCurrentState[RunL1NodeState](ctx)
-	defaultStateSyncPeers, err := cosmosutils.FetchPolkachuStateSyncPeers(state.chainType)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch state sync peer from Polkachu: %v", err)
-	}
 	model := &AdditionalStateSyncPeersInput{
 		TextInput: ui.NewTextInput(false),
 		BaseModel: weavecontext.BaseModel{Ctx: ctx},
@@ -1682,8 +1672,15 @@ func NewAdditionalStateSyncPeersInput(ctx context.Context) (*AdditionalStateSync
 		},
 	}
 	model.WithValidatorFn(common.IsValidPeerOrSeed)
-	model.WithPlaceholder(fmt.Sprintf("Press tab to use the latest state sync peers provided by Polkachu (%s)", defaultStateSyncPeers))
-	model.WithDefaultValue(defaultStateSyncPeers)
+
+	state := weavecontext.GetCurrentState[RunL1NodeState](ctx)
+	defaultStateSyncPeers, err := cosmosutils.FetchPolkachuStateSyncPeers(state.chainType)
+	if err == nil {
+		model.WithPlaceholder(fmt.Sprintf("Press tab to use the latest state sync peers provided by Polkachu (%s)", defaultStateSyncPeers))
+		model.WithDefaultValue(defaultStateSyncPeers)
+	} else {
+		model.WithPlaceholder("Enter in the format `id@ip:port`. You can add multiple peers by separating them with a comma (,)")
+	}
 
 	return model, nil
 }
@@ -1896,18 +1893,13 @@ func (m *StateSyncSetupLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	loader, cmd := m.Loading.Update(msg)
 	m.Loading = loader
-	switch msg := msg.(type) {
+	switch msg.(type) {
 	case ui.ErrorLoading:
 		state := weavecontext.PushPageAndGetState[RunL1NodeState](m)
 		state.weave.PopPreviousResponse()
 		state.weave.PopPreviousResponse()
 		m.Ctx = weavecontext.SetCurrentState(m.Ctx, state)
-		model, err := NewStateSyncEndpointInput(m.Ctx)
-		if err != nil {
-			return m, m.HandlePanic(err)
-		}
-		model.err = msg.Err
-		return model, cmd
+		return NewStateSyncEndpointInput(m.Ctx), cmd
 	}
 
 	if m.Loading.NonRetryableErr != nil {

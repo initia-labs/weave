@@ -7,8 +7,9 @@ import (
 	"time"
 
 	"github.com/amplitude/analytics-go/amplitude"
-	"github.com/initia-labs/weave/config"
 	"github.com/spf13/cobra"
+
+	"github.com/initia-labs/weave/config"
 )
 
 var (

@@ -3,9 +3,10 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/spf13/cobra"
+
 	"github.com/initia-labs/weave/analytics"
 	"github.com/initia-labs/weave/config"
-	"github.com/spf13/cobra"
 )
 
 func AnalyticsCommand() *cobra.Command {
