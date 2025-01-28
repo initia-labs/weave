@@ -1199,6 +1199,10 @@ func initializeApp(ctx context.Context) tea.Cmd {
 			}
 		}
 
+		if state.network != string(Local) {
+			_ = cosmosutils.DownloadPolkachuAddrBook(state.chainType, filepath.Join(initiaConfigPath, "addrbook.json"))
+		}
+
 		// prune existing logs, ignore error
 		_ = srv.PruneLogs()
 
