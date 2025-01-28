@@ -141,19 +141,17 @@ func FetchPolkachuPersistentPeers(chainType registry.ChainType) (string, error) 
 }
 
 func getPolkachuAddrBookEndpoint(chainType registry.ChainType) (string, error) {
-	var networkPrefix, chainName string
+	var networkPrefix string
 	switch chainType {
 	case registry.InitiaL1Testnet:
 		networkPrefix = "testnet-"
-		chainName = "initia"
 	case registry.InitiaL1Mainnet:
 		networkPrefix = ""
-		chainName = "initia"
 	default:
 		return "", fmt.Errorf("chain type not supported: %v", chainType)
 	}
 
-	return fmt.Sprintf(PolkachuAddrBookAPI, networkPrefix, chainName), nil
+	return fmt.Sprintf(PolkachuAddrBookAPI, networkPrefix, DefaultInitiaPolkachuName), nil
 }
 
 func DownloadPolkachuAddrBook(chainType registry.ChainType, dest string) error {
