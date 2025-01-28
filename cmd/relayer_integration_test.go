@@ -4,7 +4,6 @@
 package cmd_test
 
 import (
-	"github.com/initia-labs/weave/registry"
 	"os"
 	"path/filepath"
 	"sort"
@@ -15,6 +14,7 @@ import (
 
 	weavecontext "github.com/initia-labs/weave/context"
 	"github.com/initia-labs/weave/models/relayer"
+	"github.com/initia-labs/weave/registry"
 	"github.com/initia-labs/weave/testutil"
 )
 
