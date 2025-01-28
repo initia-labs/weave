@@ -1,3 +1,5 @@
+![image (1)](https://github.com/user-attachments/assets/74ca0671-a4b7-48bc-aded-cca1816a418d)
+
 # Weave
 
 Weave is a CLI tool designed to make working with Initia and its Interwoven Rollups easier. Instead of dealing with multiple tools and extensive documentation,
@@ -17,7 +19,7 @@ Its primary purpose is to solve several key challenges:
 
 ## Prerequisites
 
-- Operating System: **Linux, MacOS**
+- Operating System: **Linux, macOS**
 - Go **v1.23** or higher when building from scratch
 
 ## Installation
