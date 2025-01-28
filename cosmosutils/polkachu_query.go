@@ -11,12 +11,12 @@ import (
 )
 
 const (
-	PolkachuBaseURL string = "https://www.polkachu.com"
+	PolkachuBaseURL     string = "https://www.polkachu.com"
+	PolkachuSnapshotURL        = PolkachuBaseURL + "/%s/snapshots"
+	PolkachuChainAPI           = PolkachuBaseURL + "/api/v2/chains/%s"
+	PolkachuPeersAPI           = PolkachuBaseURL + "/api/v2/chains/%s/live_peers"
 
-	PolkachuSnapshotURL = PolkachuBaseURL + "/%s/snapshots"
-
-	PolkachuChainAPI = PolkachuBaseURL + "/api/v2/chains/%s"
-	PolkachuPeersAPI = PolkachuBaseURL + "/api/v2/chains/%s/live_peers"
+	PolkachuAddrBookAPI = "https://snapshots.polkachu.com/%saddrbook/%s/addrbook.json"
 
 	DefaultInitiaPolkachuName    string = "initia"
 	DefaultSnapshotFileExtension string = ".tar.lz4"
@@ -138,4 +138,35 @@ func FetchPolkachuPersistentPeers(chainType registry.ChainType) (string, error) 
 	}
 
 	return strings.Join(peers, ","), nil
+}
+
+func getPolkachuAddrBookEndpoint(chainType registry.ChainType) (string, error) {
+	var networkPrefix, chainName string
+	switch chainType {
+	case registry.InitiaL1Testnet:
+		networkPrefix = "testnet-"
+		chainName = "initia"
+	case registry.InitiaL1Mainnet:
+		networkPrefix = ""
+		chainName = "initia"
+	default:
+		return "", fmt.Errorf("chain type not supported: %v", chainType)
+	}
+
+	return fmt.Sprintf(PolkachuAddrBookAPI, networkPrefix, chainName), nil
+}
+
+func DownloadPolkachuAddrBook(chainType registry.ChainType, dest string) error {
+	addrBookEndpoint, err := getPolkachuAddrBookEndpoint(chainType)
+	if err != nil {
+		return err
+	}
+
+	httpClient := client.NewHTTPClient()
+	err = httpClient.DownloadFile(addrBookEndpoint, dest, nil, nil)
+	if err != nil {
+		return fmt.Errorf("failed to download addrbook: %w", err)
+	}
+
+	return nil
 }

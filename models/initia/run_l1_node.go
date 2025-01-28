@@ -1199,6 +1199,12 @@ func initializeApp(ctx context.Context) tea.Cmd {
 			}
 		}
 
+		if state.network != string(Local) {
+			if err := cosmosutils.DownloadPolkachuAddrBook(state.chainType, filepath.Join(initiaConfigPath, "addrbook.json")); err != nil {
+				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to replace addrbook file: %v", err)}
+			}
+		}
+
 		// prune existing logs, ignore error
 		_ = srv.PruneLogs()
 
