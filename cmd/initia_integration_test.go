@@ -8,30 +8,37 @@ import (
 	"path/filepath"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/initia-labs/weave/context"
 	"github.com/initia-labs/weave/models/initia"
+	"github.com/initia-labs/weave/service"
 	"github.com/initia-labs/weave/testutil"
 )
 
-var (
-	TestInitiaHome string
-)
+func setupInitia() (string, tea.Model) {
+	setup([]service.CommandName{service.UpgradableInitia})
 
-func init() {
+	ctx := context.NewAppContext(initia.NewRunL1NodeState())
+
 	homeDir, _ := os.Getwd()
 
-	// Construct the absolute path for TestInitiaHome
-	TestInitiaHome = filepath.Join(homeDir, "initia.weave.test")
-}
-
-func TestInitiaInitTestnetNoSync(t *testing.T) {
-	ctx := context.NewAppContext(initia.NewRunL1NodeState())
-	initiaHome := TestInitiaHome + ".nosync"
+	initiaHome := filepath.Join(homeDir, "initia.weave.test")
 	ctx = context.SetInitiaHome(ctx, initiaHome)
 
 	firstModel, _ := initia.NewRunL1NodeNetworkSelect(ctx)
+
+	return initiaHome, firstModel
+}
+
+func teardownInitia() {
+	teardown([]service.CommandName{service.UpgradableInitia})
+}
+
+func TestInitiaInitTestnetNoSync(t *testing.T) {
+	initiaHome, firstModel := setupInitia()
+	defer teardownInitia()
 
 	// Ensure that there is no previous Initia home
 	_, err := os.Stat(initiaHome)
@@ -96,11 +103,8 @@ func TestInitiaInitTestnetNoSync(t *testing.T) {
 }
 
 func TestInitiaInitTestnetStatesync(t *testing.T) {
-	ctx := context.NewAppContext(initia.NewRunL1NodeState())
-	initiaHome := TestInitiaHome + ".state.sync"
-	ctx = context.SetInitiaHome(ctx, initiaHome)
-
-	firstModel, _ := initia.NewRunL1NodeNetworkSelect(ctx)
+	initiaHome, firstModel := setupInitia()
+	defer teardownInitia()
 
 	// Ensure that there is no previous Initia home
 	_, err := os.Stat(initiaHome)
