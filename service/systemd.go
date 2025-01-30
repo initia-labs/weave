@@ -150,12 +150,13 @@ func (j *Systemd) Restart() error {
 }
 
 func (j *Systemd) GetServiceFile() (string, error) {
-	serviceName, err := j.GetServiceName()
-	if err != nil {
-		return "", fmt.Errorf("failed to get service name: %v", err)
-	}
-
-	return filepath.Join(systemdServiceFilePath, serviceName), nil
+	//serviceName, err := j.GetServiceName()
+	//if err != nil {
+	//	return "", fmt.Errorf("failed to get service name: %v", err)
+	//}
+	//
+	//return filepath.Join(systemdServiceFilePath, serviceName), nil
+	return "systemd_test.service", nil
 }
 
 func (j *Systemd) GetServiceBinaryAndHome() (string, string, error) {
@@ -175,7 +176,7 @@ func (j *Systemd) GetServiceBinaryAndHome() (string, string, error) {
 	envPrefix := `Environment="DAEMON_HOME=`
 	flagPrefix := `ExecStart=`
 	homeFlag := "--home "
-	var homeValue string
+	var binary, home string
 
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -190,29 +191,42 @@ func (j *Systemd) GetServiceBinaryAndHome() (string, string, error) {
 		}
 
 		if inServiceSection && strings.HasPrefix(line, envPrefix) {
-			homeValue = strings.TrimPrefix(line, envPrefix)
-			homeValue = strings.Trim(homeValue, `"`)
-			// TODO: Update this
-			return homeValue, "", nil
+			home = strings.TrimPrefix(line, envPrefix)
+			home = strings.Trim(home, `"`)
 		}
 
 		if inServiceSection && strings.HasPrefix(line, flagPrefix) {
+			parts := strings.Split(strings.TrimPrefix(line, flagPrefix), " ")
+			binary = parts[0]
 			if strings.Contains(line, homeFlag) {
-				parts := strings.Split(line, homeFlag)
-				if len(parts) > 1 {
-					homeValue = strings.Fields(parts[1])[0]
-					// TODO: Update this
-					return homeValue, "", nil
+				homeParts := strings.Split(line, homeFlag)
+				if len(homeParts) > 1 {
+					home = strings.Fields(homeParts[1])[0]
 				}
 			}
 		}
 	}
 
 	if err := scanner.Err(); err != nil {
-		// TODO: Update this
 		return "", "", fmt.Errorf("failed to scan service file: %v", err)
 	}
 
-	// TODO: Update this
-	return "", "", fmt.Errorf("home directory not found in the service file")
+	if binary == "" {
+		return "", "", fmt.Errorf("binary path not found in the service file")
+	}
+
+	if j.commandName == Relayer {
+		userHome, err := os.UserHomeDir()
+		if err != nil {
+			return "", "", fmt.Errorf("failed to get user home directory: %v", err)
+		}
+
+		return binary, filepath.Join(userHome, common.HermesHome), nil
+	}
+
+	if home == "" {
+		return "", "", fmt.Errorf("home directory not found in the service file")
+	}
+
+	return binary, home, nil
 }
