@@ -16,6 +16,9 @@ type Service interface {
 	Stop() error
 	Restart() error
 	PruneLogs() error
+
+	GetServiceFile() (string, error)
+	GetServiceBinaryAndHome() (string, string, error)
 }
 
 func NewService(commandName CommandName) (Service, error) {

@@ -88,9 +88,10 @@ func relayerInitCommand() *cobra.Command {
 func relayerStartCommand() *cobra.Command {
 	shortDescription := "Start the relayer service"
 	startCmd := &cobra.Command{
-		Use:   "start",
-		Short: shortDescription,
-		Long:  fmt.Sprintf("%s.\n\n%s", shortDescription, RelayerHelperText),
+		Use:     "start",
+		Short:   shortDescription,
+		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, RelayerHelperText),
+		PreRunE: isInitiated(service.Relayer),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			detach, err := cmd.Flags().GetBool(FlagDetach)
 			if err != nil {
@@ -139,9 +140,10 @@ func relayerStartCommand() *cobra.Command {
 func relayerStopCommand() *cobra.Command {
 	shortDescription := "Stop the relayer service"
 	stopCmd := &cobra.Command{
-		Use:   "stop",
-		Short: shortDescription,
-		Long:  fmt.Sprintf("%s.\n\n%s", shortDescription, RelayerHelperText),
+		Use:     "stop",
+		Short:   shortDescription,
+		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, RelayerHelperText),
+		PreRunE: isInitiated(service.Relayer),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := service.NewService(service.Relayer)
 			if err != nil {
@@ -162,9 +164,10 @@ func relayerStopCommand() *cobra.Command {
 func relayerRestartCommand() *cobra.Command {
 	shortDescription := "Restart the relayer service"
 	restartCmd := &cobra.Command{
-		Use:   "restart",
-		Short: shortDescription,
-		Long:  fmt.Sprintf("%s.\n\n%s", shortDescription, RelayerHelperText),
+		Use:     "restart",
+		Short:   shortDescription,
+		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, RelayerHelperText),
+		PreRunE: isInitiated(service.Relayer),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := service.NewService(service.Relayer)
 			if err != nil {

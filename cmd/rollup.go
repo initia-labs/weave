@@ -187,9 +187,10 @@ func minitiaLaunchCommand() *cobra.Command {
 func minitiaStartCommand() *cobra.Command {
 	shortDescription := "Start the rollup full node service"
 	launchCmd := &cobra.Command{
-		Use:   "start",
-		Short: shortDescription,
-		Long:  fmt.Sprintf("%s.\n\n%s", shortDescription, RollupHelperText),
+		Use:     "start",
+		Short:   shortDescription,
+		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, RollupHelperText),
+		PreRunE: isInitiated(service.Minitia),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			detach, err := cmd.Flags().GetBool(FlagDetach)
 			if err != nil {
@@ -222,9 +223,10 @@ func minitiaStartCommand() *cobra.Command {
 func minitiaStopCommand() *cobra.Command {
 	shortDescription := "Stop the rollup full node service"
 	startCmd := &cobra.Command{
-		Use:   "stop",
-		Short: shortDescription,
-		Long:  fmt.Sprintf("%s.\n\n%s", shortDescription, RollupHelperText),
+		Use:     "stop",
+		Short:   shortDescription,
+		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, RollupHelperText),
+		PreRunE: isInitiated(service.Minitia),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := service.NewService(service.Minitia)
 			if err != nil {
@@ -245,9 +247,10 @@ func minitiaStopCommand() *cobra.Command {
 func minitiaRestartCommand() *cobra.Command {
 	shortDescription := "Restart the rollup full node service"
 	restartCmd := &cobra.Command{
-		Use:   "restart",
-		Short: shortDescription,
-		Long:  fmt.Sprintf("%s.\n\n%s", shortDescription, RollupHelperText),
+		Use:     "restart",
+		Short:   shortDescription,
+		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, RollupHelperText),
+		PreRunE: isInitiated(service.Minitia),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := service.NewService(service.Minitia)
 			if err != nil {

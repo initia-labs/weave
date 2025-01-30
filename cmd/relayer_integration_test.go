@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/initia-labs/weave/common"
 	weavecontext "github.com/initia-labs/weave/context"
 	"github.com/initia-labs/weave/models/relayer"
 	"github.com/initia-labs/weave/registry"
@@ -62,7 +63,7 @@ func TestRelayerInit(t *testing.T) {
 		testutil.PressEnter, // press enter to confirm the selection
 		testutil.WaitFor(func() bool {
 			userHome, _ := os.UserHomeDir()
-			if _, err := os.Stat(filepath.Join(userHome, relayer.HermesHome, "config.toml")); os.IsNotExist(err) {
+			if _, err := os.Stat(filepath.Join(userHome, common.HermesHome, "config.toml")); os.IsNotExist(err) {
 				return false
 			}
 			return true

@@ -2,6 +2,7 @@ package service
 
 import (
 	"bufio"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"os"
@@ -14,6 +15,10 @@ import (
 
 	"github.com/initia-labs/weave/common"
 	weaveio "github.com/initia-labs/weave/io"
+)
+
+const (
+	launchdServiceFilePath = "Library/LaunchAgents"
 )
 
 type Launchd struct {
@@ -57,7 +62,7 @@ func (j *Launchd) Create(binaryVersion, appHome string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get service name: %v", err)
 	}
-	plistPath := filepath.Join(userHome, fmt.Sprintf("Library/LaunchAgents/%s.plist", serviceName))
+	plistPath := filepath.Join(userHome, launchdServiceFilePath, fmt.Sprintf("%s.plist", serviceName))
 	if weaveio.FileOrFolderExists(plistPath) {
 		err = weaveio.DeleteFile(plistPath)
 		if err != nil {
@@ -94,9 +99,9 @@ func (j *Launchd) reloadService() error {
 	if err != nil {
 		return fmt.Errorf("failed to get service name: %v", err)
 	}
-	unloadCmd := exec.Command("launchctl", "unload", filepath.Join(userHome, fmt.Sprintf("Library/LaunchAgents/%s.plist", serviceName)))
+	unloadCmd := exec.Command("launchctl", "unload", filepath.Join(userHome, launchdServiceFilePath, fmt.Sprintf("%s.plist", serviceName)))
 	_ = unloadCmd.Run()
-	loadCmd := exec.Command("launchctl", "load", filepath.Join(userHome, fmt.Sprintf("Library/LaunchAgents/%s.plist", serviceName)))
+	loadCmd := exec.Command("launchctl", "load", filepath.Join(userHome, launchdServiceFilePath, fmt.Sprintf("%s.plist", serviceName)))
 	if err := loadCmd.Run(); err != nil {
 		return fmt.Errorf("failed to load service: %v", err)
 	}
@@ -235,4 +240,79 @@ func (j *Launchd) tailLogFile(filePath string, output io.Writer, maxLogLines int
 			time.Sleep(1 * time.Second)
 		}
 	}
+}
+
+func (j *Launchd) GetServiceFile() (string, error) {
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get user home directory: %v", err)
+	}
+
+	serviceName, err := j.GetServiceName()
+	if err != nil {
+		return "", fmt.Errorf("failed to get service name: %v", err)
+	}
+
+	return filepath.Join(userHome, launchdServiceFilePath, fmt.Sprintf("%s.plist", serviceName)), nil
+}
+
+type Plist struct {
+	ProgramArguments           []string `xml:"dict>array>string"`
+	EnvironmentVariablesKeys   []string `xml:"dict>dict>key"`
+	EnvironmentVariablesValues []string `xml:"dict>dict>string"`
+}
+
+func (j *Launchd) GetServiceBinaryAndHome() (string, string, error) {
+	serviceFile, err := j.GetServiceFile()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get service file: %v", err)
+	}
+
+	file, err := os.Open(serviceFile)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to open plist file: %w", err)
+	}
+	defer file.Close()
+
+	var plist Plist
+	decoder := xml.NewDecoder(file)
+	err = decoder.Decode(&plist)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to decode plist file: %w", err)
+	}
+
+	if j.commandName == Relayer {
+		userHome, err := os.UserHomeDir()
+		if err != nil {
+			return "", "", fmt.Errorf("failed to get user home directory: %v", err)
+		}
+
+		return plist.ProgramArguments[0], filepath.Join(userHome, common.HermesHome), nil
+	}
+
+	var home string
+	for idx, arg := range plist.ProgramArguments {
+		arg = strings.TrimSpace(arg)
+		if arg == "--home" {
+			home = plist.ProgramArguments[idx+1]
+			break
+		}
+		if strings.HasPrefix(arg, "--home=") {
+			home = arg[len("--home="):]
+			break
+		}
+	}
+
+	for idx, key := range plist.EnvironmentVariablesKeys {
+		if strings.TrimSpace(key) == "DAEMON_HOME" {
+			home = plist.EnvironmentVariablesValues[idx]
+			break
+		}
+	}
+
+	if home == "" {
+		return "", "", fmt.Errorf("home directory not found in plist file")
+	}
+
+	return plist.ProgramArguments[0], home, nil
 }

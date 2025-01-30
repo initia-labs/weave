@@ -62,7 +62,6 @@ func initiaInitCommand() *cobra.Command {
 				fmt.Println(finalModel.View())
 				return nil
 			}
-
 		},
 	}
 
@@ -79,9 +78,10 @@ func initiaInitCommand() *cobra.Command {
 func initiaStartCommand() *cobra.Command {
 	shortDescription := "Start Initia full node service"
 	startCmd := &cobra.Command{
-		Use:   "start",
-		Short: shortDescription,
-		Long:  fmt.Sprintf("%s.\n\n%s", shortDescription, L1NodeHelperText),
+		Use:     "start",
+		Short:   shortDescription,
+		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, L1NodeHelperText),
+		PreRunE: isInitiated(service.UpgradableInitia),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			detach, err := cmd.Flags().GetBool(FlagDetach)
 			if err != nil {
@@ -114,9 +114,10 @@ func initiaStartCommand() *cobra.Command {
 func initiaStopCommand() *cobra.Command {
 	shortDescription := "Stop Initia full node service"
 	stopCmd := &cobra.Command{
-		Use:   "stop",
-		Short: shortDescription,
-		Long:  fmt.Sprintf("%s.\n\n%s", shortDescription, L1NodeHelperText),
+		Use:     "stop",
+		Short:   shortDescription,
+		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, L1NodeHelperText),
+		PreRunE: isInitiated(service.UpgradableInitia),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := service.NewService(service.UpgradableInitia)
 			if err != nil {
@@ -137,9 +138,10 @@ func initiaStopCommand() *cobra.Command {
 func initiaRestartCommand() *cobra.Command {
 	shortDescription := "Restart Initia full node service"
 	restartCmd := &cobra.Command{
-		Use:   "restart",
-		Short: shortDescription,
-		Long:  fmt.Sprintf("%s.\n\n%s", shortDescription, L1NodeHelperText),
+		Use:     "restart",
+		Short:   shortDescription,
+		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, L1NodeHelperText),
+		PreRunE: isInitiated(service.UpgradableInitia),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			s, err := service.NewService(service.UpgradableInitia)
 			if err != nil {

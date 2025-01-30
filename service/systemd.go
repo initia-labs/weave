@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,6 +11,10 @@ import (
 	"strings"
 
 	"github.com/initia-labs/weave/common"
+)
+
+const (
+	systemdServiceFilePath = "/etc/systemd/system"
 )
 
 type Systemd struct {
@@ -61,7 +66,7 @@ func (j *Systemd) Create(binaryVersion, appHome string) error {
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command("sudo", "tee", fmt.Sprintf("/etc/systemd/system/%s", serviceName))
+	cmd := exec.Command("sudo", "tee", fmt.Sprintf("%s/%s", systemdServiceFilePath, serviceName))
 	template := LinuxTemplateMap[j.commandName]
 	cmd.Stdin = strings.NewReader(fmt.Sprintf(string(template), binaryName, currentUser.Username, binaryPath, string(j.commandName), appHome))
 	if err = cmd.Run(); err != nil {
@@ -142,4 +147,72 @@ func (j *Systemd) Restart() error {
 	}
 	cmd := exec.Command("systemctl", "restart", serviceName)
 	return cmd.Run()
+}
+
+func (j *Systemd) GetServiceFile() (string, error) {
+	serviceName, err := j.GetServiceName()
+	if err != nil {
+		return "", fmt.Errorf("failed to get service name: %v", err)
+	}
+
+	return filepath.Join(systemdServiceFilePath, serviceName), nil
+}
+
+func (j *Systemd) GetServiceBinaryAndHome() (string, string, error) {
+	serviceFile, err := j.GetServiceFile()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get service file: %v", err)
+	}
+
+	file, err := os.Open(serviceFile)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to open service file: %v", err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	inServiceSection := false
+	envPrefix := `Environment="DAEMON_HOME=`
+	flagPrefix := `ExecStart=`
+	homeFlag := "--home "
+	var homeValue string
+
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+
+		if line == "[Service]" {
+			inServiceSection = true
+			continue
+		}
+
+		if inServiceSection && strings.HasPrefix(line, "[") {
+			break
+		}
+
+		if inServiceSection && strings.HasPrefix(line, envPrefix) {
+			homeValue = strings.TrimPrefix(line, envPrefix)
+			homeValue = strings.Trim(homeValue, `"`)
+			// TODO: Update this
+			return homeValue, "", nil
+		}
+
+		if inServiceSection && strings.HasPrefix(line, flagPrefix) {
+			if strings.Contains(line, homeFlag) {
+				parts := strings.Split(line, homeFlag)
+				if len(parts) > 1 {
+					homeValue = strings.Fields(parts[1])[0]
+					// TODO: Update this
+					return homeValue, "", nil
+				}
+			}
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		// TODO: Update this
+		return "", "", fmt.Errorf("failed to scan service file: %v", err)
+	}
+
+	// TODO: Update this
+	return "", "", fmt.Errorf("home directory not found in the service file")
 }

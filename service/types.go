@@ -13,6 +13,36 @@ const (
 	Relayer             CommandName = "relayer"
 )
 
+func (cmd CommandName) GetPrettyName() (string, error) {
+	switch cmd {
+	case UpgradableInitia, NonUpgradableInitia:
+		return "initia", nil
+	case Minitia:
+		return "rollup", nil
+	case OPinitExecutor, OPinitChallenger:
+		return "opinit", nil
+	case Relayer:
+		return "relayer", nil
+	default:
+		return "", fmt.Errorf("unsupported command %s", cmd)
+	}
+}
+
+func (cmd CommandName) GetInitCommand() (string, error) {
+	switch cmd {
+	case UpgradableInitia, NonUpgradableInitia:
+		return "initia init", nil
+	case Minitia:
+		return "rollup launch", nil
+	case OPinitExecutor, OPinitChallenger:
+		return "opinit init", nil
+	case Relayer:
+		return "relayer init", nil
+	default:
+		return "", fmt.Errorf("unsupported command %s", cmd)
+	}
+}
+
 func (cmd CommandName) GetBinaryName() (string, error) {
 	switch cmd {
 	case UpgradableInitia, NonUpgradableInitia:

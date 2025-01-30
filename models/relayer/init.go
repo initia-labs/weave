@@ -387,12 +387,12 @@ func (m *L2KeySelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if err != nil {
 					return m, m.HandlePanic(err)
 				}
-				l1ExistingKeyPath := filepath.Join(userHome, HermesKeysDirectory, l1ChainId)
+				l1ExistingKeyPath := filepath.Join(userHome, common.HermesKeysDirectory, l1ChainId)
 				l2ChainId, err := GetL2ChainId(m.Ctx)
 				if err != nil {
 					return m, m.HandlePanic(err)
 				}
-				l2KeyPath := filepath.Join(userHome, HermesKeysDirectory, l2ChainId)
+				l2KeyPath := filepath.Join(userHome, common.HermesKeysDirectory, l2ChainId)
 				if err = weaveio.CopyDirectory(l1ExistingKeyPath, l2KeyPath); err != nil {
 					return m, m.HandlePanic(fmt.Errorf("could not copy L1 existing key: %s", err))
 				}
@@ -2530,7 +2530,7 @@ func WaitSettingUpRelayer(ctx context.Context) tea.Cmd {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to initialize service: %v", err)}
 		}
 
-		if err = srv.Create("", filepath.Join(userHome, HermesHome)); err != nil {
+		if err = srv.Create("", filepath.Join(userHome, common.HermesHome)); err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to create service: %v", err)}
 		}
 
@@ -2691,7 +2691,7 @@ func (m *AddChallengerKeyToRelayer) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func getRelayerSetSuccessMessage() string {
 	userHome, _ := os.UserHomeDir()
-	hermesHome := filepath.Join(userHome, HermesHome)
+	hermesHome := filepath.Join(userHome, common.HermesHome)
 	s := styles.RenderPrompt(fmt.Sprintf("Relayer setup successfully. Config file is saved at %s/config.toml. Feel free to modify it as needed.", hermesHome), []string{}, styles.Completed)
 	s += "\n" + styles.RenderPrompt("You can start the relayer by running `weave relayer start`", []string{}, styles.Completed) + "\n"
 	return s
