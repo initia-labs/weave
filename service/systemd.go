@@ -150,13 +150,12 @@ func (j *Systemd) Restart() error {
 }
 
 func (j *Systemd) GetServiceFile() (string, error) {
-	//serviceName, err := j.GetServiceName()
-	//if err != nil {
-	//	return "", fmt.Errorf("failed to get service name: %v", err)
-	//}
-	//
-	//return filepath.Join(systemdServiceFilePath, serviceName), nil
-	return "systemd_test.service", nil
+	serviceName, err := j.GetServiceName()
+	if err != nil {
+		return "", fmt.Errorf("failed to get service name: %v", err)
+	}
+
+	return filepath.Join(systemdServiceFilePath, serviceName), nil
 }
 
 func (j *Systemd) GetServiceBinaryAndHome() (string, string, error) {
