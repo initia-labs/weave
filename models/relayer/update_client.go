@@ -17,7 +17,7 @@ func UpdateClientFromConfig() error {
 	if err != nil {
 		return err
 	}
-	configPath := filepath.Join(userHome, HermesHome, "config.toml")
+	configPath := filepath.Join(userHome, common.HermesHome, "config.toml")
 	weaveDataPath := filepath.Join(userHome, common.WeaveDataDirectory)
 	hermesBinaryPath := filepath.Join(weaveDataPath, "hermes")
 

@@ -21,6 +21,8 @@ const (
 	OPinitDirectory = ".opinit"
 	OPinitAppName   = "opinitd"
 
+	HermesHome                 = ".hermes"
+	HermesKeysDirectory        = HermesHome + "/keys"
 	HermesTempMnemonicFilename = "weave.mnemonic"
 	OpinitGeneratedKeyFilename = "weave.opinit.generated"
 )
