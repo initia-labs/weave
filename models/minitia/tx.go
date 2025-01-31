@@ -406,35 +406,13 @@ func queryChainBalance(binaryPath, rpc, address string) (map[string]int64, error
 	return balanceMap, nil
 }
 
-func recoverAndCleanupKey(binaryPath, keyName, mnemonic string) (*cosmosutils.KeyInfo, func(), error) {
-	rawKey, err := cosmosutils.RecoverKeyFromMnemonic(binaryPath, keyName, mnemonic)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to recover key: %v", err)
-	}
-
-	cleanup := func() {
-		_ = cosmosutils.DeleteKey(binaryPath, keyName)
-	}
-
-	keyInfo, err := cosmosutils.UnmarshalKeyInfo(rawKey)
-	if err != nil {
-		cleanup()
-		return nil, nil, fmt.Errorf("failed to unmarshal key: %v", err)
-	}
-
-	return &keyInfo, cleanup, nil
-}
-
 func (lsk *L1SystemKeys) VerifyGasStationBalances(state *LaunchState) error {
-	// Recover L1 key
-	l1Key, l1Cleanup, err := recoverAndCleanupKey(state.binaryPath, common.WeaveGasStationKeyName, config.GetGasStationMnemonic())
+	address, err := cosmosutils.GetAddressFromMnemonic(state.binaryPath, config.GetGasStationMnemonic())
 	if err != nil {
 		return fmt.Errorf("failed to recover L1 key: %v", err)
 	}
-	defer l1Cleanup()
-
 	// Query L1 balances
-	l1Balances, err := queryChainBalance(state.binaryPath, state.l1RPC, l1Key.Address)
+	l1Balances, err := queryChainBalance(state.binaryPath, state.l1RPC, address)
 	if err != nil {
 		return fmt.Errorf("failed to query L1 balance: %v", err)
 	}
@@ -462,14 +440,10 @@ func (lsk *L1SystemKeys) VerifyGasStationBalances(state *LaunchState) error {
 }
 
 func (lsk *L1SystemKeys) verifyCelestiaBalance(state *LaunchState, daWant int64) error {
-	gasStationMnemonic := config.GetGasStationMnemonic()
-
-	// Recover Celestia key
-	celestiaKey, celestiaCleanup, err := recoverAndCleanupKey(state.celestiaBinaryPath, common.WeaveGasStationKeyName, gasStationMnemonic)
+	address, err := cosmosutils.GetAddressFromMnemonic(state.celestiaBinaryPath, config.GetGasStationMnemonic())
 	if err != nil {
 		return fmt.Errorf("failed to recover Celestia key: %v", err)
 	}
-	defer celestiaCleanup()
 
 	// TODO: Choose DA layer based on the chosen L1 network
 	celestiaRegistry, err := registry.GetChainRegistry(registry.CelestiaTestnet)
@@ -483,7 +457,7 @@ func (lsk *L1SystemKeys) verifyCelestiaBalance(state *LaunchState, daWant int64)
 	}
 
 	// Query Celestia balances
-	celestiaBalances, err := queryChainBalance(state.celestiaBinaryPath, celestiaRpc, celestiaKey.Address)
+	celestiaBalances, err := queryChainBalance(state.celestiaBinaryPath, celestiaRpc, address)
 	if err != nil {
 		return fmt.Errorf("failed to query Celestia balance: %v", err)
 	}
