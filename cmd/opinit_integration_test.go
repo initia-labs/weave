@@ -15,12 +15,19 @@ import (
 	"github.com/initia-labs/weave/common"
 	weavecontext "github.com/initia-labs/weave/context"
 	"github.com/initia-labs/weave/models/opinit_bots"
+	"github.com/initia-labs/weave/service"
 	"github.com/initia-labs/weave/testutil"
 )
 
-const (
-	TestOPInitHome = ".opinit.weave.test"
-)
+func setupOPInit(t *testing.T) context.Context {
+	setup(t, []service.CommandName{service.OPinitExecutor, service.OPinitChallenger})
+
+	return prepareContext()
+}
+
+func teardownOPInit(t *testing.T) {
+	teardown(t, []service.CommandName{service.OPinitExecutor, service.OPinitChallenger})
+}
 
 func prepareContext() context.Context {
 	ctx := weavecontext.NewAppContext(opinit_bots.NewOPInitBotsState())
@@ -103,7 +110,8 @@ func TestOPInitBotsInit(t *testing.T) {
 	cleanup := setupKeys(t)
 	defer cleanup()
 
-	ctx := prepareContext()
+	ctx := setupOPInit(t)
+	defer teardownOPInit(t)
 
 	firstModel := opinit_bots.NewEnsureOPInitBotsBinaryLoadingModel(
 		ctx,
