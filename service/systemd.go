@@ -29,7 +29,7 @@ func NewSystemd(commandName CommandName) *Systemd {
 	if err != nil {
 		return &Systemd{commandName: commandName}
 	}
-	return &Systemd{commandName: commandName, user: currentUser, userMode: currentUser.Uid == "0"}
+	return &Systemd{commandName: commandName, user: currentUser, userMode: currentUser.Uid != "0"}
 }
 
 func (j *Systemd) GetCommandName() string {
