@@ -2,10 +2,12 @@ package minitia
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/initia-labs/weave/common"
@@ -15,6 +17,8 @@ import (
 	"github.com/initia-labs/weave/registry"
 	"github.com/initia-labs/weave/types"
 )
+
+var ErrInsufficientBalance = errors.New("insufficient balance")
 
 type L1SystemKeys struct {
 	BridgeExecutor  *types.GenesisAccount
@@ -345,3 +349,153 @@ const FundMinitiaAccountsWithoutBatchTxInterface = `
   "signatures":[]
 }
 `
+
+func (lsk *L1SystemKeys) calculateTotalWantedCoins(state *LaunchState) (l1Want int64, daWant int64, err error) {
+	for _, acc := range []*types.GenesisAccount{
+		lsk.BridgeExecutor,
+		lsk.OutputSubmitter,
+		lsk.BatchSubmitter,
+		lsk.Challenger,
+	} {
+		if acc == nil {
+			continue
+		}
+
+		amount, err := strconv.ParseInt(acc.Coins, 10, 64)
+		if err != nil {
+			return 0, 0, fmt.Errorf("failed to parse coin amount %s: %v", acc.Coins, err)
+		}
+
+		if acc == lsk.Challenger && state.batchSubmissionIsCelestia {
+			daWant += amount
+		} else {
+			l1Want += amount
+		}
+	}
+
+	return l1Want, daWant, nil
+}
+
+func (lsk *L1SystemKeys) VerifyGasStationBalances(state *LaunchState) error {
+	gasStationMnemonic := config.GetGasStationMnemonic()
+
+	// Recover keys for both networks
+	rawKey, err := cosmosutils.RecoverKeyFromMnemonic(state.binaryPath, common.WeaveGasStationKeyName, gasStationMnemonic)
+	if err != nil {
+		return fmt.Errorf("failed to recover initia gas station key: %v", err)
+	}
+	defer func() {
+		_ = cosmosutils.DeleteKey(state.binaryPath, common.WeaveGasStationKeyName)
+	}()
+
+	gasStationKey, err := cosmosutils.UnmarshalKeyInfo(rawKey)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal gas station key: %v", err)
+	}
+
+	// Query Initia L1 balance
+	queryCmd := exec.Command(state.binaryPath, "query", "bank", "balances", gasStationKey.Address,
+		"--node", state.l1RPC, "--output", "json")
+	l1BalanceRes, err := queryCmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to query initia balance: %v", err)
+	}
+
+	var l1Balance struct {
+		Balances []struct {
+			Denom  string `json:"denom"`
+			Amount string `json:"amount"`
+		} `json:"balances"`
+	}
+	if err := json.Unmarshal(l1BalanceRes, &l1Balance); err != nil {
+		return fmt.Errorf("failed to unmarshal initia balance: %v", err)
+	}
+
+	// Get Celestia key info for the correct address
+
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal celestia key: %v", err)
+	}
+
+	// Calculate required balances
+	l1Want, daWant, err := lsk.calculateTotalWantedCoins(state)
+	if err != nil {
+		return fmt.Errorf("failed to calculate wanted coins: %v", err)
+	}
+
+	l1Available := int64(0)
+	for _, balance := range l1Balance.Balances {
+		if balance.Denom == "uinit" {
+			l1Available, err = strconv.ParseInt(balance.Amount, 10, 64)
+			if err != nil {
+				return fmt.Errorf("failed to parse l1 balance amount: %v", err)
+			}
+			break
+		}
+	}
+
+	if l1Available < l1Want {
+		return fmt.Errorf("%w: insufficient initia balance: have %d uinit, want %d uinit", ErrInsufficientBalance, l1Available, l1Want)
+	}
+
+	if state.batchSubmissionIsCelestia {
+
+		celestiaRawKey, err := cosmosutils.RecoverKeyFromMnemonic(state.celestiaBinaryPath, common.WeaveGasStationKeyName, gasStationMnemonic)
+		if err != nil {
+			return fmt.Errorf("failed to recover celestia gas station key: %v", err)
+		}
+		defer func() {
+			_ = cosmosutils.DeleteKey(state.celestiaBinaryPath, common.WeaveGasStationKeyName)
+		}()
+
+		celestiaKey, err := cosmosutils.UnmarshalKeyInfo(celestiaRawKey)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal celestia key: %v", err)
+		}
+
+		// TODO: Choose DA layer based on the chosen L1 network
+		celestiaRegistry, err := registry.GetChainRegistry(registry.CelestiaTestnet)
+		if err != nil {
+			return fmt.Errorf("failed to get celestia registry: %v", err)
+		}
+
+		celestiaRpc, err := celestiaRegistry.GetActiveRpc()
+		if err != nil {
+			return fmt.Errorf("failed to get active rpc for celestia: %v", err)
+		}
+
+		daQueryCmd := exec.Command(state.celestiaBinaryPath, "query", "bank", "balances", celestiaKey.Address,
+			"--node", celestiaRpc, "--output", "json")
+		daBalanceRes, err := daQueryCmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("failed to query celestia balance: %v", err)
+		}
+
+		var daBalance struct {
+			Balances []struct {
+				Denom  string `json:"denom"`
+				Amount string `json:"amount"`
+			} `json:"balances"`
+		}
+		if err := json.Unmarshal(daBalanceRes, &daBalance); err != nil {
+			return fmt.Errorf("failed to unmarshal celestia balance: %v", err)
+		}
+
+		daAvailable := int64(0)
+		for _, balance := range daBalance.Balances {
+			if balance.Denom == "utia" {
+				daAvailable, err = strconv.ParseInt(balance.Amount, 10, 64)
+				if err != nil {
+					return fmt.Errorf("failed to parse celestia balance amount: %v", err)
+				}
+				break
+			}
+		}
+
+		if daAvailable < daWant {
+			return fmt.Errorf("%w: have %d utia, want %d utia", ErrInsufficientBalance, daAvailable, daWant)
+		}
+	}
+
+	return nil
+}
