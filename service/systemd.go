@@ -195,8 +195,11 @@ func (j *Systemd) GetServiceBinaryAndHome() (string, string, error) {
 		}
 
 		if inServiceSection && strings.HasPrefix(line, flagPrefix) {
-			parts := strings.Split(strings.TrimPrefix(line, flagPrefix), " ")
-			binary = parts[0]
+			parts := strings.Fields(strings.TrimPrefix(line, flagPrefix))
+			if len(parts) > 0 {
+				binary = parts[0]
+			}
+
 			if strings.Contains(line, homeFlag) {
 				homeParts := strings.Split(line, homeFlag)
 				if len(homeParts) > 1 {
