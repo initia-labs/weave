@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	systemdServiceFilePath = "/etc/systemd/system"
+	systemdServiceFilePath = ".config/systemd/user"
 )
 
 type Systemd struct {
@@ -66,12 +66,22 @@ func (j *Systemd) Create(binaryVersion, appHome string) error {
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command("sudo", "tee", fmt.Sprintf("%s/%s", systemdServiceFilePath, serviceName))
-	template := LinuxTemplateMap[j.commandName]
-	cmd.Stdin = strings.NewReader(fmt.Sprintf(string(template), binaryName, currentUser.Username, binaryPath, string(j.commandName), appHome))
-	if err = cmd.Run(); err != nil {
-		return fmt.Errorf("failed to create service: %v", err)
+
+	// Create user systemd directory if it doesn't exist
+	serviceDir := filepath.Join(userHome, systemdServiceFilePath)
+	if err := os.MkdirAll(serviceDir, 0755); err != nil {
+		return fmt.Errorf("failed to create systemd user directory: %v", err)
 	}
+
+	// Remove sudo and write directly to user's directory
+	serviceFile := filepath.Join(serviceDir, serviceName)
+	template := LinuxTemplateMap[j.commandName]
+	err = os.WriteFile(serviceFile, []byte(fmt.Sprintf(string(template),
+		binaryName, currentUser.Username, binaryPath, string(j.commandName), appHome)), 0644)
+	if err != nil {
+		return fmt.Errorf("failed to create service file: %v", err)
+	}
+
 	if err = j.daemonReload(); err != nil {
 		return err
 	}
@@ -79,7 +89,8 @@ func (j *Systemd) Create(binaryVersion, appHome string) error {
 }
 
 func (j *Systemd) daemonReload() error {
-	cmd := exec.Command("sudo", "systemctl", "daemon-reload")
+	// Use systemctl --user instead of sudo systemctl
+	cmd := exec.Command("systemctl", "--user", "daemon-reload")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to reload systemd daemon: %v", err)
 	}
@@ -91,7 +102,8 @@ func (j *Systemd) enableService() error {
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command("sudo", "systemctl", "enable", serviceName)
+	// Use systemctl --user instead of sudo systemctl
+	cmd := exec.Command("systemctl", "--user", "enable", serviceName)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to enable service: %v", err)
 	}
@@ -127,7 +139,7 @@ func (j *Systemd) Start() error {
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command("systemctl", "start", serviceName)
+	cmd := exec.Command("systemctl", "--user", "start", serviceName)
 	return cmd.Run()
 }
 

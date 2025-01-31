@@ -27,7 +27,7 @@ jobs:
       - name: Run Integration Tests
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: sudo go test -v ./... -tags=integration
+        run: go test -v ./... -tags=integration
 
   integration-tests-macos:
     name: Run Integration Tests on macOS
