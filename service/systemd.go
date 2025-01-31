@@ -56,8 +56,6 @@ func (j *Systemd) ensureUserServicePrerequisites() error {
 			j.user.Username, err)
 	}
 
-	fmt.Println("Lingering enabled for user", j.user.Username)
-
 	// Check and set XDG_RUNTIME_DIR if not set
 	if os.Getenv("XDG_RUNTIME_DIR") == "" {
 		uid := j.user.Uid
@@ -67,8 +65,6 @@ func (j *Systemd) ensureUserServicePrerequisites() error {
 		}
 	}
 
-	fmt.Println("XDG_RUNTIME_DIR set to", os.Getenv("XDG_RUNTIME_DIR"))
-
 	// Check and set DBUS_SESSION_BUS_ADDRESS if not set
 	if os.Getenv("DBUS_SESSION_BUS_ADDRESS") == "" {
 		runtimeDir := os.Getenv("XDG_RUNTIME_DIR")
@@ -77,8 +73,6 @@ func (j *Systemd) ensureUserServicePrerequisites() error {
 			return fmt.Errorf("failed to set DBUS_SESSION_BUS_ADDRESS: %v", err)
 		}
 	}
-
-	fmt.Println("DBUS_SESSION_BUS_ADDRESS set to", os.Getenv("DBUS_SESSION_BUS_ADDRESS"))
 
 	return nil
 }

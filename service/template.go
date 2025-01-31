@@ -247,11 +247,11 @@ After=network.target
 
 [Service]
 Type=exec
-ExecStart=%[3]s/%[1]s run start
+ExecStart=%[2]s/%[1]s run start
 KillSignal=SIGINT
-Environment="LD_LIBRARY_PATH=%[5]s/cosmovisor/dyld_lib"
+Environment="LD_LIBRARY_PATH=%[4]s/cosmovisor/dyld_lib"
 Environment="DAEMON_NAME=initiad"
-Environment="DAEMON_HOME=%[5]s"
+Environment="DAEMON_HOME=%[4]s"
 Environment="DAEMON_ALLOW_DOWNLOAD_BINARIES=true"
 Environment="DAEMON_RESTART_AFTER_UPGRADE=true"
 LimitNOFILE=65535
@@ -268,11 +268,11 @@ After=network.target
 
 [Service]
 Type=exec
-ExecStart=%[3]s/%[1]s run start
+ExecStart=%[2]s/%[1]s run start
 KillSignal=SIGINT
-Environment="LD_LIBRARY_PATH=%[5]s/cosmovisor/dyld_lib"
+Environment="LD_LIBRARY_PATH=%[4]s/cosmovisor/dyld_lib"
 Environment="DAEMON_NAME=initiad"
-Environment="DAEMON_HOME=%[5]s"
+Environment="DAEMON_HOME=%[4]s"
 Environment="DAEMON_ALLOW_DOWNLOAD_BINARIES=false"
 Environment="DAEMON_RESTART_AFTER_UPGRADE=false"
 LimitNOFILE=65535
@@ -289,9 +289,9 @@ After=network.target
 
 [Service]
 Type=exec
-ExecStart=%[3]s/%[1]s start --home %[5]s
+ExecStart=%[2]s/%[1]s start --home %[4]s
 KillSignal=SIGINT
-Environment="LD_LIBRARY_PATH=%[3]s"
+Environment="LD_LIBRARY_PATH=%[2]s"
 LimitNOFILE=65535
 
 [Install]
@@ -301,14 +301,14 @@ WantedBy=multi-user.target
 // LinuxOPinitBotTemplate should inject the arguments as follows: [binaryName, binaryPath, serviceName, appHome]
 const LinuxOPinitBotTemplate Template = `
 [Unit]
-Description=%[1]s %[4]s
+Description=%[1]s %[3]s
 After=network.target
 
 [Service]
 Type=exec
-ExecStart=%[3]s/%[1]s start %[4]s --home %[5]s
+ExecStart=%[2]s/%[1]s start %[3]s --home %[4]s
 KillSignal=SIGINT
-Environment="LD_LIBRARY_PATH=%[3]s"
+Environment="LD_LIBRARY_PATH=%[2]s"
 LimitNOFILE=65535
 
 [Install]
@@ -323,7 +323,7 @@ After=network.target
 
 [Service]
 Type=exec
-ExecStart=%[3]s/%[1]s start
+ExecStart=%[2]s/%[1]s start
 KillSignal=SIGINT
 LimitNOFILE=65535
 
