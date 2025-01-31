@@ -50,6 +50,14 @@ func (j *Systemd) ensureUserServicePrerequisites() error {
 		return nil
 	}
 
+	enableCmd := exec.Command("loginctl", "enable-linger", j.user.Username)
+	if err := enableCmd.Run(); err != nil {
+		return fmt.Errorf("failed to enable lingering. Please run 'loginctl enable-linger %s' manually: %v",
+			j.user.Username, err)
+	}
+
+	fmt.Println("Lingering enabled for user", j.user.Username)
+
 	// Check and set XDG_RUNTIME_DIR if not set
 	if os.Getenv("XDG_RUNTIME_DIR") == "" {
 		uid := j.user.Uid
@@ -58,6 +66,8 @@ func (j *Systemd) ensureUserServicePrerequisites() error {
 			return fmt.Errorf("failed to set XDG_RUNTIME_DIR: %v", err)
 		}
 	}
+
+	fmt.Println("XDG_RUNTIME_DIR set to", os.Getenv("XDG_RUNTIME_DIR"))
 
 	// Check and set DBUS_SESSION_BUS_ADDRESS if not set
 	if os.Getenv("DBUS_SESSION_BUS_ADDRESS") == "" {
@@ -68,20 +78,12 @@ func (j *Systemd) ensureUserServicePrerequisites() error {
 		}
 	}
 
-	enableCmd := exec.Command("loginctl", "enable-linger", j.user.Username)
-	if err := enableCmd.Run(); err != nil {
-		return fmt.Errorf("failed to enable lingering. Please run 'loginctl enable-linger %s' manually: %v",
-			j.user.Username, err)
-	}
+	fmt.Println("DBUS_SESSION_BUS_ADDRESS set to", os.Getenv("DBUS_SESSION_BUS_ADDRESS"))
 
 	return nil
 }
 
 func (j *Systemd) Create(binaryVersion, appHome string) error {
-	if err := j.ensureUserServicePrerequisites(); err != nil {
-		return err
-	}
-
 	userHome, err := os.UserHomeDir()
 	if err != nil {
 		return fmt.Errorf("failed to get user home directory: %v", err)
@@ -128,6 +130,10 @@ func (j *Systemd) Create(binaryVersion, appHome string) error {
 		if err != nil {
 			return fmt.Errorf("failed to create service file: %v", err)
 		}
+	}
+
+	if err := j.ensureUserServicePrerequisites(); err != nil {
+		return err
 	}
 
 	if err = j.daemonReload(); err != nil {
