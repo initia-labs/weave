@@ -17,8 +17,8 @@ import (
 	"github.com/initia-labs/weave/testutil"
 )
 
-func setupInitia() (string, tea.Model) {
-	setup([]service.CommandName{service.UpgradableInitia})
+func setupInitia(t *testing.T) (string, tea.Model) {
+	setup(t, []service.CommandName{service.UpgradableInitia})
 
 	ctx := context.NewAppContext(initia.NewRunL1NodeState())
 
@@ -32,13 +32,13 @@ func setupInitia() (string, tea.Model) {
 	return initiaHome, firstModel
 }
 
-func teardownInitia() {
-	teardown([]service.CommandName{service.UpgradableInitia})
+func teardownInitia(t *testing.T) {
+	teardown(t, []service.CommandName{service.UpgradableInitia})
 }
 
 func TestInitiaInitTestnetNoSync(t *testing.T) {
-	initiaHome, firstModel := setupInitia()
-	defer teardownInitia()
+	initiaHome, firstModel := setupInitia(t)
+	defer teardownInitia(t)
 
 	// Ensure that there is no previous Initia home
 	_, err := os.Stat(initiaHome)
@@ -103,8 +103,8 @@ func TestInitiaInitTestnetNoSync(t *testing.T) {
 }
 
 func TestInitiaInitTestnetStatesync(t *testing.T) {
-	initiaHome, firstModel := setupInitia()
-	defer teardownInitia()
+	initiaHome, firstModel := setupInitia(t)
+	defer teardownInitia(t)
 
 	// Ensure that there is no previous Initia home
 	_, err := os.Stat(initiaHome)

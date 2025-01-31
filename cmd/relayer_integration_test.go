@@ -21,20 +21,20 @@ import (
 	"github.com/initia-labs/weave/testutil"
 )
 
-func setupRelayer() context.Context {
-	setup([]service.CommandName{service.Relayer})
+func setupRelayer(t *testing.T) context.Context {
+	setup(t, []service.CommandName{service.Relayer})
 
 	ctx := weavecontext.NewAppContext(relayer.NewRelayerState())
 	return weavecontext.SetMinitiaHome(ctx, TestMinitiaHome)
 }
 
-func teardownRelayer() {
-	teardown([]service.CommandName{service.Relayer})
+func teardownRelayer(t *testing.T) {
+	teardown(t, []service.CommandName{service.Relayer})
 }
 
 func TestRelayerInit(t *testing.T) {
-	ctx := setupRelayer()
-	defer teardownRelayer()
+	ctx := setupRelayer(t)
+	defer teardownRelayer(t)
 
 	firstModel, err := relayer.NewRollupSelect(ctx)
 	assert.Nil(t, err)

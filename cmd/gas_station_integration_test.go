@@ -17,8 +17,8 @@ import (
 )
 
 func TestGasStationSetup(t *testing.T) {
-	setup([]service.CommandName{})
-	defer teardown([]service.CommandName{})
+	setup(t, []service.CommandName{})
+	defer teardown(t, []service.CommandName{})
 
 	userHome, _ := os.UserHomeDir()
 	weaveDir := filepath.Join(userHome, common.WeaveDirectory)

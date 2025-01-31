@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"testing"
 
 	"github.com/initia-labs/weave/analytics"
 	"github.com/initia-labs/weave/common"
@@ -24,25 +25,28 @@ const (
 	TestInitiaHome  = ".initia.weave.test"
 )
 
-func getServiceFilePathAndBackupFilePath(serviceName service.CommandName) (string, string) {
+func getServiceFilePathAndBackupFilePath(serviceName service.CommandName) (string, string, error) {
 	s, err := service.NewService(service.UpgradableInitia)
 	if err != nil {
-		panic(fmt.Errorf("failed to create service: %v", err))
+		return "", "", fmt.Errorf("failed to create service: %v", err)
 	}
 
 	serviceFilePath, err := s.GetServiceFile()
 	if err != nil {
-		panic(fmt.Errorf("failed to get service file: %v", err))
+		return "", "", fmt.Errorf("failed to get service file: %v", err)
 	}
 
 	backupServiceFilePath := serviceFilePath + ".backup"
 
-	return serviceFilePath, backupServiceFilePath
+	return serviceFilePath, backupServiceFilePath, nil
 }
 
-func backupServiceFiles(services []service.CommandName) {
+func backupServiceFiles(services []service.CommandName) error {
 	for _, serviceName := range services {
-		serviceFilePath, backupServiceFilePath := getServiceFilePathAndBackupFilePath(serviceName)
+		serviceFilePath, backupServiceFilePath, err := getServiceFilePathAndBackupFilePath(serviceName)
+		if err != nil {
+			return err
+		}
 
 		if _, err := os.Stat(serviceFilePath); os.IsNotExist(err) {
 			continue
@@ -51,14 +55,19 @@ func backupServiceFiles(services []service.CommandName) {
 		fmt.Printf("Backing up service file %s to %s\n", serviceFilePath, backupServiceFilePath)
 
 		if err := os.Rename(serviceFilePath, backupServiceFilePath); err != nil {
-			panic(fmt.Errorf("failed to backup service file: %v", err))
+			return fmt.Errorf("failed to backup service file: %v", err)
 		}
 	}
+
+	return nil
 }
 
-func restoreServiceFiles(services []service.CommandName) {
+func restoreServiceFiles(services []service.CommandName) error {
 	for _, serviceName := range services {
-		serviceFilePath, backupServiceFilePath := getServiceFilePathAndBackupFilePath(serviceName)
+		serviceFilePath, backupServiceFilePath, err := getServiceFilePathAndBackupFilePath(serviceName)
+		if err != nil {
+			return err
+		}
 
 		if _, err := os.Stat(backupServiceFilePath); os.IsNotExist(err) {
 			// remove the service file if the backup file does not exist
@@ -67,12 +76,14 @@ func restoreServiceFiles(services []service.CommandName) {
 		}
 
 		if err := os.Rename(backupServiceFilePath, serviceFilePath); err != nil {
-			panic(fmt.Errorf("failed to restore service file: %v", err))
+			return fmt.Errorf("failed to restore service file: %v", err)
 		}
 	}
+
+	return nil
 }
 
-func setup(services []service.CommandName) {
+func setup(t *testing.T, services []service.CommandName) {
 	// disable analytics
 	analytics.Client = &analytics.NoOpClient{}
 
@@ -86,7 +97,7 @@ func setup(services []service.CommandName) {
 		fmt.Println("Backing up weave directory")
 
 		if err := os.Rename(weaveDir, weaveDirBackup); err != nil {
-			panic(fmt.Errorf("failed to backup weave directory: %v", err))
+			t.Fatalf("failed to backup weave directory: %v", err)
 		}
 	}
 
@@ -100,16 +111,19 @@ func setup(services []service.CommandName) {
 			fmt.Println("Backing up hermes directory")
 
 			if err := os.Rename(relayerDir, relayerDirBackup); err != nil {
-				panic(fmt.Errorf("failed to backup hermes directory: %v", err))
+				t.Fatalf("failed to backup hermes directory: %v", err)
 			}
 		}
 	}
 
 	// move service files to backup
-	backupServiceFiles(services)
+	err := backupServiceFiles(services)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
 }
 
-func teardown(services []service.CommandName) {
+func teardown(t *testing.T, services []service.CommandName) {
 	userHome, _ := os.UserHomeDir()
 	weaveDir := filepath.Join(userHome, common.WeaveDirectory)
 	weaveDirBackup := filepath.Join(userHome, weaveDirectoryBackup)
@@ -130,5 +144,8 @@ func teardown(services []service.CommandName) {
 	}
 
 	// restore service files
-	restoreServiceFiles(services)
+	err := restoreServiceFiles(services)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
 }
