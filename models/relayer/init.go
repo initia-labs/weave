@@ -1210,10 +1210,6 @@ func (m *FundDefaultPresetConfirmationInput) Update(msg tea.Msg) (tea.Model, tea
 				}
 			}
 
-			if l2Available == 0 {
-				return m, m.HandlePanic(fmt.Errorf("no balance found for denom %s in gas station on L2", l2GasDenom))
-			}
-
 			if l2Available < l2Required {
 				m.err = fmt.Errorf("insufficient balance in gas station on L2. Required: %d%s, Available: %d%s",
 					l2Required, l2GasDenom, l2Available, l2GasDenom)
