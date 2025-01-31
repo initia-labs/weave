@@ -4,6 +4,7 @@
 package cmd_test
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"sort"
@@ -16,12 +17,24 @@ import (
 	weavecontext "github.com/initia-labs/weave/context"
 	"github.com/initia-labs/weave/models/relayer"
 	"github.com/initia-labs/weave/registry"
+	"github.com/initia-labs/weave/service"
 	"github.com/initia-labs/weave/testutil"
 )
 
-func TestRelayerInit(t *testing.T) {
+func setupRelayer(t *testing.T) context.Context {
+	setup(t, []service.CommandName{service.Relayer})
+
 	ctx := weavecontext.NewAppContext(relayer.NewRelayerState())
-	ctx = weavecontext.SetMinitiaHome(ctx, TestMinitiaHome)
+	return weavecontext.SetMinitiaHome(ctx, TestMinitiaHome)
+}
+
+func teardownRelayer(t *testing.T) {
+	teardown(t, []service.CommandName{service.Relayer})
+}
+
+func TestRelayerInit(t *testing.T) {
+	ctx := setupRelayer(t)
+	defer teardownRelayer(t)
 
 	firstModel, err := relayer.NewRollupSelect(ctx)
 	assert.Nil(t, err)

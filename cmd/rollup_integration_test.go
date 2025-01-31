@@ -15,10 +15,6 @@ import (
 	"github.com/initia-labs/weave/testutil"
 )
 
-const (
-	TestMinitiaHome = ".minitia.weave.test"
-)
-
 func TestMinitiaLaunchWithExisting(t *testing.T) {
 	t.Skip("Skipping minitia launch with existing test")
 	_ = testutil.SetupGasStation(t)
