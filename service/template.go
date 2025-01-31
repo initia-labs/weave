@@ -239,7 +239,7 @@ const DarwinRelayerTemplate Template = `<?xml version="1.0" encoding="UTF-8"?>
 </plist>
 `
 
-// LinuxRunUpgradableCosmovisorTemplate should inject the arguments as follows: [binaryName, currentUser.Username, binaryPath, serviceName, appHome]
+// LinuxRunUpgradableCosmovisorTemplate should inject the arguments as follows: [binaryName, binaryPath, serviceName, appHome]
 const LinuxRunUpgradableCosmovisorTemplate Template = `
 [Unit]
 Description=%[1]s
@@ -247,7 +247,6 @@ After=network.target
 
 [Service]
 Type=exec
-User=%[2]s
 ExecStart=%[3]s/%[1]s run start
 KillSignal=SIGINT
 Environment="LD_LIBRARY_PATH=%[5]s/cosmovisor/dyld_lib"
@@ -261,7 +260,7 @@ LimitNOFILE=65535
 WantedBy=multi-user.target
 `
 
-// LinuxRunNonUpgradableCosmovisorTemplate should inject the arguments as follows: [binaryName, currentUser.Username, binaryPath, serviceName, appHome]
+// LinuxRunNonUpgradableCosmovisorTemplate should inject the arguments as follows: [binaryName, binaryPath, serviceName, appHome]
 const LinuxRunNonUpgradableCosmovisorTemplate Template = `
 [Unit]
 Description=%[1]s
@@ -269,7 +268,6 @@ After=network.target
 
 [Service]
 Type=exec
-User=%[2]s
 ExecStart=%[3]s/%[1]s run start
 KillSignal=SIGINT
 Environment="LD_LIBRARY_PATH=%[5]s/cosmovisor/dyld_lib"
@@ -283,7 +281,7 @@ LimitNOFILE=65535
 WantedBy=multi-user.target
 `
 
-// LinuxRunBinaryTemplate should inject the arguments as follows: [binaryName, currentUser.Username, binaryPath, serviceName, appHome]
+// LinuxRunBinaryTemplate should inject the arguments as follows: [binaryName, binaryPath, serviceName, appHome]
 const LinuxRunBinaryTemplate Template = `
 [Unit]
 Description=%[1]s
@@ -291,7 +289,6 @@ After=network.target
 
 [Service]
 Type=exec
-User=%[2]s
 ExecStart=%[3]s/%[1]s start --home %[5]s
 KillSignal=SIGINT
 Environment="LD_LIBRARY_PATH=%[3]s"
@@ -301,7 +298,7 @@ LimitNOFILE=65535
 WantedBy=multi-user.target
 `
 
-// LinuxOPinitBotTemplate should inject the arguments as follows: [binaryName, currentUser.Username, binaryPath, serviceName, appHome]
+// LinuxOPinitBotTemplate should inject the arguments as follows: [binaryName, binaryPath, serviceName, appHome]
 const LinuxOPinitBotTemplate Template = `
 [Unit]
 Description=%[1]s %[4]s
@@ -309,7 +306,6 @@ After=network.target
 
 [Service]
 Type=exec
-User=%[2]s
 ExecStart=%[3]s/%[1]s start %[4]s --home %[5]s
 KillSignal=SIGINT
 Environment="LD_LIBRARY_PATH=%[3]s"
@@ -319,7 +315,7 @@ LimitNOFILE=65535
 WantedBy=multi-user.target
 `
 
-// LinuxRelayerTemplate should inject the arguments as follows: [binaryName, currentUser.Username, binaryPath, serviceName, appHome]
+// LinuxRelayerTemplate should inject the arguments as follows: [binaryName, binaryPath, serviceName, appHome]
 const LinuxRelayerTemplate Template = `
 [Unit]
 Description=%[1]s
@@ -327,7 +323,6 @@ After=network.target
 
 [Service]
 Type=exec
-User=%[2]s
 ExecStart=%[3]s/%[1]s start
 KillSignal=SIGINT
 LimitNOFILE=65535

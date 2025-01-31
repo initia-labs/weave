@@ -118,7 +118,7 @@ func (j *Systemd) Create(binaryVersion, appHome string) error {
 		serviceFile := filepath.Join(serviceDir, serviceName)
 		template := LinuxTemplateMap[j.commandName]
 		err = os.WriteFile(serviceFile, []byte(fmt.Sprintf(string(template),
-			binaryName, j.user.Username, binaryPath, string(j.commandName), appHome)), 0644)
+			binaryName, binaryPath, string(j.commandName), appHome)), 0644)
 		if err != nil {
 			return fmt.Errorf("failed to create service file: %v", err)
 		}
@@ -126,7 +126,7 @@ func (j *Systemd) Create(binaryVersion, appHome string) error {
 		serviceFile := filepath.Join(j.getServiceDirPath(), serviceName)
 		template := LinuxTemplateMap[j.commandName]
 		err = os.WriteFile(serviceFile, []byte(fmt.Sprintf(string(template),
-			binaryName, j.user.Username, binaryPath, string(j.commandName), appHome)), 0644)
+			binaryName, binaryPath, string(j.commandName), appHome)), 0644)
 		if err != nil {
 			return fmt.Errorf("failed to create service file: %v", err)
 		}
