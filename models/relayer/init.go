@@ -1087,6 +1087,7 @@ type FundDefaultPresetConfirmationInput struct {
 	weavecontext.BaseModel
 	initiaGasStationAddress string
 	question                string
+	err                     error
 }
 
 func NewFundDefaultPresetConfirmationInput(ctx context.Context) (*FundDefaultPresetConfirmationInput, error) {
@@ -1122,8 +1123,105 @@ func (m *FundDefaultPresetConfirmationInput) Update(msg tea.Msg) (tea.Model, tea
 
 	input, cmd, done := m.TextInput.Update(msg)
 	if done {
-		_ = weavecontext.PushPageAndGetState[State](m)
-		model := NewFundDefaultPresetBroadcastLoading(m.Ctx)
+		state := weavecontext.PushPageAndGetState[State](m)
+
+		// Check gas station balances
+		gasStationMnemonic := config.GetGasStationMnemonic()
+		gasStationAddress, err := crypto.MnemonicToBech32Address("init", gasStationMnemonic)
+		if err != nil {
+			return m, m.HandlePanic(fmt.Errorf("failed to get gas station address: %w", err))
+		}
+		l1ActiveLcd, err := GetL1ActiveLcd(m.Ctx)
+		if err != nil {
+			return m, m.HandlePanic(err)
+		}
+		querier, err := cosmosutils.NewInitiadQuerier(l1ActiveLcd)
+		if err != nil {
+			return m, m.HandlePanic(err)
+		}
+		// Check L1 balance if needed
+		if state.l1FundingAmount != "0" {
+			l1ActiveRpc, err := GetL1ActiveRpc(m.Ctx)
+			if err != nil {
+				return m, m.HandlePanic(err)
+			}
+			l1Balances, err := querier.QueryBankBalances(gasStationAddress, l1ActiveRpc)
+			if err != nil {
+				return m, m.HandlePanic(err)
+			}
+
+			l1Required, err := strconv.ParseInt(state.l1FundingAmount, 10, 64)
+			if err != nil {
+				return m, m.HandlePanic(fmt.Errorf("invalid L1 funding amount: %w", err))
+			}
+
+			// Get the available balance for the default denom
+			l1GasDenom, err := GetL1GasDenom(m.Ctx)
+			if err != nil {
+				m.HandlePanic(err)
+			}
+			l1Available := int64(0)
+			for _, coin := range *l1Balances {
+				if coin.Denom == l1GasDenom {
+					l1Available, err = strconv.ParseInt(coin.Amount, 10, 64)
+					if err != nil {
+						return m, m.HandlePanic(fmt.Errorf("invalid L1 funding amount: %w", err))
+					}
+				}
+			}
+			if l1Available < l1Required {
+				m.err = (fmt.Errorf("insufficient balance in gas station on L1. Required: %d%s, Available: %d%s",
+					l1Required, l1GasDenom, l1Available, l1GasDenom))
+				return m, cmd
+			}
+		}
+
+		// Check L2 balance if needed
+		if state.l2FundingAmount != "0" {
+			l2ActiveRpc, err := GetL2ActiveRpc(m.Ctx)
+			if err != nil {
+				return m, m.HandlePanic(err)
+			}
+			l2Balances, err := querier.QueryBankBalances(gasStationAddress, l2ActiveRpc)
+			if err != nil {
+				return m, m.HandlePanic(err)
+			}
+
+			l2Required, err := strconv.ParseInt(state.l2FundingAmount, 10, 64)
+			if err != nil {
+				return m, m.HandlePanic(fmt.Errorf("invalid L2 funding amount: %w", err))
+			}
+
+			// Get the gas denom for L2
+			l2GasDenom, err := GetL2GasDenom(m.Ctx)
+			if err != nil {
+				return m, m.HandlePanic(fmt.Errorf("failed to get L2 gas denom: %w", err))
+			}
+
+			// Find the balance for the required denom
+			l2Available := int64(0)
+			for _, coin := range *l2Balances {
+				if coin.Denom == l2GasDenom {
+					l2Available, err = strconv.ParseInt(coin.Amount, 10, 64)
+					if err != nil {
+						return m, m.HandlePanic(fmt.Errorf("invalid L2 balance amount: %w", err))
+					}
+					break
+				}
+			}
+
+			if l2Available == 0 {
+				return m, m.HandlePanic(fmt.Errorf("no balance found for denom %s in gas station on L2", l2GasDenom))
+			}
+
+			if l2Available < l2Required {
+				m.err = fmt.Errorf("insufficient balance in gas station on L2. Required: %d%s, Available: %d%s",
+					l2Required, l2GasDenom, l2Available, l2GasDenom)
+				return m, cmd
+			}
+		}
+
+		model := NewFundDefaultPresetBroadcastLoading(weavecontext.SetCurrentState(m.Ctx, state))
 		return model, model.Init()
 	}
 	m.TextInput = input
@@ -1157,6 +1255,14 @@ func (m *FundDefaultPresetConfirmationInput) View() string {
 		false: fmt.Sprintf("Sending tokens from the Gas Station account on L2 %s ⛽️\n", styles.Text(fmt.Sprintf("(%s)", m.initiaGasStationAddress), styles.Gray)) +
 			formatSendMsg(state.l2FundingAmount, l2GasDenom, "Relayer key on L2", state.l2RelayerAddress),
 	}
+
+	textInputView := ""
+	if m.err != nil {
+		textInputView = m.TextInput.ViewErr(m.err)
+	} else {
+		textInputView = m.TextInput.View()
+	}
+
 	return m.WrapView(state.weave.Render() + "\n" +
 		styles.Text("i ", styles.Yellow) +
 		styles.RenderPrompt(
@@ -1165,7 +1271,7 @@ func (m *FundDefaultPresetConfirmationInput) View() string {
 		) + "\n\n" +
 		l1FundingText[state.l1FundingAmount == "0"] +
 		l2FundingText[state.l2FundingAmount == "0"] +
-		styles.RenderPrompt(m.GetQuestion(), []string{}, styles.Question) + m.TextInput.View())
+		styles.RenderPrompt(m.GetQuestion(), []string{}, styles.Question) + textInputView)
 }
 
 type FundDefaultPresetBroadcastLoading struct {
