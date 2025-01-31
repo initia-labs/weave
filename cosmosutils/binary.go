@@ -9,7 +9,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/initia-labs/weave/client"
 	"github.com/initia-labs/weave/common"
@@ -165,23 +164,6 @@ func SortVersions(versions BinaryVersionWithDownloadURL) []string {
 	})
 
 	return versionTags
-}
-
-func compareDates(d1, d2 string) bool {
-	const layout = time.RFC3339
-
-	t1, err1 := time.Parse(layout, d1)
-	t2, err2 := time.Parse(layout, d2)
-
-	if err1 != nil && err2 != nil {
-		return d1 < d2 // fallback
-	} else if err1 != nil {
-		return false
-	} else if err2 != nil {
-		return true
-	}
-
-	return t1.Before(t2)
 }
 
 // CompareSemVer compares two semantic version strings and returns true if v1 should be ordered before v2
