@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -2600,6 +2601,7 @@ type FundGasStationConfirmationInput struct {
 	initiaGasStationAddress   string
 	celestiaGasStationAddress string
 	question                  string
+	err                       error
 }
 
 func NewFundGasStationConfirmationInput(ctx context.Context) (*FundGasStationConfirmationInput, error) {
@@ -2644,7 +2646,35 @@ func (m *FundGasStationConfirmationInput) Update(msg tea.Msg) (tea.Model, tea.Cm
 
 	input, cmd, done := m.TextInput.Update(msg)
 	if done {
-		_ = weavecontext.PushPageAndGetState[LaunchState](m)
+		state := weavecontext.PushPageAndGetState[LaunchState](m)
+		systemKeys := NewL1SystemKeys(
+			&types.GenesisAccount{
+				Address: state.systemKeyBridgeExecutorAddress,
+				Coins:   state.systemKeyL1BridgeExecutorBalance,
+			},
+			&types.GenesisAccount{
+				Address: state.systemKeyOutputSubmitterAddress,
+				Coins:   state.systemKeyL1OutputSubmitterBalance,
+			},
+			&types.GenesisAccount{
+				Address: state.systemKeyBatchSubmitterAddress,
+				Coins:   state.systemKeyL1BatchSubmitterBalance,
+			},
+			&types.GenesisAccount{
+				Address: state.systemKeyChallengerAddress,
+				Coins:   state.systemKeyL1ChallengerBalance,
+			},
+		)
+		err := systemKeys.VerifyGasStationBalances(&state)
+		if err != nil {
+			if errors.Is(err, ErrInsufficientBalance) {
+				m.err = err
+				return m, cmd
+			} else {
+				return m, m.HandlePanic(err)
+			}
+		}
+
 		model := NewFundGasStationBroadcastLoading(m.Ctx)
 		return model, model.Init()
 	}
@@ -2673,6 +2703,12 @@ func (m *FundGasStationConfirmationInput) View() string {
 		true:  fmt.Sprintf("\nSending tokens from the Gas Station account on Celestia Testnet %s ⛽️\n%s", styles.Text(fmt.Sprintf("(%s)", m.celestiaGasStationAddress), styles.Gray), formatSendMsg(state.systemKeyL1BatchSubmitterBalance, DefaultCelestiaGasDenom, "Batch Submitter on Celestia Testnet", state.systemKeyBatchSubmitterAddress)),
 		false: "",
 	}
+	var textInputView string
+	if m.err != nil {
+		textInputView = m.TextInput.ViewErr(m.err)
+	} else {
+		textInputView = m.TextInput.View()
+	}
 	return m.WrapView(state.weave.Render() + "\n" +
 		styles.Text("i ", styles.Yellow) +
 		styles.RenderPrompt(
@@ -2685,7 +2721,7 @@ func (m *FundGasStationConfirmationInput) View() string {
 		batchSubmitterText[state.batchSubmissionIsCelestia] +
 		formatSendMsg(state.systemKeyL1ChallengerBalance, "uinit", "Challenger on Initia L1", state.systemKeyChallengerAddress) +
 		celestiaText[state.batchSubmissionIsCelestia] +
-		styles.RenderPrompt(m.GetQuestion(), []string{"`continue`"}, styles.Question) + m.TextInput.View())
+		styles.RenderPrompt(m.GetQuestion(), []string{"`continue`"}, styles.Question) + textInputView)
 }
 
 type FundGasStationBroadcastLoading struct {

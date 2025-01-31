@@ -203,8 +203,14 @@ func (ti TextInput) View() string {
 }
 
 func (ti TextInput) ViewErr(err error) string {
-	var beforeCursor, cursorChar, afterCursor string
-	footerText := styles.RenderFooter("Enter to submit, or Ctrl+c to quit.")
+	var beforeCursor, cursorChar, afterCursor, footerText string
+
+	if ti.CannotBack {
+		footerText = styles.RenderFooter("Enter to submit, or Ctrl+c to quit.")
+	} else {
+		footerText = styles.RenderFooter("Enter to submit, Ctrl+z to go back, or Ctrl+c to quit.")
+	}
+
 	if len(ti.Text) == 0 {
 		return "\n" + styles.Text("> ", styles.Cyan) + styles.Text(ti.Placeholder, styles.Gray) + styles.Cursor(" ") + "\n\n" + styles.RenderError(err) + footerText
 	} else if ti.Cursor < len(ti.Text) {

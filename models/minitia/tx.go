@@ -2,10 +2,12 @@ package minitia
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/initia-labs/weave/common"
@@ -15,6 +17,8 @@ import (
 	"github.com/initia-labs/weave/registry"
 	"github.com/initia-labs/weave/types"
 )
+
+var ErrInsufficientBalance = errors.New("insufficient balance")
 
 type L1SystemKeys struct {
 	BridgeExecutor  *types.GenesisAccount
@@ -345,3 +349,123 @@ const FundMinitiaAccountsWithoutBatchTxInterface = `
   "signatures":[]
 }
 `
+
+func (lsk *L1SystemKeys) calculateTotalWantedCoins(state *LaunchState) (l1Want int64, daWant int64, err error) {
+	for _, acc := range []*types.GenesisAccount{
+		lsk.BridgeExecutor,
+		lsk.OutputSubmitter,
+		lsk.BatchSubmitter,
+		lsk.Challenger,
+	} {
+		if acc == nil {
+			continue
+		}
+
+		amount, err := strconv.ParseInt(acc.Coins, 10, 64)
+		if err != nil {
+			return 0, 0, fmt.Errorf("failed to parse coin amount %s: %v", acc.Coins, err)
+		}
+
+		if acc == lsk.Challenger && state.batchSubmissionIsCelestia {
+			daWant += amount
+		} else {
+			l1Want += amount
+		}
+	}
+
+	return l1Want, daWant, nil
+}
+
+func queryChainBalance(binaryPath, rpc, address string) (map[string]int64, error) {
+	queryCmd := exec.Command(binaryPath, "query", "bank", "balances", address,
+		"--node", rpc, "--output", "json")
+	balanceRes, err := queryCmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("failed to query balance: %v", err)
+	}
+
+	var balance struct {
+		Balances []struct {
+			Denom  string `json:"denom"`
+			Amount string `json:"amount"`
+		} `json:"balances"`
+	}
+	if err := json.Unmarshal(balanceRes, &balance); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal balance: %v", err)
+	}
+
+	balanceMap := make(map[string]int64)
+	for _, bal := range balance.Balances {
+		amount, err := strconv.ParseInt(bal.Amount, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse balance amount: %v", err)
+		}
+		balanceMap[bal.Denom] = amount
+	}
+
+	return balanceMap, nil
+}
+
+func (lsk *L1SystemKeys) VerifyGasStationBalances(state *LaunchState) error {
+	address, err := cosmosutils.GetAddressFromMnemonic(state.binaryPath, config.GetGasStationMnemonic())
+	if err != nil {
+		return fmt.Errorf("failed to recover L1 key: %v", err)
+	}
+	// Query L1 balances
+	l1Balances, err := queryChainBalance(state.binaryPath, state.l1RPC, address)
+	if err != nil {
+		return fmt.Errorf("failed to query L1 balance: %v", err)
+	}
+
+	// Calculate required balances
+	l1Want, daWant, err := lsk.calculateTotalWantedCoins(state)
+	if err != nil {
+		return fmt.Errorf("failed to calculate wanted coins: %v", err)
+	}
+
+	// Verify L1 balance
+	if l1Available := l1Balances[DefaultL1GasDenom]; l1Available < l1Want {
+		return fmt.Errorf("%w: insufficient initia balance: have %d uinit, want %d uinit",
+			ErrInsufficientBalance, l1Available, l1Want)
+	}
+
+	// Check Celestia balance if needed
+	if state.batchSubmissionIsCelestia {
+		if err := lsk.verifyCelestiaBalance(state, daWant); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (lsk *L1SystemKeys) verifyCelestiaBalance(state *LaunchState, daWant int64) error {
+	address, err := cosmosutils.GetAddressFromMnemonic(state.celestiaBinaryPath, config.GetGasStationMnemonic())
+	if err != nil {
+		return fmt.Errorf("failed to recover Celestia key: %v", err)
+	}
+
+	// TODO: Choose DA layer based on the chosen L1 network
+	celestiaRegistry, err := registry.GetChainRegistry(registry.CelestiaTestnet)
+	if err != nil {
+		return fmt.Errorf("failed to get celestia registry: %v", err)
+	}
+
+	celestiaRpc, err := celestiaRegistry.GetActiveRpc()
+	if err != nil {
+		return fmt.Errorf("failed to get active rpc for celestia: %v", err)
+	}
+
+	// Query Celestia balances
+	celestiaBalances, err := queryChainBalance(state.celestiaBinaryPath, celestiaRpc, address)
+	if err != nil {
+		return fmt.Errorf("failed to query Celestia balance: %v", err)
+	}
+
+	// Verify Celestia balance
+	if daAvailable := celestiaBalances[DefaultCelestiaGasDenom]; daAvailable < daWant {
+		return fmt.Errorf("%w: have %d utia, want %d utia", ErrInsufficientBalance, daAvailable, daWant)
+	}
+
+	return nil
+}
