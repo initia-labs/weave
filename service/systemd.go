@@ -102,6 +102,14 @@ func (j *Systemd) Create(binaryVersion, appHome string) error {
 		return err
 	}
 
+	var userField string
+	// root needs to specify the user while --user mode doesn't
+	if j.userMode {
+		userField = ""
+	} else {
+		userField = fmt.Sprintf("User=%s\n", j.user.Username)
+	}
+
 	if j.userMode {
 		// Create user systemd directory if it doesn't exist
 		serviceDir := j.getServiceDirPath()
@@ -112,7 +120,7 @@ func (j *Systemd) Create(binaryVersion, appHome string) error {
 		serviceFile := filepath.Join(serviceDir, serviceName)
 		template := LinuxTemplateMap[j.commandName]
 		err = os.WriteFile(serviceFile, []byte(fmt.Sprintf(string(template),
-			binaryName, binaryPath, string(j.commandName), appHome)), 0644)
+			binaryName, binaryPath, string(j.commandName), appHome, userField)), 0644)
 		if err != nil {
 			return fmt.Errorf("failed to create service file: %v", err)
 		}
@@ -120,7 +128,7 @@ func (j *Systemd) Create(binaryVersion, appHome string) error {
 		serviceFile := filepath.Join(j.getServiceDirPath(), serviceName)
 		template := LinuxTemplateMap[j.commandName]
 		err = os.WriteFile(serviceFile, []byte(fmt.Sprintf(string(template),
-			binaryName, binaryPath, string(j.commandName), appHome)), 0644)
+			binaryName, binaryPath, string(j.commandName), appHome, userField)), 0644)
 		if err != nil {
 			return fmt.Errorf("failed to create service file: %v", err)
 		}

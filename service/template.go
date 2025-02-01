@@ -239,7 +239,7 @@ const DarwinRelayerTemplate Template = `<?xml version="1.0" encoding="UTF-8"?>
 </plist>
 `
 
-// LinuxRunUpgradableCosmovisorTemplate should inject the arguments as follows: [binaryName, binaryPath, serviceName, appHome]
+// LinuxRunUpgradableCosmovisorTemplate should inject the arguments as follows: [binaryName, binaryPath, serviceName, appHome, UserField]
 const LinuxRunUpgradableCosmovisorTemplate Template = `
 [Unit]
 Description=%[1]s
@@ -247,7 +247,7 @@ After=network.target
 
 [Service]
 Type=exec
-ExecStart=%[2]s/%[1]s run start
+%[5]sExecStart=%[2]s/%[1]s run start
 KillSignal=SIGINT
 Environment="LD_LIBRARY_PATH=%[4]s/cosmovisor/dyld_lib"
 Environment="DAEMON_NAME=initiad"
@@ -268,7 +268,7 @@ After=network.target
 
 [Service]
 Type=exec
-ExecStart=%[2]s/%[1]s run start
+%[5]sExecStart=%[2]s/%[1]s run start
 KillSignal=SIGINT
 Environment="LD_LIBRARY_PATH=%[4]s/cosmovisor/dyld_lib"
 Environment="DAEMON_NAME=initiad"
@@ -306,7 +306,7 @@ After=network.target
 
 [Service]
 Type=exec
-ExecStart=%[2]s/%[1]s start %[3]s --home %[4]s
+%[5]sExecStart=%[2]s/%[1]s start %[3]s --home %[4]s
 KillSignal=SIGINT
 Environment="LD_LIBRARY_PATH=%[2]s"
 LimitNOFILE=65535
@@ -323,7 +323,7 @@ After=network.target
 
 [Service]
 Type=exec
-ExecStart=%[2]s/%[1]s start
+%[5]sExecStart=%[2]s/%[1]s start
 KillSignal=SIGINT
 LimitNOFILE=65535
 
