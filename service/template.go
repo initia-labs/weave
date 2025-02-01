@@ -281,15 +281,15 @@ LimitNOFILE=65535
 WantedBy=multi-user.target
 `
 
-// LinuxRunBinaryTemplate should inject the arguments as follows: [binaryName, binaryPath, serviceName, appHome]
-const LinuxRunBinaryTemplate Template = `
+// LinuxRunMinitiaBinaryTemplate should inject the arguments as follows: [binaryName, binaryPath, serviceName, appHome]
+const LinuxRunMinitiaBinaryTemplate Template = `
 [Unit]
 Description=%[1]s
 After=network.target
 
 [Service]
 Type=exec
-ExecStart=%[2]s/%[1]s start --home %[4]s
+%[5]sExecStart=%[2]s/%[1]s start --home %[4]s
 KillSignal=SIGINT
 Environment="LD_LIBRARY_PATH=%[2]s"
 LimitNOFILE=65535
@@ -335,7 +335,7 @@ var (
 	LinuxTemplateMap = map[CommandName]Template{
 		UpgradableInitia:    LinuxRunUpgradableCosmovisorTemplate,
 		NonUpgradableInitia: LinuxRunNonUpgradableCosmovisorTemplate,
-		Minitia:             LinuxRunBinaryTemplate,
+		Minitia:             LinuxRunMinitiaBinaryTemplate,
 		OPinitExecutor:      LinuxOPinitBotTemplate,
 		OPinitChallenger:    LinuxOPinitBotTemplate,
 		Relayer:             LinuxRelayerTemplate,
