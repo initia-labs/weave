@@ -135,11 +135,10 @@ func GetLatestMinitiaVersion(vm string) (string, string, error) {
 	for _, release := range releases {
 		for _, asset := range release.Assets {
 			if strings.Contains(asset.BrowserDownloadURL, searchString) {
-				if highestStableRelease == nil || CompareSemVerStrict(release.TagName, highestStableRelease.TagName) {
+				if highestStableRelease == nil || CompareSemVer(release.TagName, highestStableRelease.TagName) {
 					highestStableRelease = &release
 					downloadURL = asset.BrowserDownloadURL
 				}
-				break
 			}
 		}
 	}
@@ -195,41 +194,6 @@ func CompareSemVer(v1, v2 string) bool {
 	if v1Pre != "" && v2Pre == "" {
 		return false
 	}
-	return v1Pre > v2Pre
-}
-
-// CompareSemVerStrict compares two semantic version strings with strict pre-release handling
-// Returns true if v1 should be ordered before v2
-// Rules:
-// 1. Any non-pre-release version is higher than any pre-release version: 0.9.0 > 1.0.0-xyz
-// 2. Between non-pre-releases: compare major.minor.patch normally
-// 3. Between pre-releases: compare major.minor.patch, then pre-release tag if equal
-func CompareSemVerStrict(v1, v2 string) bool {
-	// Trim "v" prefix
-	v1 = strings.TrimPrefix(v1, "v")
-	v2 = strings.TrimPrefix(v2, "v")
-
-	v1Main, v1Pre := splitVersion(v1)
-	v2Main, v2Pre := splitVersion(v2)
-
-	// Pre-release versions are always lower than non-pre-release versions
-	if (v1Pre == "") != (v2Pre == "") {
-		return v1Pre == "" // v1 wins if it's not a pre-release
-	}
-
-	// Compare the main versions
-	v1MainParts := padVersionParts(v1Main)
-	v2MainParts := padVersionParts(v2Main)
-	for i := 0; i < 3; i++ {
-		v1Part, _ := strconv.Atoi(v1MainParts[i])
-		v2Part, _ := strconv.Atoi(v2MainParts[i])
-
-		if v1Part != v2Part {
-			return v1Part > v2Part
-		}
-	}
-
-	// If both are pre-releases and main versions are equal, compare pre-release tags
 	return v1Pre > v2Pre
 }
 
