@@ -239,7 +239,7 @@ const DarwinRelayerTemplate Template = `<?xml version="1.0" encoding="UTF-8"?>
 </plist>
 `
 
-// LinuxRunUpgradableCosmovisorTemplate should inject the arguments as follows: [binaryName, currentUser.Username, binaryPath, serviceName, appHome]
+// LinuxRunUpgradableCosmovisorTemplate should inject the arguments as follows: [binaryName, binaryPath, serviceName, appHome, UserField]
 const LinuxRunUpgradableCosmovisorTemplate Template = `
 [Unit]
 Description=%[1]s
@@ -247,12 +247,11 @@ After=network.target
 
 [Service]
 Type=exec
-User=%[2]s
-ExecStart=%[3]s/%[1]s run start
+%[5]sExecStart=%[2]s/%[1]s run start
 KillSignal=SIGINT
-Environment="LD_LIBRARY_PATH=%[5]s/cosmovisor/dyld_lib"
+Environment="LD_LIBRARY_PATH=%[4]s/cosmovisor/dyld_lib"
 Environment="DAEMON_NAME=initiad"
-Environment="DAEMON_HOME=%[5]s"
+Environment="DAEMON_HOME=%[4]s"
 Environment="DAEMON_ALLOW_DOWNLOAD_BINARIES=true"
 Environment="DAEMON_RESTART_AFTER_UPGRADE=true"
 LimitNOFILE=65535
@@ -261,7 +260,7 @@ LimitNOFILE=65535
 WantedBy=multi-user.target
 `
 
-// LinuxRunNonUpgradableCosmovisorTemplate should inject the arguments as follows: [binaryName, currentUser.Username, binaryPath, serviceName, appHome]
+// LinuxRunNonUpgradableCosmovisorTemplate should inject the arguments as follows: [binaryName, binaryPath, serviceName, appHome]
 const LinuxRunNonUpgradableCosmovisorTemplate Template = `
 [Unit]
 Description=%[1]s
@@ -269,12 +268,11 @@ After=network.target
 
 [Service]
 Type=exec
-User=%[2]s
-ExecStart=%[3]s/%[1]s run start
+%[5]sExecStart=%[2]s/%[1]s run start
 KillSignal=SIGINT
-Environment="LD_LIBRARY_PATH=%[5]s/cosmovisor/dyld_lib"
+Environment="LD_LIBRARY_PATH=%[4]s/cosmovisor/dyld_lib"
 Environment="DAEMON_NAME=initiad"
-Environment="DAEMON_HOME=%[5]s"
+Environment="DAEMON_HOME=%[4]s"
 Environment="DAEMON_ALLOW_DOWNLOAD_BINARIES=false"
 Environment="DAEMON_RESTART_AFTER_UPGRADE=false"
 LimitNOFILE=65535
@@ -283,43 +281,41 @@ LimitNOFILE=65535
 WantedBy=multi-user.target
 `
 
-// LinuxRunBinaryTemplate should inject the arguments as follows: [binaryName, currentUser.Username, binaryPath, serviceName, appHome]
-const LinuxRunBinaryTemplate Template = `
+// LinuxRunMinitiaBinaryTemplate should inject the arguments as follows: [binaryName, binaryPath, serviceName, appHome]
+const LinuxRunMinitiaBinaryTemplate Template = `
 [Unit]
 Description=%[1]s
 After=network.target
 
 [Service]
 Type=exec
-User=%[2]s
-ExecStart=%[3]s/%[1]s start --home %[5]s
+%[5]sExecStart=%[2]s/%[1]s start --home %[4]s
 KillSignal=SIGINT
-Environment="LD_LIBRARY_PATH=%[3]s"
+Environment="LD_LIBRARY_PATH=%[2]s"
 LimitNOFILE=65535
 
 [Install]
 WantedBy=multi-user.target
 `
 
-// LinuxOPinitBotTemplate should inject the arguments as follows: [binaryName, currentUser.Username, binaryPath, serviceName, appHome]
+// LinuxOPinitBotTemplate should inject the arguments as follows: [binaryName, binaryPath, serviceName, appHome]
 const LinuxOPinitBotTemplate Template = `
 [Unit]
-Description=%[1]s %[4]s
+Description=%[1]s %[3]s
 After=network.target
 
 [Service]
 Type=exec
-User=%[2]s
-ExecStart=%[3]s/%[1]s start %[4]s --home %[5]s
+%[5]sExecStart=%[2]s/%[1]s start %[3]s --home %[4]s
 KillSignal=SIGINT
-Environment="LD_LIBRARY_PATH=%[3]s"
+Environment="LD_LIBRARY_PATH=%[2]s"
 LimitNOFILE=65535
 
 [Install]
 WantedBy=multi-user.target
 `
 
-// LinuxRelayerTemplate should inject the arguments as follows: [binaryName, currentUser.Username, binaryPath, serviceName, appHome]
+// LinuxRelayerTemplate should inject the arguments as follows: [binaryName, binaryPath, serviceName, appHome]
 const LinuxRelayerTemplate Template = `
 [Unit]
 Description=%[1]s
@@ -327,8 +323,7 @@ After=network.target
 
 [Service]
 Type=exec
-User=%[2]s
-ExecStart=%[3]s/%[1]s start
+%[5]sExecStart=%[2]s/%[1]s start
 KillSignal=SIGINT
 LimitNOFILE=65535
 
@@ -340,7 +335,7 @@ var (
 	LinuxTemplateMap = map[CommandName]Template{
 		UpgradableInitia:    LinuxRunUpgradableCosmovisorTemplate,
 		NonUpgradableInitia: LinuxRunNonUpgradableCosmovisorTemplate,
-		Minitia:             LinuxRunBinaryTemplate,
+		Minitia:             LinuxRunMinitiaBinaryTemplate,
 		OPinitExecutor:      LinuxOPinitBotTemplate,
 		OPinitChallenger:    LinuxOPinitBotTemplate,
 		Relayer:             LinuxRelayerTemplate,
