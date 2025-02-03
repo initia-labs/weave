@@ -135,13 +135,17 @@ func (j *Systemd) Create(binaryVersion, appHome string) error {
 	}
 
 	if err := j.ensureUserServicePrerequisites(); err != nil {
-		return err
+		return fmt.Errorf("failed to ensure user service prerequisites: %w", err)
 	}
 
 	if err = j.daemonReload(); err != nil {
-		return err
+		return fmt.Errorf("failed to reload systemd daemon: %w", err)
 	}
-	return j.enableService()
+
+	if err = j.enableService(); err != nil {
+		return fmt.Errorf("failed to enable systemd service: %w", err)
+	}
+	return nil
 }
 
 func (j *Systemd) daemonReload() error {
