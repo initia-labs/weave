@@ -195,8 +195,8 @@ func OPInitGrantOracle(appName, address, opInitHome string) error {
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to grant oracle to address %s: %v, stderr: %s", address, err, stderr.String())
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to grant oracle to address %s: %v (output: %s)", address, err, string(output))
 	}
 
 	return nil
@@ -357,8 +357,8 @@ func GetHermesRelayerAddress(appName, chainId string) (string, bool) {
 
 func DeleteWeaveKeyFromHermes(appName, chainId string) error {
 	cmd := exec.Command(appName, "keys", "delete", "--chain", chainId, "--key-name", "weave-relayer")
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to delete key from hermes for network: %s: %v", chainId, err)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to delete key from hermes for network: %s: %v (output: %s)", chainId, err, string(output))
 	}
 
 	return nil

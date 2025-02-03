@@ -72,8 +72,8 @@ func (j *Launchd) Create(binaryVersion, appHome string) error {
 	cmd := exec.Command("tee", plistPath)
 	template := DarwinTemplateMap[j.commandName]
 	cmd.Stdin = strings.NewReader(fmt.Sprintf(string(template), binaryName, binaryPath, appHome, userHome, weaveLogPath, j.GetCommandName()))
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to create service: %v", err)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to create service: %v (output: %s)", err, string(output))
 	}
 	return j.reloadService()
 }
@@ -102,8 +102,8 @@ func (j *Launchd) reloadService() error {
 	unloadCmd := exec.Command("launchctl", "unload", filepath.Join(userHome, launchdServiceFilePath, fmt.Sprintf("%s.plist", serviceName)))
 	_ = unloadCmd.Run()
 	loadCmd := exec.Command("launchctl", "load", filepath.Join(userHome, launchdServiceFilePath, fmt.Sprintf("%s.plist", serviceName)))
-	if err := loadCmd.Run(); err != nil {
-		return fmt.Errorf("failed to load service: %v", err)
+	if output, err := loadCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to load service: %v (output: %s)", err, string(output))
 	}
 	return nil
 }

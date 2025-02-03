@@ -51,9 +51,9 @@ func (j *Systemd) ensureUserServicePrerequisites() error {
 	}
 
 	enableCmd := exec.Command("loginctl", "enable-linger", j.user.Username)
-	if err := enableCmd.Run(); err != nil {
-		return fmt.Errorf("failed to enable lingering. Please run 'loginctl enable-linger %s' manually: %v",
-			j.user.Username, err)
+	if output, err := enableCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to enable lingering. Please run 'loginctl enable-linger %s' manually: %v (output: %s)",
+			j.user.Username, err, string(output))
 	}
 
 	// Check and set XDG_RUNTIME_DIR if not set
@@ -168,7 +168,12 @@ func (j *Systemd) systemctl(args ...string) error {
 	} else {
 		cmd = exec.Command("systemctl", args...)
 	}
-	return cmd.Run()
+
+	// Capture both stdout and stderr
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("systemctl error: %v, output: %s", err, string(output))
+	}
+	return nil
 }
 
 func (j *Systemd) getServiceDirPath() string {

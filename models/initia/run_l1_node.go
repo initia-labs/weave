@@ -1092,8 +1092,8 @@ func initializeApp(ctx context.Context) tea.Cmd {
 		}
 		if _, err := os.Stat(initiaHome); os.IsNotExist(err) {
 			runCmd := exec.Command(binaryPath, "init", fmt.Sprintf("'%s'", state.moniker), "--chain-id", state.chainId, "--home", initiaHome)
-			if err := runCmd.Run(); err != nil {
-				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to run initiad init: %v", err)}
+			if output, err := runCmd.CombinedOutput(); err != nil {
+				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to run initiad init: %v (output: %s)", err, string(output))}
 			}
 
 		}
@@ -1101,8 +1101,8 @@ func initializeApp(ctx context.Context) tea.Cmd {
 		if _, err = os.Stat(filepath.Join(initiaHome, "cosmovisor")); os.IsNotExist(err) {
 			runCmd := exec.Command(cosmovisorPath, "init", binaryPath)
 			runCmd.Env = append(runCmd.Env, "DAEMON_NAME=initiad", "DAEMON_HOME="+initiaHome)
-			if err := runCmd.Run(); err != nil {
-				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to run cosmovisor init: %v", err)}
+			if output, err := runCmd.CombinedOutput(); err != nil {
+				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to run cosmovisor init: %v (output: %s)", err, string(output))}
 			}
 		}
 
@@ -1182,8 +1182,8 @@ func initializeApp(ctx context.Context) tea.Cmd {
 
 			// Initialize the node in the temporary directory
 			initCmd := exec.Command(binaryPath, "init", state.moniker, "--chain-id", state.chainId, "--home", tmpInitiaHome)
-			if err := initCmd.Run(); err != nil {
-				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to run temporary initiad init: %v", err)}
+			if output, err := initCmd.CombinedOutput(); err != nil {
+				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to run temporary initiad init: %v (output: %s)", err, string(output))}
 			}
 
 			// Move the temporary genesis.json file to the user Initia config path
@@ -1859,8 +1859,8 @@ func snapshotExtractor(ctx context.Context) tea.Cmd {
 		}
 		binaryPath := filepath.Join(userHome, common.WeaveDataDirectory, fmt.Sprintf("initia@%s", state.initiadVersion), "initiad")
 		runCmd := exec.Command(binaryPath, "comet", "unsafe-reset-all", "--keep-addr-book", "--home", initiaHome)
-		if err := runCmd.Run(); err != nil {
-			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to run initiad comet unsafe-reset-all: %v", err)}
+		if output, err := runCmd.CombinedOutput(); err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to run initiad comet unsafe-reset-all: %v (output: %s)", err, string(output))}
 		}
 
 		cmd := exec.Command("bash", "-c", fmt.Sprintf("lz4 -c -d %s | tar -x -C %s", filepath.Join(userHome, common.WeaveDataDirectory, common.SnapshotFilename), initiaHome))
@@ -1973,8 +1973,8 @@ func setupStateSync(ctx context.Context) tea.Cmd {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("[error] Failed to get initia binary path: %v", err)}
 		}
 		runCmd := exec.Command(binaryPath, "comet", "unsafe-reset-all", "--keep-addr-book", "--home", initiaHome)
-		if err := runCmd.Run(); err != nil {
-			return ui.ErrorLoading{Err: fmt.Errorf("failed to run initiad comet unsafe-reset-all: %v", err)}
+		if output, err := runCmd.CombinedOutput(); err != nil {
+			return ui.ErrorLoading{Err: fmt.Errorf("failed to run initiad comet unsafe-reset-all: %v (output: %s)", err, string(output))}
 		}
 
 		return ui.EndLoading{}
