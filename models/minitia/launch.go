@@ -344,8 +344,8 @@ func (m *VMTypeSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, m.GetQuestion(), m.highlights, string(*selected)))
 		state.vmType = string(*selected)
-		model := NewLatestVersionLoading(weavecontext.SetCurrentState(m.Ctx, state))
 
+		model := NewLatestVersionLoading(weavecontext.SetCurrentState(m.Ctx, state))
 		return model, model.Init()
 	}
 
@@ -485,6 +485,18 @@ type GasDenomInput struct {
 }
 
 func NewGasDenomInput(ctx context.Context) *GasDenomInput {
+	var defaultDenom string
+	var validateFn func(s string) error
+
+	state := weavecontext.GetCurrentState[LaunchState](ctx)
+	if state.vmType == string(EVM) {
+		defaultDenom = DefaultMinievmDenom
+		validateFn = common.ValidateDenomWithReserved([]string{DefaultRollupDenom})
+	} else {
+		defaultDenom = DefaultRollupDenom
+		validateFn = common.ValidateDenom
+	}
+
 	toolTip := tooltip.RollupGasDenomTooltip
 	model := &GasDenomInput{
 		TextInput:  ui.NewTextInput(false),
@@ -492,9 +504,9 @@ func NewGasDenomInput(ctx context.Context) *GasDenomInput {
 		question:   "Specify rollup gas denom",
 		highlights: []string{"rollup gas denom"},
 	}
-	model.WithPlaceholder(`Press tab to use "umin"`)
-	model.WithDefaultValue("umin")
-	model.WithValidatorFn(common.ValidateDenom)
+	model.WithPlaceholder(fmt.Sprintf(`Press tab to use "%s"`, defaultDenom))
+	model.WithDefaultValue(defaultDenom)
+	model.WithValidatorFn(validateFn)
 	model.WithTooltip(&toolTip)
 	return model
 }
