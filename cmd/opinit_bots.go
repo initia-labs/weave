@@ -182,9 +182,6 @@ func handleWithConfig(cmd *cobra.Command, userHome, opInitHome, configPath, keyF
 		if err != nil {
 			return fmt.Errorf("error writing to file: %w", err)
 		}
-		if err != nil {
-			return err
-		}
 		fmt.Printf("Key file successfully generated. You can find it at: %s\n", keyPath)
 	} else {
 		if !weaveio.FileOrFolderExists(keyFilePath) {
