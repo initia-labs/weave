@@ -211,7 +211,7 @@ func handleWithConfig(cmd *cobra.Command, userHome, opInitHome, configPath, keyF
 func readAndUnmarshalKeyFile(keyFilePath string) (*weaveio.KeyFile, error) {
 	fileData, err := os.ReadFile(keyFilePath)
 	if err != nil {
-		return &weaveio.KeyFile{}, err
+		return nil, err
 	}
 
 	var keyFile *weaveio.KeyFile
