@@ -496,8 +496,8 @@ func OPInitBotsResetCommand() *cobra.Command {
 			})
 			analytics.TrackRunEvent(cmd, args, analytics.ResetOPinitBotFeature, analytics.NewEmptyEvent())
 			execCmd := exec.Command(binaryPath, "reset-db", botName)
-			if err = execCmd.Run(); err != nil {
-				return fmt.Errorf("failed to reset-db: %v", err)
+			if output, err := execCmd.CombinedOutput(); err != nil {
+				return fmt.Errorf("failed to reset-db: %v (output: %s)", err, string(output))
 			}
 			analytics.TrackCompletedEvent(analytics.ResetOPinitBotFeature)
 			fmt.Printf("Reset the OPinit %s bot database successfully.\n", botName)

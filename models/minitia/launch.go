@@ -3072,8 +3072,8 @@ func (m *LaunchingNewMinitiaLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				"--from", "Validator", "--keyring-backend", "test",
 				"--chain-id", state.chainId, "-y",
 			)
-			if err := runCmd.Run(); err != nil {
-				return m, m.HandlePanic(fmt.Errorf("failed to update params message: %v", err))
+			if output, err := runCmd.CombinedOutput(); err != nil {
+				return m, m.HandlePanic(fmt.Errorf("failed to update params message: %v (output: %s)", err, string(output)))
 			}
 		}
 
