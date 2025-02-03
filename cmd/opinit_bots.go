@@ -15,7 +15,7 @@ import (
 	"github.com/initia-labs/weave/common"
 	weavecontext "github.com/initia-labs/weave/context"
 	"github.com/initia-labs/weave/cosmosutils"
-	"github.com/initia-labs/weave/io"
+	weaveio "github.com/initia-labs/weave/io"
 	"github.com/initia-labs/weave/models/opinit_bots"
 	"github.com/initia-labs/weave/service"
 )
@@ -136,27 +136,6 @@ func OPInitBotsKeysSetupCommand() *cobra.Command {
 	return setupCmd
 }
 
-func generateKeyFile(keyPath string, botName string) (opinit_bots.KeyFile, error) {
-	keyFile, err := opinit_bots.GenerateMnemonicKeyfile(botName)
-	if err != nil {
-		return keyFile, err
-	}
-
-	// Marshal KeyFile to JSON
-	data, err := json.MarshalIndent(keyFile, "", "  ")
-	if err != nil {
-		return keyFile, fmt.Errorf("error marshaling KeyFile to JSON: %w", err)
-	}
-
-	// Write JSON data to a file
-	err = os.WriteFile(keyPath, data, 0644)
-	if err != nil {
-		return keyFile, fmt.Errorf("error writing to file: %w", err)
-	}
-
-	return keyFile, nil
-}
-
 func validateConfigFlags(args []string, configPath, keyFilePath string, isGenerateKeyFile bool) error {
 	if configPath != "" {
 		if len(args) == 0 {
@@ -168,7 +147,7 @@ func validateConfigFlags(args []string, configPath, keyFilePath string, isGenera
 		if keyFilePath == "" && !isGenerateKeyFile {
 			return fmt.Errorf("invalid configuration: if --with-config is set, either --generate-key-file or --key-file must be provided")
 		}
-		if !io.FileOrFolderExists(configPath) {
+		if !weaveio.FileOrFolderExists(configPath) {
 			return fmt.Errorf("the provided --with-config does not exist: %s", configPath)
 		}
 	} else {
@@ -192,16 +171,23 @@ func handleWithConfig(cmd *cobra.Command, userHome, opInitHome, configPath, keyF
 		return err
 	}
 
-	var keyFile opinit_bots.KeyFile
+	var keyFile *weaveio.KeyFile
 	if isGenerateKeyFile {
 		keyPath := filepath.Join(userHome, common.WeaveDataDirectory, fmt.Sprintf("%s.%s.keyfile", common.OpinitGeneratedKeyFilename, botName))
-		keyFile, err = generateKeyFile(keyPath, botName)
+		keyFile, err = opinit_bots.GenerateMnemonicKeyfile(botName)
+		if err != nil {
+			return fmt.Errorf("error generating keyfile: %v", err)
+		}
+		err = keyFile.Write(keyPath)
+		if err != nil {
+			return fmt.Errorf("error writing to file: %w", err)
+		}
 		if err != nil {
 			return err
 		}
 		fmt.Printf("Key file successfully generated. You can find it at: %s\n", keyPath)
 	} else {
-		if !io.FileOrFolderExists(keyFilePath) {
+		if !weaveio.FileOrFolderExists(keyFilePath) {
 			return fmt.Errorf("key file is missing at path: %s", keyFilePath)
 		}
 
@@ -225,25 +211,25 @@ func handleWithConfig(cmd *cobra.Command, userHome, opInitHome, configPath, keyF
 }
 
 // readAndUnmarshalKeyFile read and unmarshal the key file into the KeyFile struct
-func readAndUnmarshalKeyFile(keyFilePath string) (opinit_bots.KeyFile, error) {
+func readAndUnmarshalKeyFile(keyFilePath string) (*weaveio.KeyFile, error) {
 	fileData, err := os.ReadFile(keyFilePath)
 	if err != nil {
-		return opinit_bots.KeyFile{}, err
+		return &weaveio.KeyFile{}, err
 	}
 
-	var keyFile opinit_bots.KeyFile
+	var keyFile *weaveio.KeyFile
 	err = json.Unmarshal(fileData, &keyFile)
 	return keyFile, err
 }
 
 // handleExistingOpInitHome handle the case where the opInitHome directory exists
 func handleExistingOpInitHome(opInitHome string, botName string, force bool) error {
-	if io.FileOrFolderExists(opInitHome) {
+	if weaveio.FileOrFolderExists(opInitHome) {
 		if force {
 			// delete db
 			dbPath := filepath.Join(opInitHome, fmt.Sprintf("%s.db", botName))
-			if io.FileOrFolderExists(dbPath) {
-				err := io.DeleteDirectory(dbPath)
+			if weaveio.FileOrFolderExists(dbPath) {
+				err := weaveio.DeleteDirectory(dbPath)
 				if err != nil {
 					return fmt.Errorf("failed to delete %s", dbPath)
 				}
@@ -256,7 +242,7 @@ func handleExistingOpInitHome(opInitHome string, botName string, force bool) err
 }
 
 // initializeBotWithConfig initialize a bot based on the provided config
-func initializeBotWithConfig(cmd *cobra.Command, fileData []byte, keyFile opinit_bots.KeyFile, opInitHome, userHome, botName string) error {
+func initializeBotWithConfig(cmd *cobra.Command, fileData []byte, keyFile *weaveio.KeyFile, opInitHome, userHome, botName string) error {
 	var err error
 
 	switch botName {
@@ -266,14 +252,14 @@ func initializeBotWithConfig(cmd *cobra.Command, fileData []byte, keyFile opinit
 		if err != nil {
 			return err
 		}
-		err = opinit_bots.InitializeExecutorWithConfig(config, &keyFile, opInitHome, userHome)
+		err = opinit_bots.InitializeExecutorWithConfig(config, keyFile, opInitHome, userHome)
 	case "challenger":
 		var config opinit_bots.ChallengerConfig
 		err = json.Unmarshal(fileData, &config)
 		if err != nil {
 			return err
 		}
-		err = opinit_bots.InitializeChallengerWithConfig(config, &keyFile, opInitHome, userHome)
+		err = opinit_bots.InitializeChallengerWithConfig(config, keyFile, opInitHome, userHome)
 	}
 	if err != nil {
 		return err

@@ -453,6 +453,30 @@ func (m *SetupOPInitBots) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.HandlePanic(m.Loading.NonRetryableErr)
 	}
 	if m.Loading.Completing {
+		state := weavecontext.PushPageAndGetState[OPInitBotsState](m)
+
+		keyFilePath, err := weavecontext.GetOPInitKeyFileJson(m.Ctx)
+		if err != nil {
+			return m, m.HandlePanic(fmt.Errorf("failed to get key file path for OPinit: %w", err))
+		}
+
+		keyFile := io.NewKeyFile()
+		err = keyFile.Load(keyFilePath)
+		if err != nil {
+			return m, m.HandlePanic(fmt.Errorf("failed to load key file for OPinit: %w", err))
+		}
+
+		for botName, res := range state.SetupOpinitResponses {
+			keyInfo := strings.Split(res, "\n")
+			mnemonic := keyInfo[1]
+			keyFile.AddMnemonic(string(BotNameToKeyName[botName]), mnemonic)
+		}
+
+		err = keyFile.Write(keyFilePath)
+		if err != nil {
+			return m, m.HandlePanic(fmt.Errorf("failed to write key file: %w", err))
+		}
+
 		return NewTerminalState(m.Loading.EndContext), tea.Quit
 	}
 	return m, cmd
@@ -464,17 +488,22 @@ func (m *SetupOPInitBots) View() string {
 	if m.Loading.Completing {
 		// Handle WaitSetupOPInitBots error
 		if len(state.SetupOpinitResponses) > 0 {
-			mnemonicText := ""
+			keyFilePath, err := weavecontext.GetOPInitKeyFileJson(m.Ctx)
+			if err != nil {
+				m.HandlePanic(fmt.Errorf("failed to get key file path for OPinit: %w", err))
+			}
+
+			addressesText := ""
 			for botName, res := range state.SetupOpinitResponses {
 				keyInfo := strings.Split(res, "\n")
 				address := strings.Split(keyInfo[0], ": ")
-				mnemonicText += renderMnemonic(string(botName), address[1], keyInfo[1])
+				addressesText += renderKey(string(botName), address[1]) + "\n"
 			}
 
 			return m.WrapView(state.weave.Render() + "\n" + styles.RenderPrompt("Download binary and add keys successfully.", []string{}, styles.Completed) + "\n\n" +
 				styles.BoldUnderlineText("Important", styles.Yellow) + "\n" +
-				styles.Text("Write down these mnemonic phrases and store them in a safe place. \nIt is the only way to recover your system keys.", styles.Yellow) + "\n\n" +
-				mnemonicText)
+				styles.Text(fmt.Sprintf("Note that the mnemonic phrases will be stored in %s. You can revisit them anytime.", keyFilePath), styles.Yellow) + "\n\n" +
+				addressesText)
 		} else {
 			return m.WrapView(state.weave.Render() + "\n" + styles.RenderPrompt("Download binary and add keys successfully.", []string{}, styles.Completed))
 		}
@@ -483,10 +512,9 @@ func (m *SetupOPInitBots) View() string {
 	return m.WrapView(state.weave.Render() + m.Loading.View())
 }
 
-func renderMnemonic(keyName, address, mnemonic string) string {
+func renderKey(keyName, address string) string {
 	return styles.BoldText("Key Name: ", styles.Ivory) + keyName + "\n" +
-		styles.BoldText("Address: ", styles.Ivory) + address + "\n" +
-		styles.BoldText("Mnemonic:", styles.Ivory) + "\n" + mnemonic + "\n\n"
+		styles.BoldText("Address: ", styles.Ivory) + address + "\n"
 }
 
 // DALayerOption defines options for Data Availability Layers
@@ -699,19 +727,24 @@ func (m *TerminalState) Update(_ tea.Msg) (tea.Model, tea.Cmd) {
 func (m *TerminalState) View() string {
 	state := weavecontext.GetCurrentState[OPInitBotsState](m.Ctx)
 	if len(state.SetupOpinitResponses) > 0 {
-		mnemonicText := ""
+		addressesText := ""
 		for _, botName := range BotNames {
 			if res, ok := state.SetupOpinitResponses[botName]; ok {
 				keyInfo := strings.Split(res, "\n")
 				address := strings.Split(keyInfo[0], ": ")
-				mnemonicText += renderMnemonic(string(botName), address[1], keyInfo[1])
+				addressesText += renderKey(string(botName), address[1]) + "\n"
 			}
+		}
+
+		keyFile, err := weavecontext.GetOPInitKeyFileJson(m.Ctx)
+		if err != nil {
+			m.HandlePanic(fmt.Errorf("failed to get OPinit key file: %v", err))
 		}
 
 		return m.WrapView(state.weave.Render() + "\n" + styles.RenderPrompt("Setup keys successfully.", []string{}, styles.Completed) + "\n\n" +
 			styles.BoldUnderlineText("Important", styles.Yellow) + "\n" +
-			styles.Text("Write down these mnemonic phrases and store them in a safe place. \nIt is the only way to recover your system keys.", styles.Yellow) + "\n\n" +
-			mnemonicText)
+			styles.Text(fmt.Sprintf("Note that the mnemonic phrases will be stored in %s. You can revisit them anytime.", keyFile), styles.Yellow) + "\n\n" +
+			addressesText)
 	}
 	return m.WrapView(state.weave.Render() + "\n")
 }

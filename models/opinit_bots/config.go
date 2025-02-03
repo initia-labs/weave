@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/initia-labs/weave/crypto"
+	weaveio "github.com/initia-labs/weave/io"
 )
 
 type NodeConfig struct {
@@ -58,48 +59,45 @@ type ExecutorConfig struct {
 	DisableDeleteFutureWithdrawal bool         `json:"disable_delete_future_withdrawal"`
 }
 
-type KeyFile struct {
-	BridgeExecutor       string `json:"bridge_executor,omitempty"`
-	OutputSubmitter      string `json:"output_submitter,omitempty"`
-	Challenger           string `json:"challenger,omitempty"`
-	BatchSubmitter       string `json:"batch_submitter,omitempty"`
-	OracleBridgeExecutor string `json:"oracle_bridge_executor,omitempty"`
-}
+func GenerateMnemonicKeyfile(botName string) (*weaveio.KeyFile, error) {
+	keyFile := weaveio.NewKeyFile()
 
-func GenerateMnemonicKeyfile(botName string) (KeyFile, error) {
 	switch botName {
 	case "executor":
 		bridgeExecutor, err := crypto.GenerateMnemonic()
 		if err != nil {
-			return KeyFile{}, fmt.Errorf("failed to generate bridge executor mnemonic: %w", err)
+			return &weaveio.KeyFile{}, fmt.Errorf("failed to generate bridge executor mnemonic: %w", err)
 		}
+		keyFile.AddMnemonic(BridgeExecutorKeyName, bridgeExecutor)
+
 		outputSubmitter, err := crypto.GenerateMnemonic()
 		if err != nil {
-			return KeyFile{}, fmt.Errorf("failed to generate output submitter mnemonic: %w", err)
+			return &weaveio.KeyFile{}, fmt.Errorf("failed to generate output submitter mnemonic: %w", err)
 		}
+		keyFile.AddMnemonic(OutputSubmitterKeyName, outputSubmitter)
+
 		batchSubmitter, err := crypto.GenerateMnemonic()
 		if err != nil {
-			return KeyFile{}, fmt.Errorf("failed to generate batch submitter mnemonic: %w", err)
+			return &weaveio.KeyFile{}, fmt.Errorf("failed to generate batch submitter mnemonic: %w", err)
 		}
+		keyFile.AddMnemonic(BatchSubmitterKeyName, batchSubmitter)
+
 		oracleBridgeExecutor, err := crypto.GenerateMnemonic()
 		if err != nil {
-			return KeyFile{}, fmt.Errorf("failed to generate oracle bridge executor mnemonic: %w", err)
+			return &weaveio.KeyFile{}, fmt.Errorf("failed to generate oracle bridge executor mnemonic: %w", err)
 		}
-		return KeyFile{
-			BridgeExecutor:       bridgeExecutor,
-			OutputSubmitter:      outputSubmitter,
-			BatchSubmitter:       batchSubmitter,
-			OracleBridgeExecutor: oracleBridgeExecutor,
-		}, nil
+		keyFile.AddMnemonic(OracleBridgeExecutorKeyName, oracleBridgeExecutor)
+
+		return keyFile, nil
 	case "challenger":
 		challenger, err := crypto.GenerateMnemonic()
 		if err != nil {
-			return KeyFile{}, fmt.Errorf("failed to generate challenger mnemonic: %w", err)
+			return &weaveio.KeyFile{}, fmt.Errorf("failed to generate challenger mnemonic: %w", err)
 		}
-		return KeyFile{
-			Challenger: challenger,
-		}, nil
+		keyFile.AddMnemonic(ChallengerKeyName, challenger)
+
+		return keyFile, nil
 	default:
-		return KeyFile{}, fmt.Errorf("unsupported bot name: %s", botName)
+		return &weaveio.KeyFile{}, fmt.Errorf("unsupported bot name: %s", botName)
 	}
 }

@@ -19,7 +19,7 @@ func InitializeConfig() error {
 		return fmt.Errorf("failed to get user home directory: %v", err)
 	}
 
-	configPath := filepath.Join(homeDir, common.WeaveDirectory, "config.json")
+	configPath := filepath.Join(homeDir, common.WeaveConfigFile)
 	if err := os.MkdirAll(filepath.Dir(configPath), os.ModePerm); err != nil {
 		return fmt.Errorf("failed to create config directory: %v", err)
 	}
