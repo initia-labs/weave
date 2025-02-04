@@ -214,8 +214,8 @@ func readAndUnmarshalKeyFile(keyFilePath string) (*weaveio.KeyFile, error) {
 		return nil, err
 	}
 
-	var keyFile *weaveio.KeyFile
-	err = json.Unmarshal(fileData, &keyFile)
+	keyFile := &weaveio.KeyFile{}
+	err = json.Unmarshal(fileData, keyFile)
 	return keyFile, err
 }
 
