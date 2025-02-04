@@ -76,6 +76,22 @@ func ValidateDenom(denom string) error {
 	return nil
 }
 
+func ValidateDenomWithReserved(reservedDenoms []string) func(denom string) error {
+	return func(denom string) error {
+		if !reDnm.MatchString(denom) {
+			return fmt.Errorf("invalid denom: %s", denom)
+		}
+
+		for _, reserved := range reservedDenoms {
+			if denom == reserved {
+				return fmt.Errorf("denom %s is reserved and cannot be used (reserved denom for this rollup: %v)", denom, reservedDenoms)
+			}
+		}
+
+		return nil
+	}
+}
+
 func NoOps(_ string) error {
 	return nil
 }

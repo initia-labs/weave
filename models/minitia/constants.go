@@ -34,6 +34,9 @@ const (
 	DefaultMinitiaLCD     string = "http://localhost:1317"
 	DefaultMinitiaRPC     string = "http://localhost:26657"
 	DefaultMinitiaJsonRPC string = "http://localhost:8545"
+
+	DefaultRollupDenom  string = "umin"
+	DefaultMinievmDenom string = "GAS"
 )
 
 var (
