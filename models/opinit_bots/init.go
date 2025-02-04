@@ -1099,6 +1099,31 @@ func WaitStartingInitBot(ctx context.Context) tea.Cmd {
 			}
 		}
 
+		keyFilePath, err := weavecontext.GetOPInitKeyFileJson(ctx)
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get key file path for OPinit: %w", err)}
+		}
+
+		keyFile := io.NewKeyFile()
+		err = keyFile.Load(keyFilePath)
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to load key file for OPinit: %w", err)}
+		}
+
+		for _, botName := range BotNames {
+			if res, ok := state.SetupOpinitResponses[botName]; ok {
+				keyInfo := strings.Split(res, "\n")
+				address := strings.Split(keyInfo[0], ": ")
+				mnemonic := keyInfo[1]
+				keyFile.AddKey(string(BotNameToKeyName[botName]), io.NewKey(address[1], mnemonic))
+			}
+		}
+
+		err = keyFile.Write(keyFilePath)
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to write key file: %w", err)}
+		}
+
 		if state.InitExecutorBot {
 			srv, err := service.NewService(service.OPinitExecutor)
 			if err != nil {
@@ -1345,30 +1370,6 @@ func (m *SetupOPInitBotsMissingKey) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return model, nil
 		}
 
-		keyFilePath, err := weavecontext.GetOPInitKeyFileJson(m.Ctx)
-		if err != nil {
-			return m, m.HandlePanic(fmt.Errorf("failed to get key file path for OPinit: %w", err))
-		}
-
-		keyFile := io.NewKeyFile()
-		err = keyFile.Load(keyFilePath)
-		if err != nil {
-			return m, m.HandlePanic(fmt.Errorf("failed to load key file for OPinit: %w", err))
-		}
-
-		for _, botName := range BotNames {
-			if res, ok := state.SetupOpinitResponses[botName]; ok {
-				keyInfo := strings.Split(res, "\n")
-				mnemonic := keyInfo[1]
-				keyFile.AddMnemonic(string(BotNameToKeyName[botName]), mnemonic)
-			}
-		}
-
-		err = keyFile.Write(keyFilePath)
-		if err != nil {
-			return m, m.HandlePanic(fmt.Errorf("failed to write key file: %w", err))
-		}
-
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
 			if msg.String() == "enter" {
@@ -1451,7 +1452,7 @@ func WaitSetupOPInitBotsMissingKey(ctx context.Context) tea.Cmd {
 	}
 }
 
-func InitializeExecutorWithConfig(config ExecutorConfig, keyFile *io.KeyFile, opInitHome, userHome string) error {
+func InitializeExecutorWithConfig(config ExecutorConfig, keyFile io.KeyFile, opInitHome, userHome string) error {
 	binaryPath, err := ensureOPInitBotsBinary(userHome)
 	if err != nil {
 		return err
@@ -1524,7 +1525,7 @@ func InitializeExecutorWithConfig(config ExecutorConfig, keyFile *io.KeyFile, op
 	return nil
 }
 
-func InitializeChallengerWithConfig(config ChallengerConfig, keyFile *io.KeyFile, opInitHome, userHome string) error {
+func InitializeChallengerWithConfig(config ChallengerConfig, keyFile io.KeyFile, opInitHome, userHome string) error {
 	binaryPath, err := ensureOPInitBotsBinary(userHome)
 	if err != nil {
 		return err

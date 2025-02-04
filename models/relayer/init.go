@@ -617,10 +617,19 @@ func (m *KeysMnemonicDisplayInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if done {
 		state := weavecontext.PushPageAndGetState[State](m)
 
+		l1RelayerKey, err := weaveio.RecoverKey("init", state.l1RelayerMnemonic)
+		if err != nil {
+			return m, m.HandlePanic(fmt.Errorf("cannot recover l1 relayer key: %w", err))
+		}
+		l2RelayerKey, err := weaveio.RecoverKey("init", state.l2RelayerMnemonic)
+		if err != nil {
+			return m, m.HandlePanic(fmt.Errorf("cannot recover l2 relayer key: %w", err))
+		}
+
 		keyFile := weaveio.NewKeyFile()
-		keyFile.AddMnemonic("weave_l1_relayer", state.l1RelayerMnemonic)
-		keyFile.AddMnemonic("weave_l2_relayer", state.l2RelayerMnemonic)
-		err := keyFile.Write(m.keyFilePath)
+		keyFile.AddKey(DefaultL1RelayerKeyName, l1RelayerKey)
+		keyFile.AddKey(DefaultL2RelayerKeyName, l2RelayerKey)
+		err = keyFile.Write(m.keyFilePath)
 		if err != nil {
 			return m, m.HandlePanic(fmt.Errorf("failed to write key file: %w", err))
 		}
@@ -2735,24 +2744,35 @@ func (m *AddChallengerKeyToRelayer) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
-			relayerKey, err := cosmosutils.RecoverAndReplaceHermesKey(state.hermesBinaryPath, l1ChainId, state.minitiaConfig.SystemKeys.Challenger.Mnemonic)
+			l1RelayerKey, err := cosmosutils.RecoverAndReplaceHermesKey(state.hermesBinaryPath, l1ChainId, state.minitiaConfig.SystemKeys.Challenger.Mnemonic)
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
-			state.l1RelayerAddress = relayerKey.Address
-			state.l1RelayerMnemonic = relayerKey.Mnemonic
+			state.l1RelayerAddress = l1RelayerKey.Address
+			state.l1RelayerMnemonic = l1RelayerKey.Mnemonic
 
 			l2ChainId, err := GetL2ChainId(m.Ctx)
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
-			relayerKey, err = cosmosutils.RecoverAndReplaceHermesKey(state.hermesBinaryPath, l2ChainId, state.minitiaConfig.SystemKeys.Challenger.Mnemonic)
+			l2RelayerKey, err := cosmosutils.RecoverAndReplaceHermesKey(state.hermesBinaryPath, l2ChainId, state.minitiaConfig.SystemKeys.Challenger.Mnemonic)
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
 
-			state.l2RelayerAddress = relayerKey.Address
-			state.l2RelayerMnemonic = relayerKey.Mnemonic
+			state.l2RelayerAddress = l2RelayerKey.Address
+			state.l2RelayerMnemonic = l2RelayerKey.Mnemonic
+
+			userHome, _ := os.UserHomeDir()
+			hermesKeyFile := filepath.Join(userHome, common.HermesKeyFileJson)
+
+			keyFile := weaveio.NewKeyFile()
+			keyFile.AddKey(DefaultL1RelayerKeyName, weaveio.NewKey(l1RelayerKey.Address, l1RelayerKey.Mnemonic))
+			keyFile.AddKey(DefaultL2RelayerKeyName, weaveio.NewKey(l2RelayerKey.Address, l2RelayerKey.Mnemonic))
+			err = keyFile.Write(hermesKeyFile)
+			if err != nil {
+				return m, m.HandlePanic(fmt.Errorf("failed to write key file: %w", err))
+			}
 
 			state.weave.PushPreviousResponse(getRelayerSetSuccessMessage())
 			return NewTerminalState(weavecontext.SetCurrentState(m.Ctx, state)), tea.Quit

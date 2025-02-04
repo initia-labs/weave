@@ -4,24 +4,67 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+
+	"github.com/initia-labs/weave/crypto"
 )
 
-type KeyFile map[string]string
+type Key struct {
+	Address  string `json:"address"`
+	Mnemonic string `json:"mnemonic"`
+}
 
-func NewKeyFile() *KeyFile {
+func NewKey(address, mnemonic string) *Key {
+	return &Key{
+		Address:  address,
+		Mnemonic: mnemonic,
+	}
+}
+
+func GenerateKey(hrp string) (*Key, error) {
+	mnemonic, err := crypto.GenerateMnemonic()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate mnemonic: %w", err)
+	}
+
+	address, err := crypto.MnemonicToBech32Address(hrp, mnemonic)
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive address: %w", err)
+	}
+
+	return &Key{
+		Mnemonic: mnemonic,
+		Address:  address,
+	}, nil
+}
+
+func RecoverKey(hrp, mnemonic string) (*Key, error) {
+	address, err := crypto.MnemonicToBech32Address(hrp, mnemonic)
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive address: %w", err)
+	}
+
+	return &Key{
+		Mnemonic: mnemonic,
+		Address:  address,
+	}, nil
+}
+
+type KeyFile map[string]*Key
+
+func NewKeyFile() KeyFile {
 	kf := make(KeyFile)
-	return &kf
+	return kf
 }
 
-func (k *KeyFile) AddMnemonic(name, mnemonic string) {
-	(*k)[name] = mnemonic
+func (k KeyFile) AddKey(name string, key *Key) {
+	k[name] = key
 }
 
-func (k *KeyFile) GetMnemonic(name string) string {
-	return (*k)[name]
+func (k KeyFile) GetMnemonic(name string) string {
+	return k[name].Mnemonic
 }
 
-func (k *KeyFile) Write(filePath string) error {
+func (k KeyFile) Write(filePath string) error {
 	data, err := json.MarshalIndent(k, "", "  ")
 	if err != nil {
 		return fmt.Errorf("error marshaling KeyFile to JSON: %w", err)
@@ -31,7 +74,7 @@ func (k *KeyFile) Write(filePath string) error {
 }
 
 // Load tries to load an existing key file into the struct if the file exists
-func (k *KeyFile) Load(filePath string) error {
+func (k KeyFile) Load(filePath string) error {
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		return nil
 	}
@@ -41,7 +84,7 @@ func (k *KeyFile) Load(filePath string) error {
 		return fmt.Errorf("error reading file: %w", err)
 	}
 
-	err = json.Unmarshal(data, k)
+	err = json.Unmarshal(data, &k)
 	if err != nil {
 		return fmt.Errorf("error unmarshaling JSON: %w", err)
 	}

@@ -468,8 +468,9 @@ func (m *SetupOPInitBots) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		for botName, res := range state.SetupOpinitResponses {
 			keyInfo := strings.Split(res, "\n")
+			address := strings.Split(keyInfo[0], ": ")
 			mnemonic := keyInfo[1]
-			keyFile.AddMnemonic(string(BotNameToKeyName[botName]), mnemonic)
+			keyFile.AddKey(string(BotNameToKeyName[botName]), io.NewKey(address[1], mnemonic))
 		}
 
 		err = keyFile.Write(keyFilePath)
