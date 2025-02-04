@@ -80,7 +80,7 @@ func ValidateDenomWithReserved(reservedDenoms []string) func(denom string) error
 	return func(denom string) error {
 		for _, reserved := range reservedDenoms {
 			if denom == reserved {
-				return fmt.Errorf("denom %s is reserved and cannot be used", denom)
+				return fmt.Errorf("denom %s is reserved and cannot be used (reserved denom for this rollup: %v)", denom, reservedDenoms)
 			}
 		}
 
