@@ -51,20 +51,20 @@ func RecoverKey(hrp, mnemonic string) (*Key, error) {
 
 type KeyFile map[string]*Key
 
-func NewKeyFile() *KeyFile {
+func NewKeyFile() KeyFile {
 	kf := make(KeyFile)
-	return &kf
+	return kf
 }
 
-func (k *KeyFile) AddKey(name string, key *Key) {
-	(*k)[name] = key
+func (k KeyFile) AddKey(name string, key *Key) {
+	k[name] = key
 }
 
-func (k *KeyFile) GetMnemonic(name string) string {
-	return (*k)[name].Mnemonic
+func (k KeyFile) GetMnemonic(name string) string {
+	return k[name].Mnemonic
 }
 
-func (k *KeyFile) Write(filePath string) error {
+func (k KeyFile) Write(filePath string) error {
 	data, err := json.MarshalIndent(k, "", "  ")
 	if err != nil {
 		return fmt.Errorf("error marshaling KeyFile to JSON: %w", err)
@@ -74,7 +74,7 @@ func (k *KeyFile) Write(filePath string) error {
 }
 
 // Load tries to load an existing key file into the struct if the file exists
-func (k *KeyFile) Load(filePath string) error {
+func (k KeyFile) Load(filePath string) error {
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		return nil
 	}
@@ -84,7 +84,7 @@ func (k *KeyFile) Load(filePath string) error {
 		return fmt.Errorf("error reading file: %w", err)
 	}
 
-	err = json.Unmarshal(data, k)
+	err = json.Unmarshal(data, &k)
 	if err != nil {
 		return fmt.Errorf("error unmarshaling JSON: %w", err)
 	}

@@ -59,7 +59,7 @@ type ExecutorConfig struct {
 	DisableDeleteFutureWithdrawal bool         `json:"disable_delete_future_withdrawal"`
 }
 
-func GenerateMnemonicKeyfile(rawConfig []byte, botName string) (*weaveio.KeyFile, error) {
+func GenerateMnemonicKeyfile(rawConfig []byte, botName string) (weaveio.KeyFile, error) {
 	keyFile := weaveio.NewKeyFile()
 
 	switch botName {

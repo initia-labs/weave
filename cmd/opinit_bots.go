@@ -171,7 +171,7 @@ func handleWithConfig(cmd *cobra.Command, userHome, opInitHome, configPath, keyF
 		return err
 	}
 
-	var keyFile *weaveio.KeyFile
+	var keyFile weaveio.KeyFile
 	if isGenerateKeyFile {
 		keyPath := filepath.Join(userHome, common.WeaveDataDirectory, fmt.Sprintf("%s.%s.keyfile", common.OpinitGeneratedKeyFilename, botName))
 		keyFile, err = opinit_bots.GenerateMnemonicKeyfile(fileData, botName)
@@ -208,14 +208,14 @@ func handleWithConfig(cmd *cobra.Command, userHome, opInitHome, configPath, keyF
 }
 
 // readAndUnmarshalKeyFile read and unmarshal the key file into the KeyFile struct
-func readAndUnmarshalKeyFile(keyFilePath string) (*weaveio.KeyFile, error) {
+func readAndUnmarshalKeyFile(keyFilePath string) (weaveio.KeyFile, error) {
 	fileData, err := os.ReadFile(keyFilePath)
 	if err != nil {
 		return nil, err
 	}
 
-	keyFile := &weaveio.KeyFile{}
-	err = json.Unmarshal(fileData, keyFile)
+	keyFile := weaveio.KeyFile{}
+	err = json.Unmarshal(fileData, &keyFile)
 	return keyFile, err
 }
 
@@ -239,7 +239,7 @@ func handleExistingOpInitHome(opInitHome string, botName string, force bool) err
 }
 
 // initializeBotWithConfig initialize a bot based on the provided config
-func initializeBotWithConfig(cmd *cobra.Command, fileData []byte, keyFile *weaveio.KeyFile, opInitHome, userHome, botName string) error {
+func initializeBotWithConfig(cmd *cobra.Command, fileData []byte, keyFile weaveio.KeyFile, opInitHome, userHome, botName string) error {
 	var err error
 
 	switch botName {

@@ -1452,7 +1452,7 @@ func WaitSetupOPInitBotsMissingKey(ctx context.Context) tea.Cmd {
 	}
 }
 
-func InitializeExecutorWithConfig(config ExecutorConfig, keyFile *io.KeyFile, opInitHome, userHome string) error {
+func InitializeExecutorWithConfig(config ExecutorConfig, keyFile io.KeyFile, opInitHome, userHome string) error {
 	binaryPath, err := ensureOPInitBotsBinary(userHome)
 	if err != nil {
 		return err
@@ -1525,7 +1525,7 @@ func InitializeExecutorWithConfig(config ExecutorConfig, keyFile *io.KeyFile, op
 	return nil
 }
 
-func InitializeChallengerWithConfig(config ChallengerConfig, keyFile *io.KeyFile, opInitHome, userHome string) error {
+func InitializeChallengerWithConfig(config ChallengerConfig, keyFile io.KeyFile, opInitHome, userHome string) error {
 	binaryPath, err := ensureOPInitBotsBinary(userHome)
 	if err != nil {
 		return err
