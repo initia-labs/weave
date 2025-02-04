@@ -1179,7 +1179,6 @@ func WaitStartingInitBot(ctx context.Context) tea.Cmd {
 			}
 			binaryPath := filepath.Join(userHome, common.WeaveDataDirectory, fmt.Sprintf("opinitd@%s", OpinitBotBinaryVersion), AppName)
 			if address, err := cosmosutils.OPInitGetAddressForKey(binaryPath, OracleBridgeExecutorKeyName, opInitHome); err == nil {
-				// TODO: revisit error
 				if err := cosmosutils.OPInitGrantOracle(binaryPath, address, opInitHome); err != nil {
 					return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to grant oracle to address: %v", err)}
 				}
