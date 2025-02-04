@@ -133,14 +133,13 @@ func (ls *LaunchState) FillDefaultBalances() {
 	ls.systemKeyL1OutputSubmitterBalance = DefaultL1OutputSubmitterBalance
 	ls.systemKeyL1BatchSubmitterBalance = DefaultL1BatchSubmitterBalance
 	ls.systemKeyL1ChallengerBalance = DefaultL1ChallengerBalance
-	ls.systemKeyL2BridgeExecutorBalance = fmt.Sprintf("%s%s", DefaultL2BridgeExecutorBalance, ls.gasDenom)
 }
 
 func (ls *LaunchState) FinalizeGenesisAccounts() {
 	emptyCoins := fmt.Sprintf("0%s", ls.gasDenom)
 	accounts := []types.GenesisAccount{
-		{Address: ls.systemKeyOperatorAddress, Coins: ls.systemKeyL2OperatorBalance},
-		{Address: ls.systemKeyBridgeExecutorAddress, Coins: ls.systemKeyL2BridgeExecutorBalance},
+		{Address: ls.systemKeyOperatorAddress, Coins: emptyCoins},
+		{Address: ls.systemKeyBridgeExecutorAddress, Coins: emptyCoins},
 		{Address: ls.systemKeyOutputSubmitterAddress, Coins: emptyCoins},
 		{Address: ls.systemKeyChallengerAddress, Coins: emptyCoins},
 	}

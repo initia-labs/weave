@@ -47,6 +47,14 @@ var BotNames = []BotName{
 	OracleBridgeExecutor,
 }
 
+var BotNameToKeyName = map[BotName]BotKeyName{
+	BridgeExecutor:       BridgeExecutorKeyName,
+	OutputSubmitter:      OutputSubmitterKeyName,
+	BatchSubmitter:       BatchSubmitterKeyName,
+	Challenger:           ChallengerKeyName,
+	OracleBridgeExecutor: OracleBridgeExecutorKeyName,
+}
+
 // BotInfo struct to hold all relevant bot information
 type BotInfo struct {
 	BotName       BotName

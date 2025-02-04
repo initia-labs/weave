@@ -1344,6 +1344,31 @@ func (m *SetupOPInitBotsMissingKey) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return model, nil
 		}
+
+		keyFilePath, err := weavecontext.GetOPInitKeyFileJson(m.Ctx)
+		if err != nil {
+			return m, m.HandlePanic(fmt.Errorf("failed to get key file path for OPinit: %w", err))
+		}
+
+		keyFile := io.NewKeyFile()
+		err = keyFile.Load(keyFilePath)
+		if err != nil {
+			return m, m.HandlePanic(fmt.Errorf("failed to load key file for OPinit: %w", err))
+		}
+
+		for _, botName := range BotNames {
+			if res, ok := state.SetupOpinitResponses[botName]; ok {
+				keyInfo := strings.Split(res, "\n")
+				mnemonic := keyInfo[1]
+				keyFile.AddMnemonic(string(BotNameToKeyName[botName]), mnemonic)
+			}
+		}
+
+		err = keyFile.Write(keyFilePath)
+		if err != nil {
+			return m, m.HandlePanic(fmt.Errorf("failed to write key file: %w", err))
+		}
+
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
 			if msg.String() == "enter" {
@@ -1365,18 +1390,23 @@ func (m *SetupOPInitBotsMissingKey) View() string {
 		return state.weave.Render() + "\n"
 	}
 	if len(state.SetupOpinitResponses) > 0 {
-		mnemonicText := ""
+		keyFilePath, err := weavecontext.GetOPInitKeyFileJson(m.Ctx)
+		if err != nil {
+			m.HandlePanic(fmt.Errorf("failed to get key file path for OPinit: %w", err))
+		}
+
+		addressesText := ""
 		for _, botName := range BotNames {
 			if res, ok := state.SetupOpinitResponses[botName]; ok {
 				keyInfo := strings.Split(res, "\n")
 				address := strings.Split(keyInfo[0], ": ")
-				mnemonicText += renderMnemonic(string(botName), address[1], keyInfo[1])
+				addressesText += renderKey(string(botName), address[1]) + "\n"
 			}
 		}
 
 		return m.WrapView(state.weave.Render() + "\n" + styles.BoldUnderlineText("Important", styles.Yellow) + "\n" +
-			styles.Text("Write down these mnemonic phrases and store them in a safe place. \nIt is the only way to recover your system keys.", styles.Yellow) + "\n\n" +
-			mnemonicText + "\nPress enter to go next step\n")
+			styles.Text(fmt.Sprintf("Note that the mnemonic phrases will be stored in %s. You can revisit them anytime.", keyFilePath), styles.Yellow) + "\n\n" +
+			addressesText + "\nPress enter to go next step\n")
 	}
 	return m.WrapView(state.weave.Render() + "\n")
 }
@@ -1421,24 +1451,24 @@ func WaitSetupOPInitBotsMissingKey(ctx context.Context) tea.Cmd {
 	}
 }
 
-func InitializeExecutorWithConfig(config ExecutorConfig, keyFile *KeyFile, opInitHome, userHome string) error {
+func InitializeExecutorWithConfig(config ExecutorConfig, keyFile *io.KeyFile, opInitHome, userHome string) error {
 	binaryPath, err := ensureOPInitBotsBinary(userHome)
 	if err != nil {
 		return err
 	}
-	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, BridgeExecutorKeyName, keyFile.BridgeExecutor, false, opInitHome)
+	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, BridgeExecutorKeyName, keyFile.GetMnemonic(BridgeExecutorKeyName), false, opInitHome)
 	if err != nil {
 		return err
 	}
-	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, OutputSubmitterKeyName, keyFile.OutputSubmitter, false, opInitHome)
+	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, OutputSubmitterKeyName, keyFile.GetMnemonic(OutputSubmitterKeyName), false, opInitHome)
 	if err != nil {
 		return err
 	}
-	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, BatchSubmitterKeyName, keyFile.BatchSubmitter, config.DANode.Bech32Prefix != "init", opInitHome)
+	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, BatchSubmitterKeyName, keyFile.GetMnemonic(BatchSubmitterKeyName), config.DANode.Bech32Prefix != "init", opInitHome)
 	if err != nil {
 		return err
 	}
-	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, OracleBridgeExecutorKeyName, keyFile.OracleBridgeExecutor, false, opInitHome)
+	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, OracleBridgeExecutorKeyName, keyFile.GetMnemonic(OracleBridgeExecutorKeyName), false, opInitHome)
 	if err != nil {
 		return err
 	}
@@ -1494,12 +1524,12 @@ func InitializeExecutorWithConfig(config ExecutorConfig, keyFile *KeyFile, opIni
 	return nil
 }
 
-func InitializeChallengerWithConfig(config ChallengerConfig, keyFile *KeyFile, opInitHome, userHome string) error {
+func InitializeChallengerWithConfig(config ChallengerConfig, keyFile *io.KeyFile, opInitHome, userHome string) error {
 	binaryPath, err := ensureOPInitBotsBinary(userHome)
 	if err != nil {
 		return err
 	}
-	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, ChallengerKeyName, keyFile.Challenger, false, opInitHome)
+	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, ChallengerKeyName, keyFile.GetMnemonic(ChallengerKeyName), false, opInitHome)
 	if err != nil {
 		return err
 	}
