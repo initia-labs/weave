@@ -174,7 +174,7 @@ func handleWithConfig(cmd *cobra.Command, userHome, opInitHome, configPath, keyF
 	var keyFile *weaveio.KeyFile
 	if isGenerateKeyFile {
 		keyPath := filepath.Join(userHome, common.WeaveDataDirectory, fmt.Sprintf("%s.%s.keyfile", common.OpinitGeneratedKeyFilename, botName))
-		keyFile, err = opinit_bots.GenerateMnemonicKeyfile(botName)
+		keyFile, err = opinit_bots.GenerateMnemonicKeyfile(fileData, botName)
 		if err != nil {
 			return fmt.Errorf("error generating keyfile: %v", err)
 		}
@@ -345,9 +345,9 @@ func OPInitBotsInitCommand() *cobra.Command {
 	initCmd.Flags().String(FlagMinitiaHome, filepath.Join(homeDir, common.MinitiaDirectory), "Rollup application directory to fetch artifacts from if existed")
 	initCmd.Flags().String(FlagOPInitHome, filepath.Join(homeDir, common.OPinitDirectory), "OPInit bots home directory")
 	initCmd.Flags().String(FlagWithConfig, "", "Bypass the interactive setup and initialize the bot by providing a path to a config file. Either --key-file or --generate-key-file has to be specified")
-	initCmd.Flags().String(FlagKeyFile, "", "Use this flag to generate the bot keys. Cannot be specified together with --key-file")
+	initCmd.Flags().String(FlagKeyFile, "", "Path to key-file.json. Cannot be specified together with --generate-key-file")
 	initCmd.Flags().BoolP(FlagForce, "f", false, "Force the setup by deleting the existing .opinit directory if it exists")
-	initCmd.Flags().BoolP(FlagGenerateKeyFile, "", false, "Path to key-file.json. Cannot be specified together with --generate-key-file")
+	initCmd.Flags().BoolP(FlagGenerateKeyFile, "", false, "Use this flag to generate the bot keys. Cannot be specified together with --key-file")
 
 	return initCmd
 }

@@ -1359,8 +1359,9 @@ func (m *SetupOPInitBotsMissingKey) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		for _, botName := range BotNames {
 			if res, ok := state.SetupOpinitResponses[botName]; ok {
 				keyInfo := strings.Split(res, "\n")
+				address := strings.Split(keyInfo[0], ": ")
 				mnemonic := keyInfo[1]
-				keyFile.AddMnemonic(string(BotNameToKeyName[botName]), mnemonic)
+				keyFile.AddWallet(string(BotNameToKeyName[botName]), io.NewWallet(address[1], mnemonic))
 			}
 		}
 
