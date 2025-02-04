@@ -103,11 +103,11 @@ func TestPrefillMinitiaConfig_Update_PrefillYes(t *testing.T) {
 		t.Errorf("Expected model to be of type *FieldInputModel, but got %T", nextModel)
 	} else {
 		state := weavecontext.GetCurrentState[OPInitBotsState](m.Ctx)
-		gasField, _ := getField(defaultExecutorFields, "l2_node.gas_price")
+		gasField, _ := getField(defaultExecutorFields, "l2_node.gas_denom")
 		assert.Equal(t, "l1-chain-id", state.botConfig["l1_node.chain_id"])
 		assert.Equal(t, "http://l1-rpc-url", state.botConfig["l1_node.rpc_address"])
 		assert.Equal(t, "0.01", state.botConfig["l1_node.gas_price"])
-		assert.Equal(t, "0.15denom", gasField.PrefillValue)
+		assert.Equal(t, "denom", gasField.PrefillValue)
 		assert.True(t, state.daIsCelestia)
 	}
 }

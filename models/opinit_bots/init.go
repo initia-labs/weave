@@ -50,7 +50,7 @@ var defaultExecutorFields = []*Field{
 	// L2 Node Configuration
 	{Name: "l2_node.chain_id", Type: StringField, Question: "Specify rollup chain ID", Highlights: []string{"rollup chain ID"}, Placeholder: "Enter chain ID ex. rollup-1", ValidateFn: common.ValidateEmptyString},
 	{Name: "l2_node.rpc_address", Type: StringField, Question: "Specify rollup RPC endpoint", Highlights: []string{"rollup RPC endpoint"}, Placeholder: `Press tab to use "http://localhost:26657"`, DefaultValue: "http://localhost:26657", ValidateFn: common.ValidateURL, Tooltip: &tooltip.RollupRPCEndpointTooltip},
-	{Name: "l2_node.gas_price", Type: StringField, Question: "Specify rollup gas price", Highlights: []string{"rollup gas price"}, Placeholder: `Press tab to use "0.15umin"`, DefaultValue: "0.15umin", ValidateFn: common.ValidateDecCoin, Tooltip: &tooltip.RollupGasPriceTooltip},
+	{Name: "l2_node.gas_denom", Type: StringField, Question: "Specify rollup gas denom", Highlights: []string{"rollup gas denom"}, Placeholder: `Press tab to use "GAS"`, DefaultValue: "GAS", ValidateFn: common.ValidateDenom, Tooltip: &tooltip.RollupGasDenomTooltip},
 }
 
 var defaultChallengerFields = []*Field{
@@ -77,12 +77,11 @@ func getField(fields []*Field, name string) (*Field, error) {
 func setFieldPrefillValue(fields []*Field, name, value string) error {
 	field, err := getField(fields, name)
 	if err != nil {
-		return fmt.Errorf("Error setting prefill value for %s: %v\n", name, err)
+		return fmt.Errorf("error setting prefill value for %s: %v", name, err)
 	}
 	field.PrefillValue = value
 	return nil
 }
-
 func setFieldPlaceholder(fields []*Field, name, placeholder string) error {
 	field, err := getField(fields, name)
 	if err != nil {
@@ -584,10 +583,10 @@ func (m *PrefillMinitiaConfig) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if err = setFieldPrefillValue(defaultExecutorFields, "l2_node.chain_id", minitiaConfig.L2Config.ChainID); err != nil {
 				return m, m.HandlePanic(err)
 			}
-			if err = setFieldPrefillValue(defaultExecutorFields, "l2_node.gas_price", "0.15"+minitiaConfig.L2Config.Denom); err != nil {
+			if err = setFieldPrefillValue(defaultExecutorFields, "l2_node.gas_denom", minitiaConfig.L2Config.Denom); err != nil {
 				return m, m.HandlePanic(err)
 			}
-			if err = setFieldPlaceholder(defaultExecutorFields, "l2_node.gas_price", "Press tab to use "+"\"0.15"+minitiaConfig.L2Config.Denom+"\""); err != nil {
+			if err = setFieldPlaceholder(defaultExecutorFields, "l2_node.gas_denom", fmt.Sprintf("Press tab to use \"%s\"", minitiaConfig.L2Config.Denom)); err != nil {
 				return m, m.HandlePanic(err)
 			}
 
@@ -1139,7 +1138,7 @@ func WaitStartingInitBot(ctx context.Context) tea.Cmd {
 					ChainID:       configMap["l2_node.chain_id"],
 					RPCAddress:    configMap["l2_node.rpc_address"],
 					Bech32Prefix:  "init",
-					GasPrice:      configMap["l2_node.gas_price"],
+					GasPrice:      "0" + configMap["l2_node.gas_denom"],
 					GasAdjustment: 1.5,
 					TxTimeout:     60,
 				},
@@ -1181,7 +1180,9 @@ func WaitStartingInitBot(ctx context.Context) tea.Cmd {
 			binaryPath := filepath.Join(userHome, common.WeaveDataDirectory, fmt.Sprintf("opinitd@%s", OpinitBotBinaryVersion), AppName)
 			if address, err := cosmosutils.OPInitGetAddressForKey(binaryPath, OracleBridgeExecutorKeyName, opInitHome); err == nil {
 				// TODO: revisit error
-				_ = cosmosutils.OPInitGrantOracle(binaryPath, address, opInitHome)
+				if err := cosmosutils.OPInitGrantOracle(binaryPath, address, opInitHome); err != nil {
+					return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to grant oracle to address: %v", err)}
+				}
 			}
 		} else if state.InitChallengerBot {
 			srv, err := service.NewService(service.OPinitChallenger)
