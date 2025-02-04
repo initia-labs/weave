@@ -192,9 +192,6 @@ func OPInitGetAddressForKey(appName, keyname, opInitHome string) (string, error)
 // OPInitGrantOracle grants oracle permissions to a specific address.
 func OPInitGrantOracle(appName, address, opInitHome string) error {
 	cmd := exec.Command(appName, "tx", "grant-oracle", address, "--home", opInitHome)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to grant oracle to address %s: %v (output: %s)", address, err, string(output))
 	}
