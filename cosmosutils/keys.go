@@ -193,9 +193,12 @@ func OPInitGetAddressForKey(appName, keyname, opInitHome string) (string, error)
 func OPInitGrantOracle(appName, address, opInitHome string) error {
 	cmd := exec.Command(appName, "tx", "grant-oracle", address, "--home", opInitHome)
 	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to grant oracle to address %s: %v (output: %s)", address, err, string(output))
+		outputStr := string(output)
+		if strings.Contains(outputStr, "fee allowance already exists") {
+			return nil
+		}
+		return fmt.Errorf("failed to grant oracle to address %s: %v (output: %s)", address, err, outputStr)
 	}
-
 	return nil
 }
 
