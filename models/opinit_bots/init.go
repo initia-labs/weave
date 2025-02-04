@@ -50,7 +50,7 @@ var defaultExecutorFields = []*Field{
 	// L2 Node Configuration
 	{Name: "l2_node.chain_id", Type: StringField, Question: "Specify rollup chain ID", Highlights: []string{"rollup chain ID"}, Placeholder: "Enter chain ID ex. rollup-1", ValidateFn: common.ValidateEmptyString},
 	{Name: "l2_node.rpc_address", Type: StringField, Question: "Specify rollup RPC endpoint", Highlights: []string{"rollup RPC endpoint"}, Placeholder: `Press tab to use "http://localhost:26657"`, DefaultValue: "http://localhost:26657", ValidateFn: common.ValidateURL, Tooltip: &tooltip.RollupRPCEndpointTooltip},
-	{Name: "l2_node.gas_denom", Type: StringField, Question: "Specify rollup gas denom", Highlights: []string{"rollup gas denom"}, Placeholder: `Press tab to use "GAS"`, DefaultValue: "GAS", ValidateFn: common.ValidateDenom, Tooltip: &tooltip.RollupGasDenomTooltip},
+	{Name: "l2_node.gas_denom", Type: StringField, Question: "Specify rollup gas denom", Highlights: []string{"rollup gas denom"}, Placeholder: `Press tab to use "umin"`, DefaultValue: "umin", ValidateFn: common.ValidateDenom, Tooltip: &tooltip.RollupGasDenomTooltip},
 }
 
 var defaultChallengerFields = []*Field{
@@ -85,7 +85,7 @@ func setFieldPrefillValue(fields []*Field, name, value string) error {
 func setFieldPlaceholder(fields []*Field, name, placeholder string) error {
 	field, err := getField(fields, name)
 	if err != nil {
-		return fmt.Errorf("Error setting placeholder for %s: %v\n", name, err)
+		return fmt.Errorf("error setting placeholder for %s: %v\n", name, err)
 	}
 	field.Placeholder = placeholder
 	return nil
