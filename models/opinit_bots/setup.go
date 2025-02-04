@@ -470,7 +470,7 @@ func (m *SetupOPInitBots) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			keyInfo := strings.Split(res, "\n")
 			address := strings.Split(keyInfo[0], ": ")
 			mnemonic := keyInfo[1]
-			keyFile.AddWallet(string(BotNameToKeyName[botName]), io.NewWallet(address[1], mnemonic))
+			keyFile.AddKey(string(BotNameToKeyName[botName]), io.NewKey(address[1], mnemonic))
 		}
 
 		err = keyFile.Write(keyFilePath)

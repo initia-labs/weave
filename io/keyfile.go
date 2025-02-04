@@ -8,19 +8,19 @@ import (
 	"github.com/initia-labs/weave/crypto"
 )
 
-type Wallet struct {
+type Key struct {
 	Address  string `json:"address"`
 	Mnemonic string `json:"mnemonic"`
 }
 
-func NewWallet(address, mnemonic string) *Wallet {
-	return &Wallet{
+func NewKey(address, mnemonic string) *Key {
+	return &Key{
 		Address:  address,
 		Mnemonic: mnemonic,
 	}
 }
 
-func GenerateWallet(hrp string) (*Wallet, error) {
+func GenerateKey(hrp string) (*Key, error) {
 	mnemonic, err := crypto.GenerateMnemonic()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate mnemonic: %w", err)
@@ -31,33 +31,33 @@ func GenerateWallet(hrp string) (*Wallet, error) {
 		return nil, fmt.Errorf("failed to derive address: %w", err)
 	}
 
-	return &Wallet{
+	return &Key{
 		Mnemonic: mnemonic,
 		Address:  address,
 	}, nil
 }
 
-func RecoverWalletFromMnemonic(hrp, mnemonic string) (*Wallet, error) {
+func RecoverKey(hrp, mnemonic string) (*Key, error) {
 	address, err := crypto.MnemonicToBech32Address(hrp, mnemonic)
 	if err != nil {
 		return nil, fmt.Errorf("failed to derive address: %w", err)
 	}
 
-	return &Wallet{
+	return &Key{
 		Mnemonic: mnemonic,
 		Address:  address,
 	}, nil
 }
 
-type KeyFile map[string]*Wallet
+type KeyFile map[string]*Key
 
 func NewKeyFile() *KeyFile {
 	kf := make(KeyFile)
 	return &kf
 }
 
-func (k *KeyFile) AddWallet(name string, wallet *Wallet) {
-	(*k)[name] = wallet
+func (k *KeyFile) AddKey(name string, key *Key) {
+	(*k)[name] = key
 }
 
 func (k *KeyFile) GetMnemonic(name string) string {

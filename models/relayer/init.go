@@ -617,18 +617,18 @@ func (m *KeysMnemonicDisplayInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if done {
 		state := weavecontext.PushPageAndGetState[State](m)
 
-		l1RelayerWallet, err := weaveio.RecoverWalletFromMnemonic("init", state.l1RelayerMnemonic)
+		l1RelayerKey, err := weaveio.RecoverKey("init", state.l1RelayerMnemonic)
 		if err != nil {
-			return m, m.HandlePanic(fmt.Errorf("cannot recover l1 relayer wallet: %w", err))
+			return m, m.HandlePanic(fmt.Errorf("cannot recover l1 relayer key: %w", err))
 		}
-		l2RelayerWallet, err := weaveio.RecoverWalletFromMnemonic("init", state.l2RelayerMnemonic)
+		l2RelayerKey, err := weaveio.RecoverKey("init", state.l2RelayerMnemonic)
 		if err != nil {
-			return m, m.HandlePanic(fmt.Errorf("cannot recover l2 relayer wallet: %w", err))
+			return m, m.HandlePanic(fmt.Errorf("cannot recover l2 relayer key: %w", err))
 		}
 
 		keyFile := weaveio.NewKeyFile()
-		keyFile.AddWallet(DefaultL1RelayerKeyName, l1RelayerWallet)
-		keyFile.AddWallet(DefaultL2RelayerKeyName, l2RelayerWallet)
+		keyFile.AddKey(DefaultL1RelayerKeyName, l1RelayerKey)
+		keyFile.AddKey(DefaultL2RelayerKeyName, l2RelayerKey)
 		err = keyFile.Write(m.keyFilePath)
 		if err != nil {
 			return m, m.HandlePanic(fmt.Errorf("failed to write key file: %w", err))
@@ -2767,8 +2767,8 @@ func (m *AddChallengerKeyToRelayer) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			hermesKeyFile := filepath.Join(userHome, common.HermesKeyFileJson)
 
 			keyFile := weaveio.NewKeyFile()
-			keyFile.AddWallet(DefaultL1RelayerKeyName, weaveio.NewWallet(l1RelayerKey.Address, l1RelayerKey.Mnemonic))
-			keyFile.AddWallet(DefaultL2RelayerKeyName, weaveio.NewWallet(l2RelayerKey.Address, l2RelayerKey.Mnemonic))
+			keyFile.AddKey(DefaultL1RelayerKeyName, weaveio.NewKey(l1RelayerKey.Address, l1RelayerKey.Mnemonic))
+			keyFile.AddKey(DefaultL2RelayerKeyName, weaveio.NewKey(l2RelayerKey.Address, l2RelayerKey.Mnemonic))
 			err = keyFile.Write(hermesKeyFile)
 			if err != nil {
 				return m, m.HandlePanic(fmt.Errorf("failed to write key file: %w", err))

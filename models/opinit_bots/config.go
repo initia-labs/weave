@@ -70,37 +70,37 @@ func GenerateMnemonicKeyfile(rawConfig []byte, botName string) (*weaveio.KeyFile
 			return nil, fmt.Errorf("failed to unmarshal executor config: %v", err)
 		}
 
-		bridgeExecutor, err := weaveio.GenerateWallet("init")
+		bridgeExecutor, err := weaveio.GenerateKey("init")
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate bridge executor mnemonic: %w", err)
 		}
-		keyFile.AddWallet(BridgeExecutorKeyName, bridgeExecutor)
+		keyFile.AddKey(BridgeExecutorKeyName, bridgeExecutor)
 
-		outputSubmitter, err := weaveio.GenerateWallet("init")
+		outputSubmitter, err := weaveio.GenerateKey("init")
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate output submitter mnemonic: %w", err)
 		}
-		keyFile.AddWallet(OutputSubmitterKeyName, outputSubmitter)
+		keyFile.AddKey(OutputSubmitterKeyName, outputSubmitter)
 
-		batchSubmitter, err := weaveio.GenerateWallet(config.DANode.Bech32Prefix)
+		batchSubmitter, err := weaveio.GenerateKey(config.DANode.Bech32Prefix)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate batch submitter mnemonic: %w", err)
 		}
-		keyFile.AddWallet(BatchSubmitterKeyName, batchSubmitter)
+		keyFile.AddKey(BatchSubmitterKeyName, batchSubmitter)
 
-		oracleBridgeExecutor, err := weaveio.GenerateWallet("init")
+		oracleBridgeExecutor, err := weaveio.GenerateKey("init")
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate oracle bridge executor mnemonic: %w", err)
 		}
-		keyFile.AddWallet(OracleBridgeExecutorKeyName, oracleBridgeExecutor)
+		keyFile.AddKey(OracleBridgeExecutorKeyName, oracleBridgeExecutor)
 
 		return keyFile, nil
 	case "challenger":
-		challenger, err := weaveio.GenerateWallet("init")
+		challenger, err := weaveio.GenerateKey("init")
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate challenger mnemonic: %w", err)
 		}
-		keyFile.AddWallet(ChallengerKeyName, challenger)
+		keyFile.AddKey(ChallengerKeyName, challenger)
 
 		return keyFile, nil
 	default:
