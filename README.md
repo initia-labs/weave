@@ -22,6 +22,15 @@ Its primary purpose is to solve several key challenges:
 - Operating System: **Linux, macOS**
 - Go **v1.23** or higher when building from scratch
 
+> **Important:** While Weave can run as root, it does not support switching users via commands like `sudo su ubuntu` or `su - someuser`. Instead, directly SSH or log in as the user you intend to run Weave with. For example:
+>
+> ```bash
+> ssh ubuntu@your-server    # Good: Direct login as ubuntu user
+> ssh root@your-server     # Good: Direct login as root
+> ```
+>
+> This ensures proper handling of user-specific configurations and paths.
+
 ## Installation
 
 ### On macOS
@@ -70,19 +79,21 @@ Go to the [Releases](https://github.com/initia-labs/weave/releases) page and dow
 ```bash
 weave version
 ```
+
 This should return the version of the Weave binary you have installed. Example output:
 
 ```bash
 v0.1.2
 ```
 
-
 ## Quick Start
 
 To get started with Weave, run
+
 ```bash
 weave init
 ```
+
 It will ask you to setup the [Gas Station](/docs/gas_station.md) account and ask which infrastructure you want to setup.
 After that, Weave will guide you through the setup process step-by-step.
 
@@ -96,6 +107,7 @@ After that, Weave will guide you through the setup process step-by-step.
 ## Usage data collection
 
 By default, Weave collects non-identifiable usage data to help improve the product. If you prefer not to share this data, you can opt out by running the following command:
+
 ```bash
 weave analytics disable
 ```
