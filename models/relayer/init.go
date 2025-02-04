@@ -618,8 +618,8 @@ func (m *KeysMnemonicDisplayInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		state := weavecontext.PushPageAndGetState[State](m)
 
 		keyFile := weaveio.NewKeyFile()
-		keyFile.AddMnemonic("l1_relayer", state.l1RelayerMnemonic)
-		keyFile.AddMnemonic("l2_relayer", state.l2RelayerMnemonic)
+		keyFile.AddMnemonic("weave_l1_relayer", state.l1RelayerMnemonic)
+		keyFile.AddMnemonic("weave_l2_relayer", state.l2RelayerMnemonic)
 		err := keyFile.Write(m.keyFilePath)
 		if err != nil {
 			return m, m.HandlePanic(fmt.Errorf("failed to write key file: %w", err))
