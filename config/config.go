@@ -91,6 +91,10 @@ func IsFirstTimeSetup() bool {
 }
 
 func GetGasStationKey() (*GasStationKey, error) {
+	if IsFirstTimeSetup() {
+		return nil, fmt.Errorf("gas station key not exists")
+	}
+
 	data := GetConfig("common.gas_station")
 	jsonData, err := json.Marshal(data)
 	if err != nil {
