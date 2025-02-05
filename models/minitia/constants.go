@@ -30,10 +30,13 @@ const (
 
 	CelestiaAppName string = "celestia-appd"
 
-	InitiaScanURL         string = "https://scan.testnet.initia.xyz"
-	DefaultMinitiaLCD     string = "http://localhost:1317"
-	DefaultMinitiaRPC     string = "http://localhost:26657"
-	DefaultMinitiaJsonRPC string = "http://localhost:8545"
+	InitiaScanURL           string = "https://scan.testnet.initia.xyz"
+	DefaultMinitiaLCD       string = "http://localhost:1317"
+	DefaultMinitiaRPC       string = "http://localhost:26657"
+	DefaultMinitiaWebsocket string = "ws://localhost:26657/websocket"
+	DefaultMinitiaGRPC      string = "http://localhost:9090"
+	DefaultMinitiaJsonRPC   string = "http://localhost:8545"
+	DefaultMinitiaJsonRPCWS string = "http://localhost:8546"
 
 	DefaultRollupDenom  string = "umin"
 	DefaultMinievmDenom string = "GAS"
