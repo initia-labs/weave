@@ -147,15 +147,15 @@ func (lsk *L1SystemKeys) FundAccountsWithGasStation(state *LaunchState) (*FundAc
 
 	signCmd := exec.Command(state.binaryPath, "tx", "sign", rawTxPath, "--from", common.WeaveGasStationKeyName, "--node", state.l1RPC,
 		"--chain-id", state.l1ChainId, "--keyring-backend", "test", "--output-document", rawTxPath)
-	err = signCmd.Run()
+	signRes, err := signCmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("failed to sign transaction: %v", err)
+		return nil, fmt.Errorf("failed to sign transaction: %v, output: %s", err, string(signRes))
 	}
 
 	broadcastCmd := exec.Command(state.binaryPath, "tx", "broadcast", rawTxPath, "--node", state.l1RPC, "--output", "json")
 	broadcastRes, err := broadcastCmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("failed to broadcast transaction: %v", err)
+		return nil, fmt.Errorf("failed to broadcast transaction: %v, output: %s", err, string(broadcastRes))
 	}
 
 	var txResponse cosmosutils.InitiadTxResponse
