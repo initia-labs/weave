@@ -1287,11 +1287,15 @@ func (m *GasStationMnemonicInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if done {
 		state := weavecontext.PushPageAndGetState[LaunchState](m)
 
-		// TODO: Fix this
-		err := config.SetConfig("common.gas_station_mnemonic", input.Text)
+		gasStationKey, err := config.RecoverGasStationKey(input.Text)
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
+		err = config.SetConfig("common.gas_station", gasStationKey)
+		if err != nil {
+			return m, m.HandlePanic(err)
+		}
+
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.DotsSeparator, m.GetQuestion(), m.highlights, styles.HiddenMnemonicText))
 		model, err := NewAccountsFundingPresetSelect(weavecontext.SetCurrentState(m.Ctx, state))
 		if err != nil {
