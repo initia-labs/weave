@@ -317,9 +317,14 @@ func (hi *WeaveAppInitialization) Init() tea.Cmd {
 
 func WaitSetGasStation(mnemonic string) tea.Cmd {
 	return func() tea.Msg {
-		err := config.SetConfig("common.gas_station_mnemonic", mnemonic)
+		gasStationKey, err := config.RecoverGasStationKey(mnemonic)
 		if err != nil {
-			return ui.ErrorLoading{Err: err}
+			return ui.ErrorLoading{Err: fmt.Errorf("failed to recover gas station key: %w", err)}
+		}
+
+		err = config.SetConfig("common.gas_station", gasStationKey)
+		if err != nil {
+			return ui.ErrorLoading{Err: fmt.Errorf("failed to set gas station in config: %w", err)}
 		}
 		time.Sleep(1500 * time.Millisecond)
 		return ui.EndLoading{}

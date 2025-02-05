@@ -23,7 +23,6 @@ import (
 	"github.com/initia-labs/weave/config"
 	weavecontext "github.com/initia-labs/weave/context"
 	"github.com/initia-labs/weave/cosmosutils"
-	"github.com/initia-labs/weave/crypto"
 	"github.com/initia-labs/weave/io"
 	"github.com/initia-labs/weave/registry"
 	"github.com/initia-labs/weave/service"
@@ -1288,6 +1287,7 @@ func (m *GasStationMnemonicInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if done {
 		state := weavecontext.PushPageAndGetState[LaunchState](m)
 
+		// TODO: Fix this
 		err := config.SetConfig("common.gas_station_mnemonic", input.Text)
 		if err != nil {
 			return m, m.HandlePanic(err)
@@ -1339,11 +1339,11 @@ func NewAccountsFundingPresetSelect(ctx context.Context) (*AccountsFundingPreset
 		tooltip.SystemAccountsFundingPresetTooltip, 2,
 	)
 
-	gasStationMnemonic := config.GetGasStationMnemonic()
-	initiaGasStationAddress, err := crypto.MnemonicToBech32Address("init", gasStationMnemonic)
+	gasStationKey, err := config.GetGasStationKey()
 	if err != nil {
-		return nil, fmt.Errorf("cannot recover gas station for init: %v", err)
+		return nil, fmt.Errorf("failed to get gas station key: %v", err)
 	}
+
 	var batchSubmitterDenom, batchSubmitterText, initiaNeededBalance, celestiaNeededBalance string
 	if state.batchSubmissionIsCelestia {
 		batchSubmitterDenom = DefaultCelestiaGasDenom
@@ -1367,11 +1367,7 @@ func NewAccountsFundingPresetSelect(ctx context.Context) (*AccountsFundingPreset
 			}
 			celestiaChainId = celestiaRegistry.GetChainId()
 		}
-		celestiaGasStationAddress, err := crypto.MnemonicToBech32Address("celestia", gasStationMnemonic)
-		if err != nil {
-			return nil, fmt.Errorf("cannot recover gas station for celestia: %v", err)
-		}
-		celestiaNeededBalance = fmt.Sprintf("%s %s (%s)\n    ", styles.Text(fmt.Sprintf("• Celestia (%s):", celestiaChainId), styles.Cyan), styles.BoldText(fmt.Sprintf("%s%s", DefaultL1BatchSubmitterBalance, DefaultCelestiaGasDenom), styles.White), celestiaGasStationAddress)
+		celestiaNeededBalance = fmt.Sprintf("%s %s (%s)\n    ", styles.Text(fmt.Sprintf("• Celestia (%s):", celestiaChainId), styles.Cyan), styles.BoldText(fmt.Sprintf("%s%s", DefaultL1BatchSubmitterBalance, DefaultCelestiaGasDenom), styles.White), gasStationKey.CelestiaAddress)
 	} else {
 		batchSubmitterDenom = DefaultL1GasDenom
 		batchSubmitterText = " on L1"
@@ -1395,7 +1391,7 @@ func NewAccountsFundingPresetSelect(ctx context.Context) (*AccountsFundingPreset
 		styles.Text("Total amount required from the Gas Station account:", styles.Ivory),
 		styles.Text(fmt.Sprintf("• L1 (%s):", state.l1ChainId), styles.Cyan),
 		styles.BoldText(fmt.Sprintf("%s%s", initiaNeededBalance, DefaultL1GasDenom), styles.White),
-		initiaGasStationAddress,
+		gasStationKey.InitiaAddress,
 		celestiaNeededBalance,
 		separator,
 	))
@@ -1778,17 +1774,16 @@ type GenesisGasStationBalanceInput struct {
 func NewGenesisGasStationBalanceInput(ctx context.Context) (*GenesisGasStationBalanceInput, error) {
 	toolTip := tooltip.GasStationBalanceOnRollupGenesisTooltip
 	state := weavecontext.GetCurrentState[LaunchState](ctx)
-	gasStationAddress, err := crypto.MnemonicToBech32Address("init", config.GetGasStationMnemonic())
+	gasStationKey, err := config.GetGasStationKey()
 	if err != nil {
-		return nil, fmt.Errorf("cannot recover gas station for init: %v", err)
+		return nil, fmt.Errorf("failed to get gas station key: %v", err)
 	}
-
 	model := &GenesisGasStationBalanceInput{
 		TextInput:  ui.NewTextInput(false),
 		BaseModel:  weavecontext.BaseModel{Ctx: ctx},
 		question:   fmt.Sprintf("Specify the genesis balance for the gas station account (%s)", state.gasDenom),
 		highlights: []string{"gas station"},
-		address:    gasStationAddress,
+		address:    gasStationKey.InitiaAddress,
 	}
 	model.WithPlaceholder("Enter a positive amount")
 	model.WithValidatorFn(common.ValidatePositiveBigInt)
@@ -2570,25 +2565,15 @@ type FundGasStationConfirmationInput struct {
 }
 
 func NewFundGasStationConfirmationInput(ctx context.Context) (*FundGasStationConfirmationInput, error) {
-	state := weavecontext.GetCurrentState[LaunchState](ctx)
-	gasStationMnemonic := config.GetGasStationMnemonic()
-	var celestiaGasStationAddress string
-	if state.batchSubmissionIsCelestia {
-		var err error
-		celestiaGasStationAddress, err = cosmosutils.GetAddressFromMnemonic(state.celestiaBinaryPath, gasStationMnemonic)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get the celestia gas station address: %w", err)
-		}
-	}
-	initiaGasStationAddress, err := cosmosutils.GetAddressFromMnemonic(state.binaryPath, gasStationMnemonic)
+	gasStationKey, err := config.GetGasStationKey()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get the initia gas station address: %w", err)
+		return nil, fmt.Errorf("failed to get gas station key: %v", err)
 	}
 	model := &FundGasStationConfirmationInput{
 		TextInput:                 ui.NewTextInput(false),
 		BaseModel:                 weavecontext.BaseModel{Ctx: ctx},
-		initiaGasStationAddress:   initiaGasStationAddress,
-		celestiaGasStationAddress: celestiaGasStationAddress,
+		initiaGasStationAddress:   gasStationKey.InitiaAddress,
+		celestiaGasStationAddress: gasStationKey.CelestiaAddress,
 		question:                  "Confirm to proceed with signing and broadcasting the following transactions? [y]:",
 	}
 	model.WithPlaceholder("Type `y` to confirm")
