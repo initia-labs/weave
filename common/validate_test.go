@@ -1,6 +1,9 @@
 package common
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestValidateURL(t *testing.T) {
 	failTests := []struct {
@@ -62,5 +65,100 @@ func TestValidateWSURL(t *testing.T) {
 		if err != nil {
 			t.Errorf("For input '%s', expected no error, but got '%v'", test.input, err)
 		}
+	}
+}
+
+func TestValidatePositiveBigIntOrZero(t *testing.T) {
+	maxUint256 := strings.Repeat("9", 78) // approximate max uint256 value
+
+	tests := []struct {
+		name    string
+		input   string
+		wantErr bool
+	}{
+		{
+			name:    "valid positive integer",
+			input:   "123",
+			wantErr: false,
+		},
+		{
+			name:    "zero",
+			input:   "0",
+			wantErr: false,
+		},
+		{
+			name:    "negative integer",
+			input:   "-123",
+			wantErr: true,
+		},
+		{
+			name:    "empty string",
+			input:   "",
+			wantErr: true,
+		},
+		{
+			name:    "decimal number",
+			input:   "12.3",
+			wantErr: true,
+		},
+		{
+			name:    "exceeds uint256",
+			input:   maxUint256 + "0",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidatePositiveBigIntOrZero(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidatePositiveBigIntOrZero() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidatePositiveBigInt(t *testing.T) {
+	maxUint256 := strings.Repeat("9", 78) // approximate max uint256 value
+
+	tests := []struct {
+		name    string
+		input   string
+		wantErr bool
+	}{
+		{
+			name:    "valid positive integer",
+			input:   "123",
+			wantErr: false,
+		},
+		{
+			name:    "zero",
+			input:   "0",
+			wantErr: true,
+		},
+		{
+			name:    "negative integer",
+			input:   "-123",
+			wantErr: true,
+		},
+		{
+			name:    "empty string",
+			input:   "",
+			wantErr: true,
+		},
+		{
+			name:    "exceeds uint256",
+			input:   maxUint256 + "0",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidatePositiveBigInt(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidatePositiveBigInt() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
 	}
 }
