@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os/exec"
 
 	"github.com/spf13/cobra"
 
@@ -22,26 +23,29 @@ func isInitiated(cmd service.CommandName) func(_ *cobra.Command, _ []string) err
 				return fmt.Errorf("could not create %v service: %w", prettyName, err)
 			}
 
-			serviceFile, err := service.GetServiceFile()
-			if err != nil {
-				return fmt.Errorf("could not get service file for %s: %w", prettyName, err)
+			// Check if Docker is installed and running
+			if err := exec.Command("docker", "info").Run(); err != nil {
+				return fmt.Errorf("docker is not running or not installed: %w", err)
 			}
 
-			if !weaveio.FileOrFolderExists(serviceFile) {
-				return fmt.Errorf("service file %s not found", serviceFile)
+			imageName, err := service.getImageName("")
+			if err != nil {
+				return fmt.Errorf("could not get image name: %w", err)
 			}
 
-			serviceBinary, serviceHome, err := service.GetServiceBinaryAndHome()
+			inspectCmd := exec.Command("docker", "image", "inspect", imageName)
+			if err := inspectCmd.Run(); err != nil {
+				return fmt.Errorf("required docker image %s not found", imageName)
+			}
+
+			// Check if the home directory exists (for bind mount)
+			_, serviceHome, err := service.GetServiceBinaryAndHome()
 			if err != nil {
-				return fmt.Errorf("could not determine %v binary and home directory: %w", prettyName, err)
+				return fmt.Errorf("could not determine %v home directory: %w", prettyName, err)
 			}
 
 			if !weaveio.FileOrFolderExists(serviceHome) {
 				return fmt.Errorf("home directory %s not found", serviceHome)
-			}
-
-			if !weaveio.FileOrFolderExists(serviceBinary) {
-				return fmt.Errorf("%s binary not found at %s", prettyName, serviceBinary)
 			}
 
 			return nil

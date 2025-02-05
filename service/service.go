@@ -1,10 +1,8 @@
 package service
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
-	"runtime"
 	"syscall"
 	"time"
 )
@@ -22,14 +20,7 @@ type Service interface {
 }
 
 func NewService(commandName CommandName) (Service, error) {
-	switch runtime.GOOS {
-	case "linux":
-		return NewSystemd(commandName), nil
-	case "darwin":
-		return NewLaunchd(commandName), nil
-	default:
-		return nil, fmt.Errorf("unsupported OS: %s", runtime.GOOS)
-	}
+	return NewDocker(commandName), nil
 }
 
 func NonDetachStart(s Service) error {
