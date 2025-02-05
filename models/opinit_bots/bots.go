@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	OpinitBotBinaryVersion = "v0.1.12"
+	OpinitBotBinaryVersion = "v0.1.14"
 )
 
 // BotName defines a custom type for the bot names

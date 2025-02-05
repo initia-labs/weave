@@ -61,10 +61,11 @@ func TestInitiaInitTestnetNoSync(t *testing.T) {
 				return false
 			}
 			return true
-		}), // wait for the Initia app to be created
-		testutil.PressDown,  // press down twice to select No Sync
-		testutil.PressDown,  //
-		testutil.PressEnter, // press enter to confirm selecting No Sync
+		}),
+		testutil.WaitFetching, // wait for the Initia app to be created
+		testutil.PressDown,    // press down twice to select No Sync
+		testutil.PressDown,    //
+		testutil.PressEnter,   // press enter to confirm selecting No Sync
 	}
 
 	finalModel := testutil.RunProgramWithSteps(t, firstModel, steps)
@@ -138,7 +139,7 @@ func TestInitiaInitTestnetStatesync(t *testing.T) {
 		testutil.PressEnter, // press enter to confirm the rpc
 		testutil.WaitFor(func() bool {
 			return true
-		}), // wait for the fetching of the default value
+		}),                                                                                 // wait for the fetching of the default value
 		testutil.TypeText("1d9b9512f925cf8808e7f76d71a788d82089fe76@65.108.198.118:25756"), // type in the additional peer for state sync
 		testutil.PressEnter, // press enter to confirm the peer
 	}
