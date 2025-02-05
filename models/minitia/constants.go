@@ -36,7 +36,7 @@ const (
 	DefaultMinitiaWebsocket string = "ws://localhost:26657/websocket"
 	DefaultMinitiaGRPC      string = "http://localhost:9090"
 	DefaultMinitiaJsonRPC   string = "http://localhost:8545"
-	DefaultMinitiaJsonRPCWS string = "http://localhost:8546"
+	DefaultMinitiaJsonRPCWS string = "ws://localhost:8546"
 
 	DefaultRollupDenom  string = "umin"
 	DefaultMinievmDenom string = "GAS"
