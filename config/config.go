@@ -193,11 +193,26 @@ func MigrateConfigV1() error {
 		analyticsOptOut := GetConfig("common.analytics_opt_out")
 		analyticsDeviceID := GetConfig("common.analytics_device_id")
 
-		// Clear the config
-		viper.Set("version", 1)
-		viper.Set("gas_station", map[string]interface{}{})
-		viper.Set("analytics", map[string]interface{}{})
-		viper.Set("common", nil)
+		// Reset all viper settings
+		viper.Reset()
+
+		// Reinitialize viper with the config file
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("failed to get user home directory: %v", err)
+		}
+		configPath := filepath.Join(homeDir, common.WeaveConfigFile)
+		viper.SetConfigFile(configPath)
+
+		// Create new clean config structure
+		newConfig := map[string]interface{}{
+			"version":     1,
+			"gas_station": map[string]interface{}{},
+			"analytics":   map[string]interface{}{},
+		}
+
+		// Set the new base config
+		viper.Set("", newConfig)
 
 		// Restore the data
 		if gasStation != nil {
