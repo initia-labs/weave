@@ -3,7 +3,6 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/initia-labs/weave/io"
 	"os"
 	"path/filepath"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/initia-labs/weave/common"
+	"github.com/initia-labs/weave/io"
 )
 
 var DevMode string
@@ -67,6 +67,11 @@ func LoadConfig() error {
 	if err := viper.ReadInConfig(); err != nil {
 		return fmt.Errorf("failed to read config file: %v", err)
 	}
+
+	if err := MigrateConfigV1(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -87,7 +92,7 @@ func WriteConfig() error {
 }
 
 func IsFirstTimeSetup() bool {
-	return viper.Get("common.gas_station") == nil
+	return viper.Get("gas_station") == nil
 }
 
 func GetGasStationKey() (*GasStationKey, error) {
@@ -95,7 +100,7 @@ func GetGasStationKey() (*GasStationKey, error) {
 		return nil, fmt.Errorf("gas station key not exists")
 	}
 
-	data := GetConfig("common.gas_station")
+	data := GetConfig("gas_station")
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal json: %v", err)
@@ -116,29 +121,32 @@ func AnalyticsOptOut() bool {
 		return true
 	}
 
-	if GetConfig("common.analytics_opt_out") == nil {
-		_ = SetConfig("common.analytics_opt_out", false)
+	if GetConfig("analytics.opt_out") == nil {
+		_ = SetConfig("analytics.opt_out", false)
 		return false
 	}
 
-	return GetConfig("common.analytics_opt_out").(bool)
+	return GetConfig("analytics.opt_out").(bool)
 }
 
 func GetAnalyticsDeviceID() string {
-	if GetConfig("common.analytics_device_id") == nil {
+	if GetConfig("analytics.device_id") == nil {
 		deviceID := uuid.New().String()
-		_ = SetConfig("common.analytics_device_id", deviceID)
+		_ = SetConfig("analytics.device_id", deviceID)
 		return deviceID
 	}
 
-	return GetConfig("common.analytics_device_id").(string)
+	return GetConfig("analytics.device_id").(string)
 }
 
 func SetAnalyticsOptOut(optOut bool) error {
-	return SetConfig("common.analytics_opt_out", optOut)
+	return SetConfig("analytics.opt_out", optOut)
 }
 
-const DefaultConfigTemplate = `{}`
+const DefaultConfigTemplate = `{
+    "version": 1,
+    "analytics": {}
+}`
 
 type GasStationKey struct {
 	InitiaAddress   string `json:"initia_address"`
@@ -162,4 +170,50 @@ func RecoverGasStationKey(mnemonic string) (*GasStationKey, error) {
 		CelestiaAddress: celestiaKey.Address,
 		Mnemonic:        mnemonic,
 	}, nil
+}
+
+func GetConfigVersion() int {
+	version := GetConfig("version")
+	if version == nil {
+		return 0
+	}
+	return int(GetConfig("version").(float64))
+}
+
+func MigrateConfigV1() error {
+	version := GetConfigVersion()
+	if version == 1 {
+		return nil // Already at latest version
+	}
+
+	// Migrate from version 0 to 1
+	if version == 0 {
+		// Preserve existing data
+		gasStation := GetConfig("common.gas_station")
+		analyticsOptOut := GetConfig("common.analytics_opt_out")
+		analyticsDeviceID := GetConfig("common.analytics_device_id")
+
+		// Clear the config
+		viper.Set("version", 1)
+		viper.Set("gas_station", map[string]interface{}{})
+		viper.Set("analytics", map[string]interface{}{})
+		viper.Set("common", nil)
+
+		// Restore the data
+		if gasStation != nil {
+			viper.Set("gas_station", gasStation)
+		}
+		if analyticsOptOut != nil {
+			viper.Set("analytics.opt_out", analyticsOptOut)
+		}
+		if analyticsDeviceID != nil {
+			viper.Set("analytics.device_id", analyticsDeviceID)
+		}
+
+		if err := WriteConfig(); err != nil {
+			return fmt.Errorf("failed to migrate config to version 1: %v", err)
+		}
+	}
+
+	return nil
 }
