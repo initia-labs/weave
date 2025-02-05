@@ -377,3 +377,30 @@ func ValidateTarLz4Header(dest string) error {
 
 	return nil
 }
+
+func ValidateBigInt(s string) error {
+	if s == "" {
+		return errors.New("empty string is not a valid integer")
+	}
+
+	n := new(big.Int)
+	_, ok := n.SetString(s, 10)
+	if !ok {
+		return fmt.Errorf("failed to parse '%s' as integer", s)
+	}
+
+	return nil
+}
+
+func ValidatePositiveBigInt(s string) error {
+	err := ValidateBigInt(s)
+	if err != nil {
+		return err
+	}
+
+	if s == "0" || s[0] == '-' {
+		return fmt.Errorf("'%s' is not a positive integer", s)
+	}
+
+	return nil
+}

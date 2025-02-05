@@ -1486,7 +1486,7 @@ func NewSystemKeyL1BridgeExecutorBalanceInput(ctx context.Context) *SystemKeyL1B
 		highlights: []string{"bridge executor", "L1"},
 	}
 	model.WithPlaceholder("Enter a positive amount")
-	model.WithValidatorFn(common.IsValidInteger)
+	model.WithValidatorFn(common.ValidatePositiveBigInt)
 	model.Ctx = weavecontext.SetCurrentState(model.Ctx, state)
 	return model
 }
@@ -1539,7 +1539,7 @@ func NewSystemKeyL1OutputSubmitterBalanceInput(ctx context.Context) *SystemKeyL1
 		highlights: []string{"output submitter", "L1"},
 	}
 	model.WithPlaceholder("Enter a positive amount")
-	model.WithValidatorFn(common.IsValidInteger)
+	model.WithValidatorFn(common.ValidatePositiveBigInt)
 	return model
 }
 
@@ -1599,7 +1599,7 @@ func NewSystemKeyL1BatchSubmitterBalanceInput(ctx context.Context) *SystemKeyL1B
 		highlights: []string{"batch submitter", "L1", "Celestia Testnet"},
 	}
 	model.WithPlaceholder("Enter a positive amount")
-	model.WithValidatorFn(common.IsValidInteger)
+	model.WithValidatorFn(common.ValidatePositiveBigInt)
 	return model
 }
 
@@ -1649,7 +1649,7 @@ func NewSystemKeyL1ChallengerBalanceInput(ctx context.Context) *SystemKeyL1Chall
 		highlights: []string{"challenger", "L1"},
 	}
 	model.WithPlaceholder("Enter a positive amount")
-	model.WithValidatorFn(common.IsValidInteger)
+	model.WithValidatorFn(common.ValidatePositiveBigInt)
 	return model
 }
 
@@ -1791,7 +1791,7 @@ func NewGenesisGasStationBalanceInput(ctx context.Context) (*GenesisGasStationBa
 		address:    gasStationAddress,
 	}
 	model.WithPlaceholder("Enter a positive amount")
-	model.WithValidatorFn(common.IsValidInteger)
+	model.WithValidatorFn(common.ValidatePositiveBigInt)
 	model.WithTooltip(&toolTip)
 	return model, nil
 }
@@ -2055,7 +2055,7 @@ func NewGenesisAccountsBalanceInput(address string, ctx context.Context) *Genesi
 		question:  fmt.Sprintf("Specify the genesis balance for %s (%s)", address, state.gasDenom),
 	}
 	model.WithPlaceholder("Enter a positive amount")
-	model.WithValidatorFn(common.IsValidInteger)
+	model.WithValidatorFn(common.ValidatePositiveBigInt)
 	model.WithTooltip(&toolTip)
 	return model
 }

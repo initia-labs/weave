@@ -1402,7 +1402,7 @@ func NewFundManuallyL1BalanceInput(ctx context.Context) (*FundManuallyL1BalanceI
 		question:  fmt.Sprintf("Specify the amount that would be transferred to Relayer account on L1 (%s)", l1GasDenom),
 	}
 	model.WithPlaceholder("Enter the amount (or 0 to skip)")
-	model.WithValidatorFn(common.IsValidInteger)
+	model.WithValidatorFn(common.ValidateBigInt)
 	return model, nil
 }
 
@@ -1457,7 +1457,7 @@ func NewFundManuallyL2BalanceInput(ctx context.Context) (*FundManuallyL2BalanceI
 		question:  fmt.Sprintf("Specify the amount that would be transferred to Relayer account on rollup (%s)", l2GasDenom),
 	}
 	model.WithPlaceholder("Enter the amount (or 0 to skip)")
-	model.WithValidatorFn(common.IsValidInteger)
+	model.WithValidatorFn(common.ValidateBigInt)
 	return model, nil
 }
 
