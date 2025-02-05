@@ -3002,10 +3002,16 @@ func (m *LaunchingNewMinitiaLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		endpoints = append(endpoints,
 			styles.Text("• REST API: ", styles.Ivory)+styles.BoldText(DefaultMinitiaLCD, styles.White),
 			styles.Text("• RPC: ", styles.Ivory)+styles.BoldText(DefaultMinitiaRPC, styles.White),
+			styles.Text("• RPC-WS: ", styles.Ivory)+styles.BoldText(DefaultMinitiaWebsocket, styles.White),
+			styles.Text("• gRPC: ", styles.Ivory)+styles.BoldText(DefaultMinitiaGRPC, styles.White),
 		)
 		if state.vmType == string(EVM) {
-			endpoints = append(endpoints, styles.Text("• JSON-RPC: ", styles.Ivory)+styles.BoldText(DefaultMinitiaJsonRPC, styles.White))
+			endpoints = append(endpoints,
+				styles.Text("• JSON-RPC: ", styles.Ivory)+styles.BoldText(DefaultMinitiaJsonRPC, styles.White),
+				styles.Text("• JSON-RPC-WS: ", styles.Ivory)+styles.BoldText(DefaultMinitiaJsonRPCWS, styles.White),
+			)
 		}
+
 		endpointsText := "\n Rollup Endpoints:\n" + strings.Join(endpoints, "\n") + "\n"
 
 		state.weave.PushPreviousResponse(endpointsText)
