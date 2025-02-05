@@ -393,13 +393,14 @@ func ValidateBigInt(s string) error {
 }
 
 func ValidatePositiveBigInt(s string) error {
-	if s == "0" || s[0] == '-' {
-		return fmt.Errorf("'%s' is not a positive integer", s)
-	}
-
 	err := ValidateBigInt(s)
 	if err != nil {
 		return err
 	}
+
+	if s == "0" || s[0] == '-' {
+		return fmt.Errorf("'%s' is not a positive integer", s)
+	}
+
 	return nil
 }
