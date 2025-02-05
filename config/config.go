@@ -177,7 +177,7 @@ func GetConfigVersion() int {
 	if version == nil {
 		return 0
 	}
-	return int(GetConfig("version").(float64))
+	return GetConfig("version").(int)
 }
 
 func MigrateConfigV1() error {
