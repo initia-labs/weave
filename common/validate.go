@@ -389,6 +389,23 @@ func ValidateBigInt(s string) error {
 		return fmt.Errorf("failed to parse '%s' as integer", s)
 	}
 
+	// Check if number is within uint256 range (2^256 - 1)
+	maxUint256 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1))
+	if n.Cmp(maxUint256) > 0 {
+		return fmt.Errorf("number exceeds maximum value (2^256 - 1)")
+	}
+
+	// For negative numbers, we need to handle the sign separately
+	expected := n.String()
+	if s[0] == '-' && expected[0] == '-' {
+		// Compare the rest of the string after the minus sign
+		if s[1:] != expected[1:] {
+			return fmt.Errorf("invalid integer format: '%s'", s)
+		}
+	} else if s != expected {
+		return fmt.Errorf("invalid integer format: '%s'", s)
+	}
+
 	return nil
 }
 
