@@ -22,6 +22,7 @@ import (
 	"github.com/initia-labs/weave/config"
 	weavecontext "github.com/initia-labs/weave/context"
 	"github.com/initia-labs/weave/cosmosutils"
+	"github.com/initia-labs/weave/crypto"
 	weaveio "github.com/initia-labs/weave/io"
 	"github.com/initia-labs/weave/registry"
 	"github.com/initia-labs/weave/service"
@@ -1077,14 +1078,16 @@ type FundDefaultPresetConfirmationInput struct {
 }
 
 func NewFundDefaultPresetConfirmationInput(ctx context.Context) (*FundDefaultPresetConfirmationInput, error) {
-	gasStationKey, err := config.GetGasStationKey()
+	gasStationMnemonic := config.GetGasStationMnemonic()
+	initiaGasStationAddress, err := crypto.MnemonicToBech32Address("init", gasStationMnemonic)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get gas station key: %v", err)
+		return nil, fmt.Errorf("failed to recover initia gas station key: %w", err)
 	}
+
 	model := &FundDefaultPresetConfirmationInput{
 		TextInput:               ui.NewTextInput(false),
 		BaseModel:               weavecontext.BaseModel{Ctx: ctx},
-		initiaGasStationAddress: gasStationKey.InitiaAddress,
+		initiaGasStationAddress: initiaGasStationAddress,
 		question:                "Confirm to proceed with signing and broadcasting the following transactions? [y]:",
 	}
 	model.WithPlaceholder("Type `y` to confirm")
@@ -1110,9 +1113,10 @@ func (m *FundDefaultPresetConfirmationInput) Update(msg tea.Msg) (tea.Model, tea
 		state := weavecontext.PushPageAndGetState[State](m)
 
 		// Check gas station balances
-		gasStationKey, err := config.GetGasStationKey()
+		gasStationMnemonic := config.GetGasStationMnemonic()
+		gasStationAddress, err := crypto.MnemonicToBech32Address("init", gasStationMnemonic)
 		if err != nil {
-			return nil, m.HandlePanic(fmt.Errorf("failed to get gas station key: %v", err))
+			return m, m.HandlePanic(fmt.Errorf("failed to get gas station address: %w", err))
 		}
 		l1ActiveLcd, err := GetL1ActiveLcd(m.Ctx)
 		if err != nil {
@@ -1128,7 +1132,7 @@ func (m *FundDefaultPresetConfirmationInput) Update(msg tea.Msg) (tea.Model, tea
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
-			l1Balances, err := querier.QueryBankBalances(gasStationKey.InitiaAddress, l1ActiveRpc)
+			l1Balances, err := querier.QueryBankBalances(gasStationAddress, l1ActiveRpc)
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
@@ -1153,8 +1157,8 @@ func (m *FundDefaultPresetConfirmationInput) Update(msg tea.Msg) (tea.Model, tea
 				}
 			}
 			if l1Available < l1Required {
-				m.err = fmt.Errorf("insufficient balance in gas station on L1. Required: %d%s, Available: %d%s",
-					l1Required, l1GasDenom, l1Available, l1GasDenom)
+				m.err = (fmt.Errorf("insufficient balance in gas station on L1. Required: %d%s, Available: %d%s",
+					l1Required, l1GasDenom, l1Available, l1GasDenom))
 				return m, cmd
 			}
 		}
@@ -1165,7 +1169,7 @@ func (m *FundDefaultPresetConfirmationInput) Update(msg tea.Msg) (tea.Model, tea
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
-			l2Balances, err := querier.QueryBankBalances(gasStationKey.InitiaAddress, l2ActiveRpc)
+			l2Balances, err := querier.QueryBankBalances(gasStationAddress, l2ActiveRpc)
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
@@ -1272,10 +1276,7 @@ func (m *FundDefaultPresetBroadcastLoading) Init() tea.Cmd {
 func broadcastDefaultPresetFromGasStation(ctx context.Context) tea.Cmd {
 	return func() tea.Msg {
 		state := weavecontext.GetCurrentState[State](ctx)
-		gasStationKey, err := config.GetGasStationKey()
-		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get gas station key: %v", err)}
-		}
+		gasStationMnemonic := config.GetGasStationMnemonic()
 		l1ActiveLcd, err := GetL1ActiveLcd(ctx)
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: err}
@@ -1303,7 +1304,7 @@ func broadcastDefaultPresetFromGasStation(ctx context.Context) tea.Cmd {
 		}
 		if state.l1FundingAmount != "0" {
 			res, err := cliTx.BroadcastMsgSend(
-				gasStationKey.Mnemonic,
+				gasStationMnemonic,
 				state.l1RelayerAddress,
 				fmt.Sprintf("%s%s", state.l1FundingAmount, l1GasDenom),
 				l1GasPrices,
@@ -1334,7 +1335,7 @@ func broadcastDefaultPresetFromGasStation(ctx context.Context) tea.Cmd {
 		}
 		if state.l2FundingAmount != "0" {
 			res, err := cliTx.BroadcastMsgSend(
-				gasStationKey.Mnemonic,
+				gasStationMnemonic,
 				state.l2RelayerAddress,
 				fmt.Sprintf("%s%s", state.l2FundingAmount, l2GasDenom),
 				l2GasPrices,
@@ -1477,7 +1478,7 @@ func (m *FundManuallyL2BalanceInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if done {
 		state := weavecontext.PushPageAndGetState[State](m)
 		state.l2FundingAmount = input.Text
-		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.DotsSeparator, m.GetQuestion(), []string{"Relayer account", "rollup"}, input.Text))
+		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.DotsSeparator, m.GetQuestion(), []string{"Relayer account", "L2"}, input.Text))
 
 		if state.l1FundingAmount == "0" && state.l2FundingAmount == "0" {
 			state.weave.PushPreviousResponse(getRelayerSetSuccessMessage())
@@ -1496,7 +1497,7 @@ func (m *FundManuallyL2BalanceInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *FundManuallyL2BalanceInput) View() string {
 	state := weavecontext.GetCurrentState[State](m.Ctx)
-	return m.WrapView(state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{"Relayer account", "rollup"}, styles.Question) + m.TextInput.View())
+	return m.WrapView(state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{"Relayer account", "L2"}, styles.Question) + m.TextInput.View())
 }
 
 type NetworkSelectOption string

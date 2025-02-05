@@ -44,12 +44,8 @@ type FundAccountsResponse struct {
 func (lsk *L1SystemKeys) FundAccountsWithGasStation(state *LaunchState) (*FundAccountsResponse, error) {
 	var resp FundAccountsResponse
 
-	gasStationKey, err := config.GetGasStationKey()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get gas station key: %v", err)
-	}
-
-	_, err = cosmosutils.RecoverKeyFromMnemonic(state.binaryPath, common.WeaveGasStationKeyName, gasStationKey.Mnemonic)
+	gasStationMnemonic := config.GetGasStationMnemonic()
+	rawKey, err := cosmosutils.RecoverKeyFromMnemonic(state.binaryPath, common.WeaveGasStationKeyName, gasStationMnemonic)
 	if err != nil {
 		return nil, fmt.Errorf("failed to recover gas station key: %v", err)
 	}
@@ -57,11 +53,15 @@ func (lsk *L1SystemKeys) FundAccountsWithGasStation(state *LaunchState) (*FundAc
 		_ = cosmosutils.DeleteKey(state.binaryPath, common.WeaveGasStationKeyName)
 	}()
 
+	gasStationKey, err := cosmosutils.UnmarshalKeyInfo(rawKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal gas station key: %v", err)
+	}
 	var rawTxContent string
 	if state.batchSubmissionIsCelestia {
 		rawTxContent = fmt.Sprintf(
 			FundMinitiaAccountsWithoutBatchTxInterface,
-			gasStationKey.InitiaAddress,
+			gasStationKey.Address,
 			lsk.BridgeExecutor.Address,
 			lsk.BridgeExecutor.Coins,
 			lsk.OutputSubmitter.Address,
@@ -69,7 +69,7 @@ func (lsk *L1SystemKeys) FundAccountsWithGasStation(state *LaunchState) (*FundAc
 			lsk.Challenger.Address,
 			lsk.Challenger.Coins,
 		)
-		_, err = cosmosutils.RecoverKeyFromMnemonic(state.celestiaBinaryPath, common.WeaveGasStationKeyName, gasStationKey.Mnemonic)
+		_, err = cosmosutils.RecoverKeyFromMnemonic(state.celestiaBinaryPath, common.WeaveGasStationKeyName, gasStationMnemonic)
 		if err != nil {
 			return nil, fmt.Errorf("failed to recover celestia gas station key: %v", err)
 		}
@@ -119,7 +119,7 @@ func (lsk *L1SystemKeys) FundAccountsWithGasStation(state *LaunchState) (*FundAc
 	} else {
 		rawTxContent = fmt.Sprintf(
 			FundMinitiaAccountsDefaultTxInterface,
-			gasStationKey.InitiaAddress,
+			gasStationKey.Address,
 			lsk.BridgeExecutor.Address,
 			lsk.BridgeExecutor.Coins,
 			lsk.OutputSubmitter.Address,
@@ -147,15 +147,15 @@ func (lsk *L1SystemKeys) FundAccountsWithGasStation(state *LaunchState) (*FundAc
 
 	signCmd := exec.Command(state.binaryPath, "tx", "sign", rawTxPath, "--from", common.WeaveGasStationKeyName, "--node", state.l1RPC,
 		"--chain-id", state.l1ChainId, "--keyring-backend", "test", "--output-document", rawTxPath)
-	signRes, err := signCmd.CombinedOutput()
+	err = signCmd.Run()
 	if err != nil {
-		return nil, fmt.Errorf("failed to sign transaction: %v, output: %s", err, string(signRes))
+		return nil, fmt.Errorf("failed to sign transaction: %v", err)
 	}
 
 	broadcastCmd := exec.Command(state.binaryPath, "tx", "broadcast", rawTxPath, "--node", state.l1RPC, "--output", "json")
 	broadcastRes, err := broadcastCmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("failed to broadcast transaction: %v, output: %s", err, string(broadcastRes))
+		return nil, fmt.Errorf("failed to broadcast transaction: %v", err)
 	}
 
 	var txResponse cosmosutils.InitiadTxResponse
@@ -407,13 +407,12 @@ func queryChainBalance(binaryPath, rpc, address string) (map[string]int64, error
 }
 
 func (lsk *L1SystemKeys) VerifyGasStationBalances(state *LaunchState) error {
-	gasStationKey, err := config.GetGasStationKey()
+	address, err := cosmosutils.GetAddressFromMnemonic(state.binaryPath, config.GetGasStationMnemonic())
 	if err != nil {
-		return fmt.Errorf("failed to get gas station key: %v", err)
+		return fmt.Errorf("failed to recover L1 key: %v", err)
 	}
-
 	// Query L1 balances
-	l1Balances, err := queryChainBalance(state.binaryPath, state.l1RPC, gasStationKey.InitiaAddress)
+	l1Balances, err := queryChainBalance(state.binaryPath, state.l1RPC, address)
 	if err != nil {
 		return fmt.Errorf("failed to query L1 balance: %v", err)
 	}
@@ -441,9 +440,9 @@ func (lsk *L1SystemKeys) VerifyGasStationBalances(state *LaunchState) error {
 }
 
 func (lsk *L1SystemKeys) verifyCelestiaBalance(state *LaunchState, daWant int64) error {
-	gasStationKey, err := config.GetGasStationKey()
+	address, err := cosmosutils.GetAddressFromMnemonic(state.celestiaBinaryPath, config.GetGasStationMnemonic())
 	if err != nil {
-		return fmt.Errorf("failed to get gas station key: %v", err)
+		return fmt.Errorf("failed to recover Celestia key: %v", err)
 	}
 
 	// TODO: Choose DA layer based on the chosen L1 network
@@ -458,7 +457,7 @@ func (lsk *L1SystemKeys) verifyCelestiaBalance(state *LaunchState, daWant int64)
 	}
 
 	// Query Celestia balances
-	celestiaBalances, err := queryChainBalance(state.celestiaBinaryPath, celestiaRpc, gasStationKey.CelestiaAddress)
+	celestiaBalances, err := queryChainBalance(state.celestiaBinaryPath, celestiaRpc, address)
 	if err != nil {
 		return fmt.Errorf("failed to query Celestia balance: %v", err)
 	}
