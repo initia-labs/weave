@@ -378,7 +378,7 @@ func ValidateTarLz4Header(dest string) error {
 	return nil
 }
 
-func ValidateBigInt(s string) error {
+func ValidatePositiveBigIntOrZero(s string) error {
 	if s == "" {
 		return errors.New("empty string is not a valid integer")
 	}
@@ -389,16 +389,33 @@ func ValidateBigInt(s string) error {
 		return fmt.Errorf("failed to parse '%s' as integer", s)
 	}
 
+	// Check if number is negative
+	if n.Sign() < 0 {
+		return fmt.Errorf("'%s' is a negative integer", s)
+	}
+
+	// Check if number is within uint256 range (2^256 - 1)
+	maxUint256 := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1))
+	if n.Cmp(maxUint256) > 0 {
+		return fmt.Errorf("number exceeds maximum value (2^256 - 1)")
+	}
+
+	// For format validation
+	expected := n.String()
+	if s != expected {
+		return fmt.Errorf("invalid integer format: '%s'", s)
+	}
+
 	return nil
 }
 
 func ValidatePositiveBigInt(s string) error {
-	err := ValidateBigInt(s)
+	err := ValidatePositiveBigIntOrZero(s)
 	if err != nil {
 		return err
 	}
 
-	if s == "0" || s[0] == '-' {
+	if s == "0" {
 		return fmt.Errorf("'%s' is not a positive integer", s)
 	}
 

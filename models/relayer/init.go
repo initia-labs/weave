@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1122,6 +1123,7 @@ func (m *FundDefaultPresetConfirmationInput) Update(msg tea.Msg) (tea.Model, tea
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
+
 		// Check L1 balance if needed
 		if state.l1FundingAmount != "0" {
 			l1ActiveRpc, err := GetL1ActiveRpc(m.Ctx)
@@ -1133,9 +1135,9 @@ func (m *FundDefaultPresetConfirmationInput) Update(msg tea.Msg) (tea.Model, tea
 				return m, m.HandlePanic(err)
 			}
 
-			l1Required, err := strconv.ParseInt(state.l1FundingAmount, 10, 64)
-			if err != nil {
-				return m, m.HandlePanic(fmt.Errorf("invalid L1 funding amount: %w", err))
+			l1Required := new(big.Int)
+			if _, ok := l1Required.SetString(state.l1FundingAmount, 10); !ok {
+				return m, m.HandlePanic(fmt.Errorf("invalid L1 funding amount: %s", state.l1FundingAmount))
 			}
 
 			// Get the available balance for the default denom
@@ -1143,18 +1145,17 @@ func (m *FundDefaultPresetConfirmationInput) Update(msg tea.Msg) (tea.Model, tea
 			if err != nil {
 				m.HandlePanic(err)
 			}
-			l1Available := int64(0)
+			l1Available := new(big.Int)
 			for _, coin := range *l1Balances {
 				if coin.Denom == l1GasDenom {
-					l1Available, err = strconv.ParseInt(coin.Amount, 10, 64)
-					if err != nil {
-						return m, m.HandlePanic(fmt.Errorf("invalid L1 funding amount: %w", err))
+					if _, ok := l1Available.SetString(coin.Amount, 10); !ok {
+						return m, m.HandlePanic(fmt.Errorf("invalid L1 balance amount: %s", coin.Amount))
 					}
 				}
 			}
-			if l1Available < l1Required {
-				m.err = fmt.Errorf("insufficient balance in gas station on L1. Required: %d%s, Available: %d%s",
-					l1Required, l1GasDenom, l1Available, l1GasDenom)
+			if l1Available.Cmp(l1Required) < 0 {
+				m.err = fmt.Errorf("insufficient balance in gas station on L1. Required: %s%s, Available: %s%s",
+					l1Required.String(), l1GasDenom, l1Available.String(), l1GasDenom)
 				return m, cmd
 			}
 		}
@@ -1170,9 +1171,9 @@ func (m *FundDefaultPresetConfirmationInput) Update(msg tea.Msg) (tea.Model, tea
 				return m, m.HandlePanic(err)
 			}
 
-			l2Required, err := strconv.ParseInt(state.l2FundingAmount, 10, 64)
-			if err != nil {
-				return m, m.HandlePanic(fmt.Errorf("invalid L2 funding amount: %w", err))
+			l2Required := new(big.Int)
+			if _, ok := l2Required.SetString(state.l2FundingAmount, 10); !ok {
+				return m, m.HandlePanic(fmt.Errorf("invalid L2 funding amount: %s", state.l2FundingAmount))
 			}
 
 			// Get the gas denom for L2
@@ -1182,20 +1183,19 @@ func (m *FundDefaultPresetConfirmationInput) Update(msg tea.Msg) (tea.Model, tea
 			}
 
 			// Find the balance for the required denom
-			l2Available := int64(0)
+			l2Available := new(big.Int)
 			for _, coin := range *l2Balances {
 				if coin.Denom == l2GasDenom {
-					l2Available, err = strconv.ParseInt(coin.Amount, 10, 64)
-					if err != nil {
-						return m, m.HandlePanic(fmt.Errorf("invalid L2 balance amount: %w", err))
+					if _, ok := l2Available.SetString(coin.Amount, 10); !ok {
+						return m, m.HandlePanic(fmt.Errorf("invalid L2 balance amount: %s", coin.Amount))
 					}
 					break
 				}
 			}
 
-			if l2Available < l2Required {
-				m.err = fmt.Errorf("insufficient balance in gas station on L2. Required: %d%s, Available: %d%s",
-					l2Required, l2GasDenom, l2Available, l2GasDenom)
+			if l2Available.Cmp(l2Required) < 0 {
+				m.err = fmt.Errorf("insufficient balance in gas station on L2. Required: %s%s, Available: %s%s",
+					l2Required.String(), l2GasDenom, l2Available.String(), l2GasDenom)
 				return m, cmd
 			}
 		}
@@ -1401,7 +1401,7 @@ func NewFundManuallyL1BalanceInput(ctx context.Context) (*FundManuallyL1BalanceI
 		question:  fmt.Sprintf("Specify the amount that would be transferred to Relayer account on L1 (%s)", l1GasDenom),
 	}
 	model.WithPlaceholder("Enter the amount (or 0 to skip)")
-	model.WithValidatorFn(common.ValidateBigInt)
+	model.WithValidatorFn(common.ValidatePositiveBigIntOrZero)
 	return model, nil
 }
 
@@ -1456,7 +1456,7 @@ func NewFundManuallyL2BalanceInput(ctx context.Context) (*FundManuallyL2BalanceI
 		question:  fmt.Sprintf("Specify the amount that would be transferred to Relayer account on rollup (%s)", l2GasDenom),
 	}
 	model.WithPlaceholder("Enter the amount (or 0 to skip)")
-	model.WithValidatorFn(common.ValidateBigInt)
+	model.WithValidatorFn(common.ValidatePositiveBigIntOrZero)
 	return model, nil
 }
 
