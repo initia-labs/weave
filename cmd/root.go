@@ -31,7 +31,7 @@ func Execute() error {
 				if _, err := exec.LookPath("lz4"); err != nil {
 					return fmt.Errorf("lz4 is not installed. Please install it first:\n" +
 						"- For macOS: Run 'brew install lz4'\n" +
-						"- For Ubuntu/Debian: Run 'sudo apt-get install lz4'\n" +
+						"- For Ubuntu/Debian: Run 'apt-get install lz4'\n" +
 						"- For other Linux distributions: Use your package manager to install lz4")
 				}
 			}

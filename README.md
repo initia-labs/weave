@@ -21,6 +21,10 @@ Its primary purpose is to solve several key challenges:
 
 - Operating System: **Linux, macOS**
 - Go **v1.23** or higher when building from scratch
+- LZ4 compression tool
+  - For macOS: `brew install lz4`
+  - For Ubuntu/Debian: `apt-get install lz4`
+  - For other Linux distributions: Use your package manager to install lz4
 
 > **Important:** While Weave can run as root, it does not support switching users via commands like `sudo su ubuntu` or `su - someuser`. Instead, directly SSH or log in as the user you intend to run Weave with. For example:
 >
