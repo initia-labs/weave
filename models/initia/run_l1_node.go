@@ -1864,12 +1864,9 @@ func snapshotExtractor(ctx context.Context) tea.Cmd {
 		}
 
 		cmd := exec.Command("bash", "-c", fmt.Sprintf("lz4 -c -d %s | tar -x -C %s", filepath.Join(userHome, common.WeaveDataDirectory, common.SnapshotFilename), initiaHome))
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-
-		err = cmd.Run()
+		output, err := cmd.CombinedOutput()
 		if err != nil {
-			return ui.ErrorLoading{Err: fmt.Errorf("[error] Failed to extract snapshot: %v", err)}
+			return ui.ErrorLoading{Err: fmt.Errorf("[error] Failed to extract snapshot: %v (output: %s)", err, string(output))}
 		}
 		return ui.EndLoading{}
 	}

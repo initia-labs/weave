@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"context"
+	"fmt"
+	"os/exec"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -23,6 +25,17 @@ func Execute() error {
 				return err
 			}
 			analytics.Initialize(Version)
+
+			// Skip LZ4 check for certain commands that don't need it
+			if cmd.Name() != "version" && cmd.Name() != "analytics" {
+				if _, err := exec.LookPath("lz4"); err != nil {
+					return fmt.Errorf("lz4 is not installed. Please install it first:\n" +
+						"- For macOS: Run 'brew install lz4'\n" +
+						"- For Ubuntu/Debian: Run 'sudo apt-get install lz4'\n" +
+						"- For other Linux distributions: Use your package manager to install lz4")
+				}
+			}
+
 			return nil
 		},
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
