@@ -1,7 +1,9 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/initia-labs/weave/io"
 	"os"
 	"path/filepath"
 
@@ -85,11 +87,27 @@ func WriteConfig() error {
 }
 
 func IsFirstTimeSetup() bool {
-	return viper.Get("common.gas_station_mnemonic") == nil
+	return viper.Get("common.gas_station") == nil
 }
 
-func GetGasStationMnemonic() string {
-	return GetConfig("common.gas_station_mnemonic").(string)
+func GetGasStationKey() (*GasStationKey, error) {
+	if IsFirstTimeSetup() {
+		return nil, fmt.Errorf("gas station key not exists")
+	}
+
+	data := GetConfig("common.gas_station")
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal json: %v", err)
+	}
+
+	var gasKey GasStationKey
+	err = json.Unmarshal(jsonData, &gasKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal json: %v", err)
+	}
+
+	return &gasKey, nil
 }
 
 func AnalyticsOptOut() bool {
@@ -121,3 +139,27 @@ func SetAnalyticsOptOut(optOut bool) error {
 }
 
 const DefaultConfigTemplate = `{}`
+
+type GasStationKey struct {
+	InitiaAddress   string `json:"initia_address"`
+	CelestiaAddress string `json:"celestia_address"`
+	Mnemonic        string `json:"mnemonic"`
+}
+
+func RecoverGasStationKey(mnemonic string) (*GasStationKey, error) {
+	initiaKey, err := io.RecoverKey("init", mnemonic)
+	if err != nil {
+		return nil, fmt.Errorf("failed to recover initia gas station key: %v", err)
+	}
+
+	celestiaKey, err := io.RecoverKey("celestia", mnemonic)
+	if err != nil {
+		return nil, fmt.Errorf("failed to recover celestia gas station key: %v", err)
+	}
+
+	return &GasStationKey{
+		InitiaAddress:   initiaKey.Address,
+		CelestiaAddress: celestiaKey.Address,
+		Mnemonic:        mnemonic,
+	}, nil
+}

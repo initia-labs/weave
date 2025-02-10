@@ -21,6 +21,10 @@ Its primary purpose is to solve several key challenges:
 
 - Operating System: **Linux, macOS**
 - Go **v1.23** or higher when building from scratch
+- LZ4 compression tool
+  - For macOS: `brew install lz4`
+  - For Ubuntu/Debian: `apt-get install lz4`
+  - For other Linux distributions: Use your package manager to install lz4
 
 > **Important:** While Weave can run as root, it does not support switching users via commands like `sudo su ubuntu` or `su - someuser`. Instead, directly SSH or log in as the user you intend to run Weave with. For example:
 >
@@ -48,15 +52,15 @@ Install _Weave_ by downloading the appropriate binary for your architecture usin
 **For x86_86 (amd64)**
 
 ```bash
-wget https://github.com/initia-labs/weave/releases/download/v0.1.2/weave-0.1.2-linux-amd64.tar.gz
-tar -xvf weave-0.1.2-linux-amd64.tar.gz
+wget https://github.com/initia-labs/weave/releases/download/v0.1.3/weave-0.1.3-linux-amd64.tar.gz
+tar -xvf weave-0.1.3-linux-amd64.tar.gz
 ```
 
 **For arm64**
 
 ```bash
-wget https://github.com/initia-labs/weave/releases/download/v0.1.2/weave-0.1.2-linux-arm64.tar.gz
-tar -xvf weave-0.1.2-linux-arm64.tar.gz
+wget https://github.com/initia-labs/weave/releases/download/v0.1.3/weave-0.1.3-linux-arm64.tar.gz
+tar -xvf weave-0.1.3-linux-arm64.tar.gz
 ```
 
 ### Building from Scratch
@@ -66,7 +70,7 @@ To build _Weave_ from source, you will need a working Go environment and `make`.
 ```bash
 git clone https://github.com/initia-labs/weave.git
 cd weave
-git checkout tags/v0.1.2
+git checkout tags/v0.1.3
 make install
 ```
 
@@ -83,7 +87,7 @@ weave version
 This should return the version of the Weave binary you have installed. Example output:
 
 ```bash
-v0.1.2
+v0.1.3
 ```
 
 ## Quick Start

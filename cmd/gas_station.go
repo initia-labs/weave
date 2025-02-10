@@ -15,7 +15,6 @@ import (
 	"github.com/initia-labs/weave/config"
 	weavecontext "github.com/initia-labs/weave/context"
 	"github.com/initia-labs/weave/cosmosutils"
-	"github.com/initia-labs/weave/crypto"
 	"github.com/initia-labs/weave/models"
 	"github.com/initia-labs/weave/registry"
 )
@@ -233,27 +232,22 @@ func getMaxWidth(coinGroups ...*cosmosutils.Coins) int {
 }
 
 func showGasStationBalance() error {
-	gasStationMnemonic := config.GetGasStationMnemonic()
-	initiaGasStationAddress, err := crypto.MnemonicToBech32Address("init", gasStationMnemonic)
-	if err != nil {
-		return err
-	}
-	celestiaGasStationAddress, err := crypto.MnemonicToBech32Address("celestia", gasStationMnemonic)
+	gasStationKey, err := config.GetGasStationKey()
 	if err != nil {
 		return err
 	}
 
-	initiaL1TestnetBalances, err := getBalance(registry.InitiaL1Testnet, initiaGasStationAddress)
+	initiaL1TestnetBalances, err := getBalance(registry.InitiaL1Testnet, gasStationKey.InitiaAddress)
 	if err != nil {
 		return err
 	}
 
-	celestiaTestnetBalance, err := getBalance(registry.CelestiaTestnet, celestiaGasStationAddress)
+	celestiaTestnetBalance, err := getBalance(registry.CelestiaTestnet, gasStationKey.CelestiaAddress)
 	if err != nil {
 		return err
 	}
 
-	celestiaMainnetBalance, err := getBalance(registry.CelestiaMainnet, celestiaGasStationAddress)
+	celestiaMainnetBalance, err := getBalance(registry.CelestiaMainnet, gasStationKey.CelestiaAddress)
 	if err != nil {
 		return err
 	}
@@ -275,8 +269,8 @@ func showGasStationBalance() error {
 	if maxWidth < len(cosmosutils.NoBalancesText) {
 		maxWidth = len(cosmosutils.NoBalancesText)
 	}
-	fmt.Printf("\n⛽️ Initia Address: %s\n\nTestnet\n%s\n\n", initiaGasStationAddress, initiaL1TestnetBalances.Render(maxWidth))
-	fmt.Printf("⛽️ Celestia Address: %s\n\nTestnet\n%s\nMainnet\n%s\n\n", celestiaGasStationAddress, celestiaTestnetBalance.Render(maxWidth), celestiaMainnetBalance.Render(maxWidth))
+	fmt.Printf("\n⛽️ Initia Address: %s\n\nTestnet\n%s\n\n", gasStationKey.InitiaAddress, initiaL1TestnetBalances.Render(maxWidth))
+	fmt.Printf("⛽️ Celestia Address: %s\n\nTestnet\n%s\nMainnet\n%s\n\n", gasStationKey.CelestiaAddress, celestiaTestnetBalance.Render(maxWidth), celestiaMainnetBalance.Render(maxWidth))
 	fmt.Printf("💧 You can get testnet INIT from -> https://faucet.testnet.initia.xyz.\n💧 For testnet TIA, please refer to -> https://docs.celestia.org/how-to-guides/mocha-testnet#mocha-testnet-faucet\n")
 
 	return nil
