@@ -72,3 +72,11 @@ func GetOPInitHome(ctx context.Context) (string, error) {
 	}
 	return "", fmt.Errorf("cannot cast the OPInitHomeKey value into type string")
 }
+
+func GetOPInitKeyFileJson(ctx context.Context) (string, error) {
+	opInitHome, err := GetOPInitHome(ctx)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(opInitHome, common.OPinitKeyFileJson), nil
+}

@@ -73,10 +73,10 @@ func BoldUnderlineText(text string, color HexColor) string {
 
 func Cursor(cursorChar string) string {
 	cursorStyle := lipgloss.NewStyle().
-		Bold(true). // Make the cursor bold
-		Reverse(true). // Reverse the foreground and background colors
+		Bold(true).                        // Make the cursor bold
+		Reverse(true).                     // Reverse the foreground and background colors
 		Background(lipgloss.Color(Black)). // Black background
-		Foreground(lipgloss.Color(White)) // White foreground
+		Foreground(lipgloss.Color(White))  // White foreground
 
 	return cursorStyle.Render(cursorChar)
 }
@@ -220,14 +220,10 @@ func RenderFooter(text string) string {
 	return FooterLine + styledText
 }
 
-func RenderMnemonic(keyName, address, mnemonic, clickable string) string {
+func RenderKey(keyName, address string) string {
 	text := BoldText("Key Name: ", Ivory) + keyName + "\n" +
-		BoldText("Address: ", Ivory) + address + "\n" +
-		BoldText("Mnemonic:", Ivory) + "\n" + mnemonic + "\n\n"
-	if clickable == "" {
-		return text
-	}
-	return text + BoldUnderlineText(clickable, White) + "\n\n"
+		BoldText("Address: ", Ivory) + address + "\n"
+	return text
 }
 
 func CreateFrame(text string, maxWidth int) string {

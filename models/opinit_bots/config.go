@@ -1,9 +1,10 @@
 package opinit_bots
 
 import (
+	"encoding/json"
 	"fmt"
 
-	"github.com/initia-labs/weave/crypto"
+	weaveio "github.com/initia-labs/weave/io"
 )
 
 type NodeConfig struct {
@@ -58,48 +59,51 @@ type ExecutorConfig struct {
 	DisableDeleteFutureWithdrawal bool         `json:"disable_delete_future_withdrawal"`
 }
 
-type KeyFile struct {
-	BridgeExecutor       string `json:"bridge_executor,omitempty"`
-	OutputSubmitter      string `json:"output_submitter,omitempty"`
-	Challenger           string `json:"challenger,omitempty"`
-	BatchSubmitter       string `json:"batch_submitter,omitempty"`
-	OracleBridgeExecutor string `json:"oracle_bridge_executor,omitempty"`
-}
+func GenerateMnemonicKeyfile(rawConfig []byte, botName string) (weaveio.KeyFile, error) {
+	keyFile := weaveio.NewKeyFile()
 
-func GenerateMnemonicKeyfile(botName string) (KeyFile, error) {
 	switch botName {
 	case "executor":
-		bridgeExecutor, err := crypto.GenerateMnemonic()
+		var config ExecutorConfig
+		err := json.Unmarshal(rawConfig, &config)
 		if err != nil {
-			return KeyFile{}, fmt.Errorf("failed to generate bridge executor mnemonic: %w", err)
+			return nil, fmt.Errorf("failed to unmarshal executor config: %v", err)
 		}
-		outputSubmitter, err := crypto.GenerateMnemonic()
+
+		bridgeExecutor, err := weaveio.GenerateKey("init")
 		if err != nil {
-			return KeyFile{}, fmt.Errorf("failed to generate output submitter mnemonic: %w", err)
+			return nil, fmt.Errorf("failed to generate bridge executor mnemonic: %w", err)
 		}
-		batchSubmitter, err := crypto.GenerateMnemonic()
+		keyFile.AddKey(BridgeExecutorKeyName, bridgeExecutor)
+
+		outputSubmitter, err := weaveio.GenerateKey("init")
 		if err != nil {
-			return KeyFile{}, fmt.Errorf("failed to generate batch submitter mnemonic: %w", err)
+			return nil, fmt.Errorf("failed to generate output submitter mnemonic: %w", err)
 		}
-		oracleBridgeExecutor, err := crypto.GenerateMnemonic()
+		keyFile.AddKey(OutputSubmitterKeyName, outputSubmitter)
+
+		batchSubmitter, err := weaveio.GenerateKey(config.DANode.Bech32Prefix)
 		if err != nil {
-			return KeyFile{}, fmt.Errorf("failed to generate oracle bridge executor mnemonic: %w", err)
+			return nil, fmt.Errorf("failed to generate batch submitter mnemonic: %w", err)
 		}
-		return KeyFile{
-			BridgeExecutor:       bridgeExecutor,
-			OutputSubmitter:      outputSubmitter,
-			BatchSubmitter:       batchSubmitter,
-			OracleBridgeExecutor: oracleBridgeExecutor,
-		}, nil
+		keyFile.AddKey(BatchSubmitterKeyName, batchSubmitter)
+
+		oracleBridgeExecutor, err := weaveio.GenerateKey("init")
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate oracle bridge executor mnemonic: %w", err)
+		}
+		keyFile.AddKey(OracleBridgeExecutorKeyName, oracleBridgeExecutor)
+
+		return keyFile, nil
 	case "challenger":
-		challenger, err := crypto.GenerateMnemonic()
+		challenger, err := weaveio.GenerateKey("init")
 		if err != nil {
-			return KeyFile{}, fmt.Errorf("failed to generate challenger mnemonic: %w", err)
+			return nil, fmt.Errorf("failed to generate challenger mnemonic: %w", err)
 		}
-		return KeyFile{
-			Challenger: challenger,
-		}, nil
+		keyFile.AddKey(ChallengerKeyName, challenger)
+
+		return keyFile, nil
 	default:
-		return KeyFile{}, fmt.Errorf("unsupported bot name: %s", botName)
+		return nil, fmt.Errorf("unsupported bot name: %s", botName)
 	}
 }

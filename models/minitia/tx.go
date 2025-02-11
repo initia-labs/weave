@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"github.com/initia-labs/weave/common"
@@ -44,8 +44,12 @@ type FundAccountsResponse struct {
 func (lsk *L1SystemKeys) FundAccountsWithGasStation(state *LaunchState) (*FundAccountsResponse, error) {
 	var resp FundAccountsResponse
 
-	gasStationMnemonic := config.GetGasStationMnemonic()
-	rawKey, err := cosmosutils.RecoverKeyFromMnemonic(state.binaryPath, common.WeaveGasStationKeyName, gasStationMnemonic)
+	gasStationKey, err := config.GetGasStationKey()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get gas station key: %v", err)
+	}
+
+	_, err = cosmosutils.RecoverKeyFromMnemonic(state.binaryPath, common.WeaveGasStationKeyName, gasStationKey.Mnemonic)
 	if err != nil {
 		return nil, fmt.Errorf("failed to recover gas station key: %v", err)
 	}
@@ -53,15 +57,11 @@ func (lsk *L1SystemKeys) FundAccountsWithGasStation(state *LaunchState) (*FundAc
 		_ = cosmosutils.DeleteKey(state.binaryPath, common.WeaveGasStationKeyName)
 	}()
 
-	gasStationKey, err := cosmosutils.UnmarshalKeyInfo(rawKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal gas station key: %v", err)
-	}
 	var rawTxContent string
 	if state.batchSubmissionIsCelestia {
 		rawTxContent = fmt.Sprintf(
 			FundMinitiaAccountsWithoutBatchTxInterface,
-			gasStationKey.Address,
+			gasStationKey.InitiaAddress,
 			lsk.BridgeExecutor.Address,
 			lsk.BridgeExecutor.Coins,
 			lsk.OutputSubmitter.Address,
@@ -69,7 +69,7 @@ func (lsk *L1SystemKeys) FundAccountsWithGasStation(state *LaunchState) (*FundAc
 			lsk.Challenger.Address,
 			lsk.Challenger.Coins,
 		)
-		_, err = cosmosutils.RecoverKeyFromMnemonic(state.celestiaBinaryPath, common.WeaveGasStationKeyName, gasStationMnemonic)
+		_, err = cosmosutils.RecoverKeyFromMnemonic(state.celestiaBinaryPath, common.WeaveGasStationKeyName, gasStationKey.Mnemonic)
 		if err != nil {
 			return nil, fmt.Errorf("failed to recover celestia gas station key: %v", err)
 		}
@@ -119,7 +119,7 @@ func (lsk *L1SystemKeys) FundAccountsWithGasStation(state *LaunchState) (*FundAc
 	} else {
 		rawTxContent = fmt.Sprintf(
 			FundMinitiaAccountsDefaultTxInterface,
-			gasStationKey.Address,
+			gasStationKey.InitiaAddress,
 			lsk.BridgeExecutor.Address,
 			lsk.BridgeExecutor.Coins,
 			lsk.OutputSubmitter.Address,
@@ -147,15 +147,15 @@ func (lsk *L1SystemKeys) FundAccountsWithGasStation(state *LaunchState) (*FundAc
 
 	signCmd := exec.Command(state.binaryPath, "tx", "sign", rawTxPath, "--from", common.WeaveGasStationKeyName, "--node", state.l1RPC,
 		"--chain-id", state.l1ChainId, "--keyring-backend", "test", "--output-document", rawTxPath)
-	err = signCmd.Run()
+	signRes, err := signCmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("failed to sign transaction: %v", err)
+		return nil, fmt.Errorf("failed to sign transaction: %v, output: %s", err, string(signRes))
 	}
 
 	broadcastCmd := exec.Command(state.binaryPath, "tx", "broadcast", rawTxPath, "--node", state.l1RPC, "--output", "json")
 	broadcastRes, err := broadcastCmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("failed to broadcast transaction: %v", err)
+		return nil, fmt.Errorf("failed to broadcast transaction: %v, output: %s", err, string(broadcastRes))
 	}
 
 	var txResponse cosmosutils.InitiadTxResponse
@@ -350,7 +350,10 @@ const FundMinitiaAccountsWithoutBatchTxInterface = `
 }
 `
 
-func (lsk *L1SystemKeys) calculateTotalWantedCoins(state *LaunchState) (l1Want int64, daWant int64, err error) {
+func (lsk *L1SystemKeys) calculateTotalWantedCoins(state *LaunchState) (l1Want *big.Int, daWant *big.Int, err error) {
+	l1Want = new(big.Int)
+	daWant = new(big.Int)
+
 	for _, acc := range []*types.GenesisAccount{
 		lsk.BridgeExecutor,
 		lsk.OutputSubmitter,
@@ -361,22 +364,23 @@ func (lsk *L1SystemKeys) calculateTotalWantedCoins(state *LaunchState) (l1Want i
 			continue
 		}
 
-		amount, err := strconv.ParseInt(acc.Coins, 10, 64)
-		if err != nil {
-			return 0, 0, fmt.Errorf("failed to parse coin amount %s: %v", acc.Coins, err)
+		amount := new(big.Int)
+		_, ok := amount.SetString(acc.Coins, 10)
+		if !ok {
+			return nil, nil, fmt.Errorf("failed to parse coin amount '%s'", acc.Coins)
 		}
 
 		if acc == lsk.Challenger && state.batchSubmissionIsCelestia {
-			daWant += amount
+			daWant.Add(daWant, amount)
 		} else {
-			l1Want += amount
+			l1Want.Add(l1Want, amount)
 		}
 	}
 
 	return l1Want, daWant, nil
 }
 
-func queryChainBalance(binaryPath, rpc, address string) (map[string]int64, error) {
+func queryChainBalance(binaryPath, rpc, address string) (map[string]string, error) {
 	queryCmd := exec.Command(binaryPath, "query", "bank", "balances", address,
 		"--node", rpc, "--output", "json")
 	balanceRes, err := queryCmd.CombinedOutput()
@@ -394,25 +398,22 @@ func queryChainBalance(binaryPath, rpc, address string) (map[string]int64, error
 		return nil, fmt.Errorf("failed to unmarshal balance: %v", err)
 	}
 
-	balanceMap := make(map[string]int64)
+	balanceMap := make(map[string]string)
 	for _, bal := range balance.Balances {
-		amount, err := strconv.ParseInt(bal.Amount, 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse balance amount: %v", err)
-		}
-		balanceMap[bal.Denom] = amount
+		balanceMap[bal.Denom] = bal.Amount
 	}
 
 	return balanceMap, nil
 }
 
 func (lsk *L1SystemKeys) VerifyGasStationBalances(state *LaunchState) error {
-	address, err := cosmosutils.GetAddressFromMnemonic(state.binaryPath, config.GetGasStationMnemonic())
+	gasStationKey, err := config.GetGasStationKey()
 	if err != nil {
-		return fmt.Errorf("failed to recover L1 key: %v", err)
+		return fmt.Errorf("failed to get gas station key: %v", err)
 	}
+
 	// Query L1 balances
-	l1Balances, err := queryChainBalance(state.binaryPath, state.l1RPC, address)
+	l1Balances, err := queryChainBalance(state.binaryPath, state.l1RPC, gasStationKey.InitiaAddress)
 	if err != nil {
 		return fmt.Errorf("failed to query L1 balance: %v", err)
 	}
@@ -424,9 +425,14 @@ func (lsk *L1SystemKeys) VerifyGasStationBalances(state *LaunchState) error {
 	}
 
 	// Verify L1 balance
-	if l1Available := l1Balances[DefaultL1GasDenom]; l1Available < l1Want {
-		return fmt.Errorf("%w: insufficient initia balance: have %d uinit, want %d uinit",
-			ErrInsufficientBalance, l1Available, l1Want)
+	l1AvailableBig := new(big.Int)
+	if _, ok := l1AvailableBig.SetString(l1Balances[DefaultL1GasDenom], 10); !ok {
+		return fmt.Errorf("failed to parse L1 available balance: %s", l1Balances[DefaultL1GasDenom])
+	}
+
+	if l1AvailableBig.Cmp(l1Want) < 0 {
+		return fmt.Errorf("%w: insufficient initia balance: have %s uinit, want %s uinit",
+			ErrInsufficientBalance, l1AvailableBig.String(), l1Want.String())
 	}
 
 	// Check Celestia balance if needed
@@ -439,10 +445,10 @@ func (lsk *L1SystemKeys) VerifyGasStationBalances(state *LaunchState) error {
 	return nil
 }
 
-func (lsk *L1SystemKeys) verifyCelestiaBalance(state *LaunchState, daWant int64) error {
-	address, err := cosmosutils.GetAddressFromMnemonic(state.celestiaBinaryPath, config.GetGasStationMnemonic())
+func (lsk *L1SystemKeys) verifyCelestiaBalance(state *LaunchState, daWant *big.Int) error {
+	gasStationKey, err := config.GetGasStationKey()
 	if err != nil {
-		return fmt.Errorf("failed to recover Celestia key: %v", err)
+		return fmt.Errorf("failed to get gas station key: %v", err)
 	}
 
 	// TODO: Choose DA layer based on the chosen L1 network
@@ -457,14 +463,21 @@ func (lsk *L1SystemKeys) verifyCelestiaBalance(state *LaunchState, daWant int64)
 	}
 
 	// Query Celestia balances
-	celestiaBalances, err := queryChainBalance(state.celestiaBinaryPath, celestiaRpc, address)
+	celestiaBalances, err := queryChainBalance(state.celestiaBinaryPath, celestiaRpc, gasStationKey.CelestiaAddress)
 	if err != nil {
 		return fmt.Errorf("failed to query Celestia balance: %v", err)
 	}
 
 	// Verify Celestia balance
-	if daAvailable := celestiaBalances[DefaultCelestiaGasDenom]; daAvailable < daWant {
-		return fmt.Errorf("%w: have %d utia, want %d utia", ErrInsufficientBalance, daAvailable, daWant)
+	daAvailableBig := new(big.Int)
+	if _, ok := daAvailableBig.SetString(celestiaBalances[DefaultCelestiaGasDenom], 10); !ok {
+		return fmt.Errorf("failed to parse DA available balance: %s", celestiaBalances[DefaultCelestiaGasDenom])
+	}
+
+	if daAvailableBig.Cmp(daWant) < 0 {
+		return fmt.Errorf("insufficient DA balance. Required: %s%s, Available: %s%s",
+			daWant.String(), DefaultCelestiaGasDenom,
+			daAvailableBig.String(), DefaultCelestiaGasDenom)
 	}
 
 	return nil

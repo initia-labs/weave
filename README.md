@@ -21,6 +21,19 @@ Its primary purpose is to solve several key challenges:
 
 - Operating System: **Linux, macOS**
 - Go **v1.23** or higher when building from scratch
+- LZ4 compression tool
+  - For macOS: `brew install lz4`
+  - For Ubuntu/Debian: `apt-get install lz4`
+  - For other Linux distributions: Use your package manager to install lz4
+
+> **Important:** While Weave can run as root, it does not support switching users via commands like `sudo su ubuntu` or `su - someuser`. Instead, directly SSH or log in as the user you intend to run Weave with. For example:
+>
+> ```bash
+> ssh ubuntu@your-server    # Good: Direct login as ubuntu user
+> ssh root@your-server     # Good: Direct login as root
+> ```
+>
+> This ensures proper handling of user-specific configurations and paths.
 
 ## Installation
 
@@ -39,15 +52,15 @@ Install _Weave_ by downloading the appropriate binary for your architecture usin
 **For x86_86 (amd64)**
 
 ```bash
-wget https://github.com/initia-labs/weave/releases/download/v0.1.2/weave-0.1.2-linux-amd64.tar.gz
-tar -xvf weave-0.1.2-linux-amd64.tar.gz
+wget https://github.com/initia-labs/weave/releases/download/v0.1.3/weave-0.1.3-linux-amd64.tar.gz
+tar -xvf weave-0.1.3-linux-amd64.tar.gz
 ```
 
 **For arm64**
 
 ```bash
-wget https://github.com/initia-labs/weave/releases/download/v0.1.2/weave-0.1.2-linux-arm64.tar.gz
-tar -xvf weave-0.1.2-linux-arm64.tar.gz
+wget https://github.com/initia-labs/weave/releases/download/v0.1.3/weave-0.1.3-linux-arm64.tar.gz
+tar -xvf weave-0.1.3-linux-arm64.tar.gz
 ```
 
 ### Building from Scratch
@@ -57,7 +70,7 @@ To build _Weave_ from source, you will need a working Go environment and `make`.
 ```bash
 git clone https://github.com/initia-labs/weave.git
 cd weave
-git checkout tags/v0.1.2
+git checkout tags/v0.1.3
 make install
 ```
 
@@ -70,19 +83,21 @@ Go to the [Releases](https://github.com/initia-labs/weave/releases) page and dow
 ```bash
 weave version
 ```
+
 This should return the version of the Weave binary you have installed. Example output:
 
 ```bash
-v0.1.2
+v0.1.3
 ```
-
 
 ## Quick Start
 
 To get started with Weave, run
+
 ```bash
 weave init
 ```
+
 It will ask you to setup the [Gas Station](/docs/gas_station.md) account and ask which infrastructure you want to setup.
 After that, Weave will guide you through the setup process step-by-step.
 
@@ -96,6 +111,7 @@ After that, Weave will guide you through the setup process step-by-step.
 ## Usage data collection
 
 By default, Weave collects non-identifiable usage data to help improve the product. If you prefer not to share this data, you can opt out by running the following command:
+
 ```bash
 weave analytics disable
 ```

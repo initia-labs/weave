@@ -50,7 +50,7 @@ var defaultExecutorFields = []*Field{
 	// L2 Node Configuration
 	{Name: "l2_node.chain_id", Type: StringField, Question: "Specify rollup chain ID", Highlights: []string{"rollup chain ID"}, Placeholder: "Enter chain ID ex. rollup-1", ValidateFn: common.ValidateEmptyString},
 	{Name: "l2_node.rpc_address", Type: StringField, Question: "Specify rollup RPC endpoint", Highlights: []string{"rollup RPC endpoint"}, Placeholder: `Press tab to use "http://localhost:26657"`, DefaultValue: "http://localhost:26657", ValidateFn: common.ValidateURL, Tooltip: &tooltip.RollupRPCEndpointTooltip},
-	{Name: "l2_node.gas_price", Type: StringField, Question: "Specify rollup gas price", Highlights: []string{"rollup gas price"}, Placeholder: `Press tab to use "0.15umin"`, DefaultValue: "0.15umin", ValidateFn: common.ValidateDecCoin, Tooltip: &tooltip.RollupGasPriceTooltip},
+	{Name: "l2_node.gas_denom", Type: StringField, Question: "Specify rollup gas denom", Highlights: []string{"rollup gas denom"}, Placeholder: `Press tab to use "umin"`, DefaultValue: "umin", ValidateFn: common.ValidateDenom, Tooltip: &tooltip.RollupGasDenomTooltip},
 }
 
 var defaultChallengerFields = []*Field{
@@ -77,16 +77,15 @@ func getField(fields []*Field, name string) (*Field, error) {
 func setFieldPrefillValue(fields []*Field, name, value string) error {
 	field, err := getField(fields, name)
 	if err != nil {
-		return fmt.Errorf("Error setting prefill value for %s: %v\n", name, err)
+		return fmt.Errorf("error setting prefill value for %s: %v", name, err)
 	}
 	field.PrefillValue = value
 	return nil
 }
-
 func setFieldPlaceholder(fields []*Field, name, placeholder string) error {
 	field, err := getField(fields, name)
 	if err != nil {
-		return fmt.Errorf("Error setting placeholder for %s: %v\n", name, err)
+		return fmt.Errorf("error setting placeholder for %s: %v\n", name, err)
 	}
 	field.Placeholder = placeholder
 	return nil
@@ -584,10 +583,10 @@ func (m *PrefillMinitiaConfig) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if err = setFieldPrefillValue(defaultExecutorFields, "l2_node.chain_id", minitiaConfig.L2Config.ChainID); err != nil {
 				return m, m.HandlePanic(err)
 			}
-			if err = setFieldPrefillValue(defaultExecutorFields, "l2_node.gas_price", "0.15"+minitiaConfig.L2Config.Denom); err != nil {
+			if err = setFieldPrefillValue(defaultExecutorFields, "l2_node.gas_denom", minitiaConfig.L2Config.Denom); err != nil {
 				return m, m.HandlePanic(err)
 			}
-			if err = setFieldPlaceholder(defaultExecutorFields, "l2_node.gas_price", "Press tab to use "+"\"0.15"+minitiaConfig.L2Config.Denom+"\""); err != nil {
+			if err = setFieldPlaceholder(defaultExecutorFields, "l2_node.gas_denom", fmt.Sprintf("Press tab to use \"%s\"", minitiaConfig.L2Config.Denom)); err != nil {
 				return m, m.HandlePanic(err)
 			}
 
@@ -1100,6 +1099,31 @@ func WaitStartingInitBot(ctx context.Context) tea.Cmd {
 			}
 		}
 
+		keyFilePath, err := weavecontext.GetOPInitKeyFileJson(ctx)
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get key file path for OPinit: %w", err)}
+		}
+
+		keyFile := io.NewKeyFile()
+		err = keyFile.Load(keyFilePath)
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to load key file for OPinit: %w", err)}
+		}
+
+		for _, botName := range BotNames {
+			if res, ok := state.SetupOpinitResponses[botName]; ok {
+				keyInfo := strings.Split(res, "\n")
+				address := strings.Split(keyInfo[0], ": ")
+				mnemonic := keyInfo[1]
+				keyFile.AddKey(string(BotNameToKeyName[botName]), io.NewKey(address[1], mnemonic))
+			}
+		}
+
+		err = keyFile.Write(keyFilePath)
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to write key file: %w", err)}
+		}
+
 		if state.InitExecutorBot {
 			srv, err := service.NewService(service.OPinitExecutor)
 			if err != nil {
@@ -1139,7 +1163,7 @@ func WaitStartingInitBot(ctx context.Context) tea.Cmd {
 					ChainID:       configMap["l2_node.chain_id"],
 					RPCAddress:    configMap["l2_node.rpc_address"],
 					Bech32Prefix:  "init",
-					GasPrice:      configMap["l2_node.gas_price"],
+					GasPrice:      "0" + configMap["l2_node.gas_denom"],
 					GasAdjustment: 1.5,
 					TxTimeout:     60,
 				},
@@ -1180,8 +1204,9 @@ func WaitStartingInitBot(ctx context.Context) tea.Cmd {
 			}
 			binaryPath := filepath.Join(userHome, common.WeaveDataDirectory, fmt.Sprintf("opinitd@%s", OpinitBotBinaryVersion), AppName)
 			if address, err := cosmosutils.OPInitGetAddressForKey(binaryPath, OracleBridgeExecutorKeyName, opInitHome); err == nil {
-				// TODO: revisit error
-				_ = cosmosutils.OPInitGrantOracle(binaryPath, address, opInitHome)
+				if err := cosmosutils.OPInitGrantOracle(binaryPath, address, opInitHome); err != nil {
+					return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to grant oracle to address: %v", err)}
+				}
 			}
 		} else if state.InitChallengerBot {
 			srv, err := service.NewService(service.OPinitChallenger)
@@ -1344,6 +1369,7 @@ func (m *SetupOPInitBotsMissingKey) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return model, nil
 		}
+
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
 			if msg.String() == "enter" {
@@ -1365,18 +1391,23 @@ func (m *SetupOPInitBotsMissingKey) View() string {
 		return state.weave.Render() + "\n"
 	}
 	if len(state.SetupOpinitResponses) > 0 {
-		mnemonicText := ""
+		keyFilePath, err := weavecontext.GetOPInitKeyFileJson(m.Ctx)
+		if err != nil {
+			m.HandlePanic(fmt.Errorf("failed to get key file path for OPinit: %w", err))
+		}
+
+		addressesText := ""
 		for _, botName := range BotNames {
 			if res, ok := state.SetupOpinitResponses[botName]; ok {
 				keyInfo := strings.Split(res, "\n")
 				address := strings.Split(keyInfo[0], ": ")
-				mnemonicText += renderMnemonic(string(botName), address[1], keyInfo[1])
+				addressesText += renderKey(string(botName), address[1]) + "\n"
 			}
 		}
 
 		return m.WrapView(state.weave.Render() + "\n" + styles.BoldUnderlineText("Important", styles.Yellow) + "\n" +
-			styles.Text("Write down these mnemonic phrases and store them in a safe place. \nIt is the only way to recover your system keys.", styles.Yellow) + "\n\n" +
-			mnemonicText + "\nPress enter to go next step\n")
+			styles.Text(fmt.Sprintf("Note that the mnemonic phrases will be stored in %s. You can revisit them anytime.", keyFilePath), styles.Yellow) + "\n\n" +
+			addressesText + "\nPress enter to go next step\n")
 	}
 	return m.WrapView(state.weave.Render() + "\n")
 }
@@ -1421,24 +1452,24 @@ func WaitSetupOPInitBotsMissingKey(ctx context.Context) tea.Cmd {
 	}
 }
 
-func InitializeExecutorWithConfig(config ExecutorConfig, keyFile *KeyFile, opInitHome, userHome string) error {
+func InitializeExecutorWithConfig(config ExecutorConfig, keyFile io.KeyFile, opInitHome, userHome string) error {
 	binaryPath, err := ensureOPInitBotsBinary(userHome)
 	if err != nil {
 		return err
 	}
-	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, BridgeExecutorKeyName, keyFile.BridgeExecutor, false, opInitHome)
+	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, BridgeExecutorKeyName, keyFile.GetMnemonic(BridgeExecutorKeyName), false, opInitHome)
 	if err != nil {
 		return err
 	}
-	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, OutputSubmitterKeyName, keyFile.OutputSubmitter, false, opInitHome)
+	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, OutputSubmitterKeyName, keyFile.GetMnemonic(OutputSubmitterKeyName), false, opInitHome)
 	if err != nil {
 		return err
 	}
-	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, BatchSubmitterKeyName, keyFile.BatchSubmitter, config.DANode.Bech32Prefix != "init", opInitHome)
+	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, BatchSubmitterKeyName, keyFile.GetMnemonic(BatchSubmitterKeyName), config.DANode.Bech32Prefix != "init", opInitHome)
 	if err != nil {
 		return err
 	}
-	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, OracleBridgeExecutorKeyName, keyFile.OracleBridgeExecutor, false, opInitHome)
+	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, OracleBridgeExecutorKeyName, keyFile.GetMnemonic(OracleBridgeExecutorKeyName), false, opInitHome)
 	if err != nil {
 		return err
 	}
@@ -1494,12 +1525,12 @@ func InitializeExecutorWithConfig(config ExecutorConfig, keyFile *KeyFile, opIni
 	return nil
 }
 
-func InitializeChallengerWithConfig(config ChallengerConfig, keyFile *KeyFile, opInitHome, userHome string) error {
+func InitializeChallengerWithConfig(config ChallengerConfig, keyFile io.KeyFile, opInitHome, userHome string) error {
 	binaryPath, err := ensureOPInitBotsBinary(userHome)
 	if err != nil {
 		return err
 	}
-	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, ChallengerKeyName, keyFile.Challenger, false, opInitHome)
+	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, ChallengerKeyName, keyFile.GetMnemonic(ChallengerKeyName), false, opInitHome)
 	if err != nil {
 		return err
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,7 +23,6 @@ import (
 	"github.com/initia-labs/weave/config"
 	weavecontext "github.com/initia-labs/weave/context"
 	"github.com/initia-labs/weave/cosmosutils"
-	"github.com/initia-labs/weave/crypto"
 	weaveio "github.com/initia-labs/weave/io"
 	"github.com/initia-labs/weave/registry"
 	"github.com/initia-labs/weave/service"
@@ -580,39 +580,20 @@ func (m *GenerateL2RelayerKeyLoading) View() string {
 
 type KeysMnemonicDisplayInput struct {
 	ui.TextInput
-	ui.Clickable
 	weavecontext.BaseModel
-	question string
+	keyFilePath string
+	question    string
 }
 
 func NewKeysMnemonicDisplayInput(ctx context.Context) *KeysMnemonicDisplayInput {
-	clickable := make([]*ui.ClickableItem, 0)
-	state := weavecontext.GetCurrentState[State](ctx)
-	if state.l1KeyMethod == string(L1GenerateKey) {
-		clickable = append(clickable, ui.NewClickableItem(
-			map[bool]string{
-				true:  "Copied! Click to copy again",
-				false: "Click here to copy",
-			},
-			func() error {
-				return weaveio.CopyToClipboard(state.l1RelayerMnemonic)
-			}))
-	}
-	if state.l2KeyMethod == string(L2GenerateKey) {
-		clickable = append(clickable, ui.NewClickableItem(
-			map[bool]string{
-				true:  "Copied! Click to copy again",
-				false: "Click here to copy",
-			},
-			func() error {
-				return weaveio.CopyToClipboard(state.l2RelayerMnemonic)
-			}))
-	}
+	userHome, _ := os.UserHomeDir()
+	hermesKeyFile := filepath.Join(userHome, common.HermesKeyFileJson)
+
 	model := &KeysMnemonicDisplayInput{
-		TextInput: ui.NewTextInput(true),
-		Clickable: *ui.NewClickable(clickable...),
-		BaseModel: weavecontext.BaseModel{Ctx: ctx, CannotBack: true},
-		question:  "Please type `continue` to proceed after you have securely stored the mnemonic.",
+		TextInput:   ui.NewTextInput(true),
+		BaseModel:   weavecontext.BaseModel{Ctx: ctx, CannotBack: true},
+		keyFilePath: hermesKeyFile,
+		question:    "Please type `continue` to proceed.",
 	}
 	model.WithPlaceholder("Type `continue` to continue, Ctrl+C to quit.")
 	model.WithValidatorFn(common.ValidateExactString("continue"))
@@ -624,7 +605,7 @@ func (m *KeysMnemonicDisplayInput) GetQuestion() string {
 }
 
 func (m *KeysMnemonicDisplayInput) Init() tea.Cmd {
-	return m.Clickable.Init()
+	return nil
 }
 
 func (m *KeysMnemonicDisplayInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -632,14 +613,26 @@ func (m *KeysMnemonicDisplayInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return model, cmd
 	}
 
-	err := m.Clickable.ClickableUpdate(msg)
-	if err != nil {
-		return m, m.HandlePanic(err)
-	}
-
 	input, cmd, done := m.TextInput.Update(msg)
 	if done {
 		state := weavecontext.PushPageAndGetState[State](m)
+
+		l1RelayerKey, err := weaveio.RecoverKey("init", state.l1RelayerMnemonic)
+		if err != nil {
+			return m, m.HandlePanic(fmt.Errorf("cannot recover l1 relayer key: %w", err))
+		}
+		l2RelayerKey, err := weaveio.RecoverKey("init", state.l2RelayerMnemonic)
+		if err != nil {
+			return m, m.HandlePanic(fmt.Errorf("cannot recover l2 relayer key: %w", err))
+		}
+
+		keyFile := weaveio.NewKeyFile()
+		keyFile.AddKey(DefaultL1RelayerKeyName, l1RelayerKey)
+		keyFile.AddKey(DefaultL2RelayerKeyName, l2RelayerKey)
+		err = keyFile.Write(m.keyFilePath)
+		if err != nil {
+			return m, m.HandlePanic(fmt.Errorf("failed to write key file: %w", err))
+		}
 
 		extraText := " has"
 		if state.l1KeyMethod == string(L1GenerateKey) && state.l2KeyMethod == string(L2GenerateKey) {
@@ -650,9 +643,9 @@ func (m *KeysMnemonicDisplayInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch L2KeySelectOption(state.l2KeyMethod) {
 		case L2ExistingKey, L2GenerateKey, L2SameKey:
 			model := NewFetchingBalancesLoading(weavecontext.SetCurrentState(m.Ctx, state))
-			return model, tea.Batch(model.Init(), m.Clickable.PostUpdate())
+			return model, model.Init()
 		case L2ImportKey:
-			return NewImportL2RelayerKeyInput(weavecontext.SetCurrentState(m.Ctx, state)), m.Clickable.PostUpdate()
+			return NewImportL2RelayerKeyInput(weavecontext.SetCurrentState(m.Ctx, state)), nil
 		}
 	}
 	m.TextInput = input
@@ -668,32 +661,26 @@ func (m *KeysMnemonicDisplayInput) View() string {
 		if state.l2KeyMethod == string(L2SameKey) {
 			layerText = "L1 and rollup"
 		}
-		mnemonicText += styles.RenderMnemonic(
+		mnemonicText += styles.RenderKey(
 			styles.RenderPrompt(fmt.Sprintf("Weave Relayer on %s", layerText), []string{layerText}, styles.Empty),
 			state.l1RelayerAddress,
-			state.l1RelayerMnemonic,
-			m.Clickable.ClickableView(0),
 		)
 	}
 
 	if state.l2KeyMethod == string(L2GenerateKey) {
-		mnemonicText += styles.RenderMnemonic(
+		if mnemonicText != "" {
+			mnemonicText += "\n"
+		}
+		mnemonicText += styles.RenderKey(
 			styles.RenderPrompt("Weave Relayer on L2", []string{"L2"}, styles.Empty),
 			state.l2RelayerAddress,
-			state.l2RelayerMnemonic,
-			m.Clickable.ClickableView(1),
 		)
 	}
 
-	viewText := m.WrapView(state.weave.Render() + "\n" +
+	return m.WrapView(state.weave.Render() + "\n" +
 		styles.BoldUnderlineText("Important", styles.Yellow) + "\n" +
-		styles.Text("Write down these mnemonic phrases and store them in a safe place. \nIt is the only way to recover your system keys.", styles.Yellow) + "\n\n" +
+		styles.Text(fmt.Sprintf("Note that the mnemonic phrases for Relayer will be stored in %s. You can revisit them anytime.", m.keyFilePath), styles.Yellow) + "\n\n" +
 		mnemonicText + styles.RenderPrompt(m.GetQuestion(), []string{"`continue`"}, styles.Question) + m.TextInput.View())
-	err := m.Clickable.ClickableUpdatePositions(viewText)
-	if err != nil {
-		m.HandlePanic(err)
-	}
-	return viewText
 }
 
 type ImportL1RelayerKeyInput struct {
@@ -1091,16 +1078,14 @@ type FundDefaultPresetConfirmationInput struct {
 }
 
 func NewFundDefaultPresetConfirmationInput(ctx context.Context) (*FundDefaultPresetConfirmationInput, error) {
-	gasStationMnemonic := config.GetGasStationMnemonic()
-	initiaGasStationAddress, err := crypto.MnemonicToBech32Address("init", gasStationMnemonic)
+	gasStationKey, err := config.GetGasStationKey()
 	if err != nil {
-		return nil, fmt.Errorf("failed to recover initia gas station key: %w", err)
+		return nil, fmt.Errorf("failed to get gas station key: %v", err)
 	}
-
 	model := &FundDefaultPresetConfirmationInput{
 		TextInput:               ui.NewTextInput(false),
 		BaseModel:               weavecontext.BaseModel{Ctx: ctx},
-		initiaGasStationAddress: initiaGasStationAddress,
+		initiaGasStationAddress: gasStationKey.InitiaAddress,
 		question:                "Confirm to proceed with signing and broadcasting the following transactions? [y]:",
 	}
 	model.WithPlaceholder("Type `y` to confirm")
@@ -1126,10 +1111,9 @@ func (m *FundDefaultPresetConfirmationInput) Update(msg tea.Msg) (tea.Model, tea
 		state := weavecontext.PushPageAndGetState[State](m)
 
 		// Check gas station balances
-		gasStationMnemonic := config.GetGasStationMnemonic()
-		gasStationAddress, err := crypto.MnemonicToBech32Address("init", gasStationMnemonic)
+		gasStationKey, err := config.GetGasStationKey()
 		if err != nil {
-			return m, m.HandlePanic(fmt.Errorf("failed to get gas station address: %w", err))
+			return nil, m.HandlePanic(fmt.Errorf("failed to get gas station key: %v", err))
 		}
 		l1ActiveLcd, err := GetL1ActiveLcd(m.Ctx)
 		if err != nil {
@@ -1139,20 +1123,21 @@ func (m *FundDefaultPresetConfirmationInput) Update(msg tea.Msg) (tea.Model, tea
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
+
 		// Check L1 balance if needed
 		if state.l1FundingAmount != "0" {
 			l1ActiveRpc, err := GetL1ActiveRpc(m.Ctx)
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
-			l1Balances, err := querier.QueryBankBalances(gasStationAddress, l1ActiveRpc)
+			l1Balances, err := querier.QueryBankBalances(gasStationKey.InitiaAddress, l1ActiveRpc)
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
 
-			l1Required, err := strconv.ParseInt(state.l1FundingAmount, 10, 64)
-			if err != nil {
-				return m, m.HandlePanic(fmt.Errorf("invalid L1 funding amount: %w", err))
+			l1Required := new(big.Int)
+			if _, ok := l1Required.SetString(state.l1FundingAmount, 10); !ok {
+				return m, m.HandlePanic(fmt.Errorf("invalid L1 funding amount: %s", state.l1FundingAmount))
 			}
 
 			// Get the available balance for the default denom
@@ -1160,18 +1145,17 @@ func (m *FundDefaultPresetConfirmationInput) Update(msg tea.Msg) (tea.Model, tea
 			if err != nil {
 				m.HandlePanic(err)
 			}
-			l1Available := int64(0)
+			l1Available := new(big.Int)
 			for _, coin := range *l1Balances {
 				if coin.Denom == l1GasDenom {
-					l1Available, err = strconv.ParseInt(coin.Amount, 10, 64)
-					if err != nil {
-						return m, m.HandlePanic(fmt.Errorf("invalid L1 funding amount: %w", err))
+					if _, ok := l1Available.SetString(coin.Amount, 10); !ok {
+						return m, m.HandlePanic(fmt.Errorf("invalid L1 balance amount: %s", coin.Amount))
 					}
 				}
 			}
-			if l1Available < l1Required {
-				m.err = (fmt.Errorf("insufficient balance in gas station on L1. Required: %d%s, Available: %d%s",
-					l1Required, l1GasDenom, l1Available, l1GasDenom))
+			if l1Available.Cmp(l1Required) < 0 {
+				m.err = fmt.Errorf("insufficient balance in gas station on L1. Required: %s%s, Available: %s%s",
+					l1Required.String(), l1GasDenom, l1Available.String(), l1GasDenom)
 				return m, cmd
 			}
 		}
@@ -1182,14 +1166,14 @@ func (m *FundDefaultPresetConfirmationInput) Update(msg tea.Msg) (tea.Model, tea
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
-			l2Balances, err := querier.QueryBankBalances(gasStationAddress, l2ActiveRpc)
+			l2Balances, err := querier.QueryBankBalances(gasStationKey.InitiaAddress, l2ActiveRpc)
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
 
-			l2Required, err := strconv.ParseInt(state.l2FundingAmount, 10, 64)
-			if err != nil {
-				return m, m.HandlePanic(fmt.Errorf("invalid L2 funding amount: %w", err))
+			l2Required := new(big.Int)
+			if _, ok := l2Required.SetString(state.l2FundingAmount, 10); !ok {
+				return m, m.HandlePanic(fmt.Errorf("invalid L2 funding amount: %s", state.l2FundingAmount))
 			}
 
 			// Get the gas denom for L2
@@ -1199,20 +1183,19 @@ func (m *FundDefaultPresetConfirmationInput) Update(msg tea.Msg) (tea.Model, tea
 			}
 
 			// Find the balance for the required denom
-			l2Available := int64(0)
+			l2Available := new(big.Int)
 			for _, coin := range *l2Balances {
 				if coin.Denom == l2GasDenom {
-					l2Available, err = strconv.ParseInt(coin.Amount, 10, 64)
-					if err != nil {
-						return m, m.HandlePanic(fmt.Errorf("invalid L2 balance amount: %w", err))
+					if _, ok := l2Available.SetString(coin.Amount, 10); !ok {
+						return m, m.HandlePanic(fmt.Errorf("invalid L2 balance amount: %s", coin.Amount))
 					}
 					break
 				}
 			}
 
-			if l2Available < l2Required {
-				m.err = fmt.Errorf("insufficient balance in gas station on L2. Required: %d%s, Available: %d%s",
-					l2Required, l2GasDenom, l2Available, l2GasDenom)
+			if l2Available.Cmp(l2Required) < 0 {
+				m.err = fmt.Errorf("insufficient balance in gas station on L2. Required: %s%s, Available: %s%s",
+					l2Required.String(), l2GasDenom, l2Available.String(), l2GasDenom)
 				return m, cmd
 			}
 		}
@@ -1289,7 +1272,10 @@ func (m *FundDefaultPresetBroadcastLoading) Init() tea.Cmd {
 func broadcastDefaultPresetFromGasStation(ctx context.Context) tea.Cmd {
 	return func() tea.Msg {
 		state := weavecontext.GetCurrentState[State](ctx)
-		gasStationMnemonic := config.GetGasStationMnemonic()
+		gasStationKey, err := config.GetGasStationKey()
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get gas station key: %v", err)}
+		}
 		l1ActiveLcd, err := GetL1ActiveLcd(ctx)
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: err}
@@ -1317,7 +1303,7 @@ func broadcastDefaultPresetFromGasStation(ctx context.Context) tea.Cmd {
 		}
 		if state.l1FundingAmount != "0" {
 			res, err := cliTx.BroadcastMsgSend(
-				gasStationMnemonic,
+				gasStationKey.Mnemonic,
 				state.l1RelayerAddress,
 				fmt.Sprintf("%s%s", state.l1FundingAmount, l1GasDenom),
 				l1GasPrices,
@@ -1348,7 +1334,7 @@ func broadcastDefaultPresetFromGasStation(ctx context.Context) tea.Cmd {
 		}
 		if state.l2FundingAmount != "0" {
 			res, err := cliTx.BroadcastMsgSend(
-				gasStationMnemonic,
+				gasStationKey.Mnemonic,
 				state.l2RelayerAddress,
 				fmt.Sprintf("%s%s", state.l2FundingAmount, l2GasDenom),
 				l2GasPrices,
@@ -1415,7 +1401,7 @@ func NewFundManuallyL1BalanceInput(ctx context.Context) (*FundManuallyL1BalanceI
 		question:  fmt.Sprintf("Specify the amount that would be transferred to Relayer account on L1 (%s)", l1GasDenom),
 	}
 	model.WithPlaceholder("Enter the amount (or 0 to skip)")
-	model.WithValidatorFn(common.IsValidInteger)
+	model.WithValidatorFn(common.ValidatePositiveBigIntOrZero)
 	return model, nil
 }
 
@@ -1470,7 +1456,7 @@ func NewFundManuallyL2BalanceInput(ctx context.Context) (*FundManuallyL2BalanceI
 		question:  fmt.Sprintf("Specify the amount that would be transferred to Relayer account on rollup (%s)", l2GasDenom),
 	}
 	model.WithPlaceholder("Enter the amount (or 0 to skip)")
-	model.WithValidatorFn(common.IsValidInteger)
+	model.WithValidatorFn(common.ValidatePositiveBigIntOrZero)
 	return model, nil
 }
 
@@ -1491,7 +1477,7 @@ func (m *FundManuallyL2BalanceInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if done {
 		state := weavecontext.PushPageAndGetState[State](m)
 		state.l2FundingAmount = input.Text
-		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.DotsSeparator, m.GetQuestion(), []string{"Relayer account", "L2"}, input.Text))
+		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.DotsSeparator, m.GetQuestion(), []string{"Relayer account", "rollup"}, input.Text))
 
 		if state.l1FundingAmount == "0" && state.l2FundingAmount == "0" {
 			state.weave.PushPreviousResponse(getRelayerSetSuccessMessage())
@@ -1510,7 +1496,7 @@ func (m *FundManuallyL2BalanceInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *FundManuallyL2BalanceInput) View() string {
 	state := weavecontext.GetCurrentState[State](m.Ctx)
-	return m.WrapView(state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{"Relayer account", "L2"}, styles.Question) + m.TextInput.View())
+	return m.WrapView(state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{"Relayer account", "rollup"}, styles.Question) + m.TextInput.View())
 }
 
 type NetworkSelectOption string
@@ -2757,24 +2743,35 @@ func (m *AddChallengerKeyToRelayer) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
-			relayerKey, err := cosmosutils.RecoverAndReplaceHermesKey(state.hermesBinaryPath, l1ChainId, state.minitiaConfig.SystemKeys.Challenger.Mnemonic)
+			l1RelayerKey, err := cosmosutils.RecoverAndReplaceHermesKey(state.hermesBinaryPath, l1ChainId, state.minitiaConfig.SystemKeys.Challenger.Mnemonic)
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
-			state.l1RelayerAddress = relayerKey.Address
-			state.l1RelayerMnemonic = relayerKey.Mnemonic
+			state.l1RelayerAddress = l1RelayerKey.Address
+			state.l1RelayerMnemonic = l1RelayerKey.Mnemonic
 
 			l2ChainId, err := GetL2ChainId(m.Ctx)
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
-			relayerKey, err = cosmosutils.RecoverAndReplaceHermesKey(state.hermesBinaryPath, l2ChainId, state.minitiaConfig.SystemKeys.Challenger.Mnemonic)
+			l2RelayerKey, err := cosmosutils.RecoverAndReplaceHermesKey(state.hermesBinaryPath, l2ChainId, state.minitiaConfig.SystemKeys.Challenger.Mnemonic)
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
 
-			state.l2RelayerAddress = relayerKey.Address
-			state.l2RelayerMnemonic = relayerKey.Mnemonic
+			state.l2RelayerAddress = l2RelayerKey.Address
+			state.l2RelayerMnemonic = l2RelayerKey.Mnemonic
+
+			userHome, _ := os.UserHomeDir()
+			hermesKeyFile := filepath.Join(userHome, common.HermesKeyFileJson)
+
+			keyFile := weaveio.NewKeyFile()
+			keyFile.AddKey(DefaultL1RelayerKeyName, weaveio.NewKey(l1RelayerKey.Address, l1RelayerKey.Mnemonic))
+			keyFile.AddKey(DefaultL2RelayerKeyName, weaveio.NewKey(l2RelayerKey.Address, l2RelayerKey.Mnemonic))
+			err = keyFile.Write(hermesKeyFile)
+			if err != nil {
+				return m, m.HandlePanic(fmt.Errorf("failed to write key file: %w", err))
+			}
 
 			state.weave.PushPreviousResponse(getRelayerSetSuccessMessage())
 			return NewTerminalState(weavecontext.SetCurrentState(m.Ctx, state)), tea.Quit

@@ -23,7 +23,6 @@ import (
 	"github.com/initia-labs/weave/config"
 	weavecontext "github.com/initia-labs/weave/context"
 	"github.com/initia-labs/weave/cosmosutils"
-	"github.com/initia-labs/weave/crypto"
 	"github.com/initia-labs/weave/io"
 	"github.com/initia-labs/weave/registry"
 	"github.com/initia-labs/weave/service"
@@ -344,8 +343,8 @@ func (m *VMTypeSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, m.GetQuestion(), m.highlights, string(*selected)))
 		state.vmType = string(*selected)
-		model := NewLatestVersionLoading(weavecontext.SetCurrentState(m.Ctx, state))
 
+		model := NewLatestVersionLoading(weavecontext.SetCurrentState(m.Ctx, state))
 		return model, model.Init()
 	}
 
@@ -485,6 +484,18 @@ type GasDenomInput struct {
 }
 
 func NewGasDenomInput(ctx context.Context) *GasDenomInput {
+	var defaultDenom string
+	var validateFn func(s string) error
+
+	state := weavecontext.GetCurrentState[LaunchState](ctx)
+	if state.vmType == string(EVM) {
+		defaultDenom = DefaultMinievmDenom
+		validateFn = common.ValidateDenomWithReserved([]string{DefaultRollupDenom})
+	} else {
+		defaultDenom = DefaultRollupDenom
+		validateFn = common.ValidateDenom
+	}
+
 	toolTip := tooltip.RollupGasDenomTooltip
 	model := &GasDenomInput{
 		TextInput:  ui.NewTextInput(false),
@@ -492,9 +503,9 @@ func NewGasDenomInput(ctx context.Context) *GasDenomInput {
 		question:   "Specify rollup gas denom",
 		highlights: []string{"rollup gas denom"},
 	}
-	model.WithPlaceholder(`Press tab to use "umin"`)
-	model.WithDefaultValue("umin")
-	model.WithValidatorFn(common.ValidateDenom)
+	model.WithPlaceholder(fmt.Sprintf(`Press tab to use "%s"`, defaultDenom))
+	model.WithDefaultValue(defaultDenom)
+	model.WithValidatorFn(validateFn)
 	model.WithTooltip(&toolTip)
 	return model
 }
@@ -1276,10 +1287,15 @@ func (m *GasStationMnemonicInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if done {
 		state := weavecontext.PushPageAndGetState[LaunchState](m)
 
-		err := config.SetConfig("common.gas_station_mnemonic", input.Text)
+		gasStationKey, err := config.RecoverGasStationKey(input.Text)
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
+		err = config.SetConfig("common.gas_station", gasStationKey)
+		if err != nil {
+			return m, m.HandlePanic(err)
+		}
+
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.DotsSeparator, m.GetQuestion(), m.highlights, styles.HiddenMnemonicText))
 		model, err := NewAccountsFundingPresetSelect(weavecontext.SetCurrentState(m.Ctx, state))
 		if err != nil {
@@ -1327,11 +1343,11 @@ func NewAccountsFundingPresetSelect(ctx context.Context) (*AccountsFundingPreset
 		tooltip.SystemAccountsFundingPresetTooltip, 2,
 	)
 
-	gasStationMnemonic := config.GetGasStationMnemonic()
-	initiaGasStationAddress, err := crypto.MnemonicToBech32Address("init", gasStationMnemonic)
+	gasStationKey, err := config.GetGasStationKey()
 	if err != nil {
-		return nil, fmt.Errorf("cannot recover gas station for init: %v", err)
+		return nil, fmt.Errorf("failed to get gas station key: %v", err)
 	}
+
 	var batchSubmitterDenom, batchSubmitterText, initiaNeededBalance, celestiaNeededBalance string
 	if state.batchSubmissionIsCelestia {
 		batchSubmitterDenom = DefaultCelestiaGasDenom
@@ -1355,11 +1371,7 @@ func NewAccountsFundingPresetSelect(ctx context.Context) (*AccountsFundingPreset
 			}
 			celestiaChainId = celestiaRegistry.GetChainId()
 		}
-		celestiaGasStationAddress, err := crypto.MnemonicToBech32Address("celestia", gasStationMnemonic)
-		if err != nil {
-			return nil, fmt.Errorf("cannot recover gas station for celestia: %v", err)
-		}
-		celestiaNeededBalance = fmt.Sprintf("%s %s (%s)\n    ", styles.Text(fmt.Sprintf("• Celestia (%s):", celestiaChainId), styles.Cyan), styles.BoldText(fmt.Sprintf("%s%s", DefaultL1BatchSubmitterBalance, DefaultCelestiaGasDenom), styles.White), celestiaGasStationAddress)
+		celestiaNeededBalance = fmt.Sprintf("%s %s (%s)\n    ", styles.Text(fmt.Sprintf("• Celestia (%s):", celestiaChainId), styles.Cyan), styles.BoldText(fmt.Sprintf("%s%s", DefaultL1BatchSubmitterBalance, DefaultCelestiaGasDenom), styles.White), gasStationKey.CelestiaAddress)
 	} else {
 		batchSubmitterDenom = DefaultL1GasDenom
 		batchSubmitterText = " on L1"
@@ -1383,7 +1395,7 @@ func NewAccountsFundingPresetSelect(ctx context.Context) (*AccountsFundingPreset
 		styles.Text("Total amount required from the Gas Station account:", styles.Ivory),
 		styles.Text(fmt.Sprintf("• L1 (%s):", state.l1ChainId), styles.Cyan),
 		styles.BoldText(fmt.Sprintf("%s%s", initiaNeededBalance, DefaultL1GasDenom), styles.White),
-		initiaGasStationAddress,
+		gasStationKey.InitiaAddress,
 		celestiaNeededBalance,
 		separator,
 	))
@@ -1474,7 +1486,7 @@ func NewSystemKeyL1BridgeExecutorBalanceInput(ctx context.Context) *SystemKeyL1B
 		highlights: []string{"bridge executor", "L1"},
 	}
 	model.WithPlaceholder("Enter a positive amount")
-	model.WithValidatorFn(common.IsValidInteger)
+	model.WithValidatorFn(common.ValidatePositiveBigInt)
 	model.Ctx = weavecontext.SetCurrentState(model.Ctx, state)
 	return model
 }
@@ -1527,7 +1539,7 @@ func NewSystemKeyL1OutputSubmitterBalanceInput(ctx context.Context) *SystemKeyL1
 		highlights: []string{"output submitter", "L1"},
 	}
 	model.WithPlaceholder("Enter a positive amount")
-	model.WithValidatorFn(common.IsValidInteger)
+	model.WithValidatorFn(common.ValidatePositiveBigInt)
 	return model
 }
 
@@ -1587,7 +1599,7 @@ func NewSystemKeyL1BatchSubmitterBalanceInput(ctx context.Context) *SystemKeyL1B
 		highlights: []string{"batch submitter", "L1", "Celestia Testnet"},
 	}
 	model.WithPlaceholder("Enter a positive amount")
-	model.WithValidatorFn(common.IsValidInteger)
+	model.WithValidatorFn(common.ValidatePositiveBigInt)
 	return model
 }
 
@@ -1637,7 +1649,7 @@ func NewSystemKeyL1ChallengerBalanceInput(ctx context.Context) *SystemKeyL1Chall
 		highlights: []string{"challenger", "L1"},
 	}
 	model.WithPlaceholder("Enter a positive amount")
-	model.WithValidatorFn(common.IsValidInteger)
+	model.WithValidatorFn(common.ValidatePositiveBigInt)
 	return model
 }
 
@@ -1766,20 +1778,19 @@ type GenesisGasStationBalanceInput struct {
 func NewGenesisGasStationBalanceInput(ctx context.Context) (*GenesisGasStationBalanceInput, error) {
 	toolTip := tooltip.GasStationBalanceOnRollupGenesisTooltip
 	state := weavecontext.GetCurrentState[LaunchState](ctx)
-	gasStationAddress, err := crypto.MnemonicToBech32Address("init", config.GetGasStationMnemonic())
+	gasStationKey, err := config.GetGasStationKey()
 	if err != nil {
-		return nil, fmt.Errorf("cannot recover gas station for init: %v", err)
+		return nil, fmt.Errorf("failed to get gas station key: %v", err)
 	}
-
 	model := &GenesisGasStationBalanceInput{
 		TextInput:  ui.NewTextInput(false),
 		BaseModel:  weavecontext.BaseModel{Ctx: ctx},
 		question:   fmt.Sprintf("Specify the genesis balance for the gas station account (%s)", state.gasDenom),
 		highlights: []string{"gas station"},
-		address:    gasStationAddress,
+		address:    gasStationKey.InitiaAddress,
 	}
 	model.WithPlaceholder("Enter a positive amount")
-	model.WithValidatorFn(common.IsValidInteger)
+	model.WithValidatorFn(common.ValidatePositiveBigInt)
 	model.WithTooltip(&toolTip)
 	return model, nil
 }
@@ -2043,7 +2054,7 @@ func NewGenesisAccountsBalanceInput(address string, ctx context.Context) *Genesi
 		question:  fmt.Sprintf("Specify the genesis balance for %s (%s)", address, state.gasDenom),
 	}
 	model.WithPlaceholder("Enter a positive amount")
-	model.WithValidatorFn(common.IsValidInteger)
+	model.WithValidatorFn(common.ValidatePositiveBigInt)
 	model.WithTooltip(&toolTip)
 	return model
 }
@@ -2485,46 +2496,11 @@ type SystemKeysMnemonicDisplayInput struct {
 	question string
 }
 
-// NewSystemKeysMnemonicDisplayInput
-// TODO: Switch to the comment version if we manage to fix the height content overflow issue
 func NewSystemKeysMnemonicDisplayInput(ctx context.Context) *SystemKeysMnemonicDisplayInput {
-	//state := weavecontext.GetCurrentState[LaunchState](ctx)
 	model := &SystemKeysMnemonicDisplayInput{
 		TextInput: ui.NewTextInput(true),
-		//Clickable: *ui.NewClickable([]*ui.ClickableItem{
-		//	ui.NewClickableItem(map[bool]string{
-		//		true:  "Copied! Click to copy again",
-		//		false: "Click here to copy",
-		//	}, func() error {
-		//		return io.CopyToClipboard(state.systemKeyOperatorMnemonic)
-		//	}),
-		//	ui.NewClickableItem(map[bool]string{
-		//		true:  "Copied! Click to copy again",
-		//		false: "Click here to copy",
-		//	}, func() error {
-		//		return io.CopyToClipboard(state.systemKeyBridgeExecutorMnemonic)
-		//	}),
-		//	ui.NewClickableItem(map[bool]string{
-		//		true:  "Copied! Click to copy again",
-		//		false: "Click here to copy",
-		//	}, func() error {
-		//		return io.CopyToClipboard(state.systemKeyOutputSubmitterMnemonic)
-		//	}),
-		//	ui.NewClickableItem(map[bool]string{
-		//		true:  "Copied! Click to copy again",
-		//		false: "Click here to copy",
-		//	}, func() error {
-		//		return io.CopyToClipboard(state.systemKeyBatchSubmitterMnemonic)
-		//	}),
-		//	ui.NewClickableItem(map[bool]string{
-		//		true:  "Copied! Click to copy again",
-		//		false: "Click here to copy",
-		//	}, func() error {
-		//		return io.CopyToClipboard(state.systemKeyChallengerMnemonic)
-		//	}),
-		//}...),
 		BaseModel: weavecontext.BaseModel{Ctx: ctx, CannotBack: true},
-		question:  "Type `continue` to proceed after you have securely stored the mnemonic.",
+		question:  "Type `continue` to proceed.",
 	}
 	model.WithPlaceholder("Type `continue` to continue, Ctrl+C to quit.")
 	model.WithValidatorFn(common.ValidateExactString("continue"))
@@ -2545,11 +2521,6 @@ func (m *SystemKeysMnemonicDisplayInput) Update(msg tea.Msg) (tea.Model, tea.Cmd
 		return model, cmd
 	}
 
-	//err := m.Clickable.ClickableUpdate(msg)
-	//if err != nil {
-	//	return m, m.HandlePanic(err)
-	//}
-
 	input, cmd, done := m.TextInput.Update(msg)
 	if done {
 		_ = weavecontext.PushPageAndGetState[LaunchState](m)
@@ -2557,7 +2528,6 @@ func (m *SystemKeysMnemonicDisplayInput) Update(msg tea.Msg) (tea.Model, tea.Cmd
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
-		//return model, m.Clickable.PostUpdate()
 		return model, nil
 	}
 	m.TextInput = input
@@ -2568,16 +2538,11 @@ func (m *SystemKeysMnemonicDisplayInput) View() string {
 	state := weavecontext.GetCurrentState[LaunchState](m.Ctx)
 
 	var mnemonicText string
-	//mnemonicText += styles.RenderMnemonic("Operator", state.systemKeyOperatorAddress, state.systemKeyOperatorMnemonic, m.Clickable.ClickableView(0))
-	//mnemonicText += styles.RenderMnemonic("Bridge Executor", state.systemKeyBridgeExecutorAddress, state.systemKeyBridgeExecutorMnemonic, m.Clickable.ClickableView(1))
-	//mnemonicText += styles.RenderMnemonic("Output Submitter", state.systemKeyOutputSubmitterAddress, state.systemKeyOutputSubmitterMnemonic, m.Clickable.ClickableView(2))
-	//mnemonicText += styles.RenderMnemonic("Batch Submitter", state.systemKeyBatchSubmitterAddress, state.systemKeyBatchSubmitterMnemonic, m.Clickable.ClickableView(3))
-	//mnemonicText += styles.RenderMnemonic("Challenger", state.systemKeyChallengerAddress, state.systemKeyChallengerMnemonic, m.Clickable.ClickableView(4))
-	mnemonicText += styles.RenderMnemonic("Operator", state.systemKeyOperatorAddress, state.systemKeyOperatorMnemonic, "")
-	mnemonicText += styles.RenderMnemonic("Bridge Executor", state.systemKeyBridgeExecutorAddress, state.systemKeyBridgeExecutorMnemonic, "")
-	mnemonicText += styles.RenderMnemonic("Output Submitter", state.systemKeyOutputSubmitterAddress, state.systemKeyOutputSubmitterMnemonic, "")
-	mnemonicText += styles.RenderMnemonic("Batch Submitter", state.systemKeyBatchSubmitterAddress, state.systemKeyBatchSubmitterMnemonic, "")
-	mnemonicText += styles.RenderMnemonic("Challenger", state.systemKeyChallengerAddress, state.systemKeyChallengerMnemonic, "")
+	mnemonicText += styles.RenderKey("Operator", state.systemKeyOperatorAddress) + "\n"
+	mnemonicText += styles.RenderKey("Bridge Executor", state.systemKeyBridgeExecutorAddress) + "\n"
+	mnemonicText += styles.RenderKey("Output Submitter", state.systemKeyOutputSubmitterAddress) + "\n"
+	mnemonicText += styles.RenderKey("Batch Submitter", state.systemKeyBatchSubmitterAddress) + "\n"
+	mnemonicText += styles.RenderKey("Challenger", state.systemKeyChallengerAddress)
 
 	userHome, err := os.UserHomeDir()
 	if err != nil {
@@ -2586,9 +2551,8 @@ func (m *SystemKeysMnemonicDisplayInput) View() string {
 	configFilePath := filepath.Join(userHome, common.WeaveDataDirectory, LaunchConfigFilename)
 	viewText := m.WrapView(state.weave.Render() + "\n" +
 		styles.BoldUnderlineText("Important", styles.Yellow) + "\n" +
-		styles.Text(fmt.Sprintf("Write down these mnemonic phrases and store them in a safe place. \nIt is the only way to recover your system keys.\n\nNote that before launching, these mnemonic phrases along with other configuration details will be stored\nin %s. You can revisit them anytime.", configFilePath), styles.Yellow) + "\n\n" +
+		styles.Text(fmt.Sprintf("Note that these mnemonic phrases along with other configuration details will be stored in %s after the launch process. You can revisit them anytime.", configFilePath), styles.Yellow) + "\n\n" +
 		mnemonicText + styles.RenderPrompt(m.GetQuestion(), []string{"`continue`"}, styles.Question) + m.TextInput.View())
-	//err = m.Clickable.ClickableUpdatePositions(viewText)
 	if err != nil {
 		m.HandlePanic(err)
 	}
@@ -2605,25 +2569,15 @@ type FundGasStationConfirmationInput struct {
 }
 
 func NewFundGasStationConfirmationInput(ctx context.Context) (*FundGasStationConfirmationInput, error) {
-	state := weavecontext.GetCurrentState[LaunchState](ctx)
-	gasStationMnemonic := config.GetGasStationMnemonic()
-	var celestiaGasStationAddress string
-	if state.batchSubmissionIsCelestia {
-		var err error
-		celestiaGasStationAddress, err = cosmosutils.GetAddressFromMnemonic(state.celestiaBinaryPath, gasStationMnemonic)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get the celestia gas station address: %w", err)
-		}
-	}
-	initiaGasStationAddress, err := cosmosutils.GetAddressFromMnemonic(state.binaryPath, gasStationMnemonic)
+	gasStationKey, err := config.GetGasStationKey()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get the initia gas station address: %w", err)
+		return nil, fmt.Errorf("failed to get gas station key: %v", err)
 	}
 	model := &FundGasStationConfirmationInput{
 		TextInput:                 ui.NewTextInput(false),
 		BaseModel:                 weavecontext.BaseModel{Ctx: ctx},
-		initiaGasStationAddress:   initiaGasStationAddress,
-		celestiaGasStationAddress: celestiaGasStationAddress,
+		initiaGasStationAddress:   gasStationKey.InitiaAddress,
+		celestiaGasStationAddress: gasStationKey.CelestiaAddress,
 		question:                  "Confirm to proceed with signing and broadcasting the following transactions? [y]:",
 	}
 	model.WithPlaceholder("Type `y` to confirm")
@@ -2869,7 +2823,6 @@ func launchingMinitia(ctx context.Context, streamingLogs *[]string) tea.Cmd {
 		if state.launchFromExistingConfig {
 			configFilePath = state.existingConfigPath
 		} else {
-
 			minitiaConfig := &types.MinitiaConfig{
 				L1Config: &types.L1Config{
 					ChainID:   state.l1ChainId,
@@ -3038,10 +2991,16 @@ func (m *LaunchingNewMinitiaLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		endpoints = append(endpoints,
 			styles.Text("• REST API: ", styles.Ivory)+styles.BoldText(DefaultMinitiaLCD, styles.White),
 			styles.Text("• RPC: ", styles.Ivory)+styles.BoldText(DefaultMinitiaRPC, styles.White),
+			styles.Text("• RPC-WS: ", styles.Ivory)+styles.BoldText(DefaultMinitiaWebsocket, styles.White),
+			styles.Text("• gRPC: ", styles.Ivory)+styles.BoldText(DefaultMinitiaGRPC, styles.White),
 		)
 		if state.vmType == string(EVM) {
-			endpoints = append(endpoints, styles.Text("• JSON-RPC: ", styles.Ivory)+styles.BoldText(DefaultMinitiaJsonRPC, styles.White))
+			endpoints = append(endpoints,
+				styles.Text("• JSON-RPC: ", styles.Ivory)+styles.BoldText(DefaultMinitiaJsonRPC, styles.White),
+				styles.Text("• JSON-RPC-WS: ", styles.Ivory)+styles.BoldText(DefaultMinitiaJsonRPCWS, styles.White),
+			)
 		}
+
 		endpointsText := "\n Rollup Endpoints:\n" + strings.Join(endpoints, "\n") + "\n"
 
 		state.weave.PushPreviousResponse(endpointsText)
@@ -3120,8 +3079,8 @@ func (m *LaunchingNewMinitiaLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				"--from", "Validator", "--keyring-backend", "test",
 				"--chain-id", state.chainId, "-y",
 			)
-			if err := runCmd.Run(); err != nil {
-				return m, m.HandlePanic(fmt.Errorf("failed to update params message: %v", err))
+			if output, err := runCmd.CombinedOutput(); err != nil {
+				return m, m.HandlePanic(fmt.Errorf("failed to update params message: %v (output: %s)", err, string(output)))
 			}
 		}
 

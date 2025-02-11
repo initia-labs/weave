@@ -9,4 +9,6 @@ const (
 
 	DefaultL1RelayerBalance = "1000000"
 	DefaultL2RelayerBalance = "1000000"
+	DefaultL1RelayerKeyName = "weave_l1_relayer"
+	DefaultL2RelayerKeyName = "weave_l2_relayer"
 )

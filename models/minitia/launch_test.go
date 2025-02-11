@@ -1034,7 +1034,8 @@ func TestWaitExistingGasStationChecker_ExistingSetup(t *testing.T) {
 
 func TestWaitExistingGasStationChecker_NonExistingSetup(t *testing.T) {
 	InitializeViperForTest(t)
-	viper.Set("common.gas_station_mnemonic", "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon")
+	key, _ := config.RecoverGasStationKey("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon")
+	viper.Set("common.gas_station", key)
 	ctx := weavecontext.NewAppContext(*NewLaunchState())
 
 	cmd := waitExistingGasStationChecker(ctx)
@@ -1787,7 +1788,7 @@ func TestNewSystemKeysMnemonicDisplayInput(t *testing.T) {
 	checkState := weavecontext.GetCurrentState[LaunchState](inputModel.Ctx)
 	assert.NotNil(t, inputModel)
 	assert.Equal(t, state, checkState)
-	assert.Equal(t, "Type `continue` to proceed after you have securely stored the mnemonic.", inputModel.question)
+	assert.Equal(t, "Type `continue` to proceed.", inputModel.question)
 	assert.Contains(t, inputModel.TextInput.Placeholder, "Type `continue` to continue, Ctrl+C to quit.")
 }
 
@@ -1798,7 +1799,7 @@ func TestSystemKeysMnemonicDisplayInput_GetQuestion(t *testing.T) {
 
 	question := inputModel.GetQuestion()
 
-	assert.Equal(t, "Type `continue` to proceed after you have securely stored the mnemonic.", question)
+	assert.Equal(t, "Type `continue` to proceed.", question)
 }
 
 func TestSystemKeysMnemonicDisplayInput_Init(t *testing.T) {
@@ -1846,9 +1847,8 @@ func TestSystemKeysMnemonicDisplayInput_View(t *testing.T) {
 	view := inputModel.View()
 
 	assert.Contains(t, view, "Important")
-	assert.Contains(t, view, "Write down these mnemonic phrases and store them in a safe place.")
+	assert.Contains(t, view, "Note that these mnemonic phrases along with other configuration details will be stored")
 	assert.Contains(t, view, "Key Name: Operator")
-	assert.Contains(t, view, "Mnemonic:")
 	assert.Contains(t, view, "continue")
 	assert.Contains(t, view, inputModel.TextInput.View())
 }
@@ -1886,27 +1886,6 @@ func TestFundGasStationBroadcastLoading_Init(t *testing.T) {
 	cmd := loadingModel.Init()
 
 	assert.NotNil(t, cmd)
-}
-
-func TestBroadcastFundingFromGasStation_Failure(t *testing.T) {
-	state := LaunchState{
-		systemKeyOperatorAddress:          "operator_address",
-		systemKeyBridgeExecutorAddress:    "bridge_executor_address",
-		systemKeyOutputSubmitterAddress:   "output_submitter_address",
-		systemKeyBatchSubmitterAddress:    "batch_submitter_address",
-		systemKeyChallengerAddress:        "challenger_address",
-		systemKeyL1BridgeExecutorBalance:  "2000",
-		systemKeyL1OutputSubmitterBalance: "3000",
-		systemKeyL1BatchSubmitterBalance:  "4000",
-		systemKeyL1ChallengerBalance:      "5000",
-	}
-
-	assert.Panics(t, func() {
-		ctx := weavecontext.NewAppContext(state)
-		cmd := broadcastFundingFromGasStation(ctx)
-		viper.Reset()
-		cmd()
-	})
 }
 
 func TestFundGasStationBroadcastLoading_Update_Complete(t *testing.T) {

@@ -10,8 +10,6 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/atotto/clipboard"
-
 	"github.com/initia-labs/weave/client"
 )
 
@@ -151,15 +149,6 @@ func CopyDirectory(src, des string) error {
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("could not run cp command: %v, output: %s", err, string(output))
-	}
-	return nil
-}
-
-// CopyToClipboard copies the given string to the clipboard.
-func CopyToClipboard(text string) error {
-	// Copy the text to clipboard
-	if err := clipboard.WriteAll(text); err != nil {
-		return fmt.Errorf("failed to copy to clipboard: %v", err)
 	}
 	return nil
 }

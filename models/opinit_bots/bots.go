@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	OpinitBotBinaryVersion = "v0.1.12"
+	OpinitBotBinaryVersion = "v0.1.14"
 )
 
 // BotName defines a custom type for the bot names
@@ -45,6 +45,14 @@ var BotNames = []BotName{
 	BatchSubmitter,
 	Challenger,
 	OracleBridgeExecutor,
+}
+
+var BotNameToKeyName = map[BotName]BotKeyName{
+	BridgeExecutor:       BridgeExecutorKeyName,
+	OutputSubmitter:      OutputSubmitterKeyName,
+	BatchSubmitter:       BatchSubmitterKeyName,
+	Challenger:           ChallengerKeyName,
+	OracleBridgeExecutor: OracleBridgeExecutorKeyName,
 }
 
 // BotInfo struct to hold all relevant bot information
