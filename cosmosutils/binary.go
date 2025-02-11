@@ -187,12 +187,12 @@ func CompareSemVer(v1, v2 string) bool {
 	}
 
 	// Compare pre-release parts if main versions are equal
-	// A pre-release version is always ordered lower than the normal version
+	// A pre-release version is always ordered greater than the normal version
 	if v1Pre == "" && v2Pre != "" {
-		return true
+		return false
 	}
 	if v1Pre != "" && v2Pre == "" {
-		return false
+		return true
 	}
 	return v1Pre > v2Pre
 }
