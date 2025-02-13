@@ -675,7 +675,11 @@ func WaitSetupOPInitBots(ctx context.Context) tea.Cmd {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get user home directory: %v", err)}
 		}
 
-		binaryPath := GetBinaryPath(userHome)
+		binaryPath, err := ensureOPInitBotsBinary(userHome)
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to ensure OPInit bots binary: %v", err)}
+		}
+
 		opInitHome, err := weavecontext.GetOPInitHome(ctx)
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get OPinit home: %v", err)}
