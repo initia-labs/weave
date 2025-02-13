@@ -1099,6 +1099,31 @@ func WaitStartingInitBot(ctx context.Context) tea.Cmd {
 			}
 		}
 
+		keyFilePath, err := weavecontext.GetOPInitKeyFileJson(ctx)
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get key file path for OPinit: %w", err)}
+		}
+
+		keyFile := io.NewKeyFile()
+		err = keyFile.Load(keyFilePath)
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to load key file for OPinit: %w", err)}
+		}
+
+		for _, botName := range BotNames {
+			if res, ok := state.SetupOpinitResponses[botName]; ok {
+				keyInfo := strings.Split(res, "\n")
+				address := strings.Split(keyInfo[0], ": ")
+				mnemonic := keyInfo[1]
+				keyFile.AddKey(string(BotNameToKeyName[botName]), io.NewKey(address[1], mnemonic))
+			}
+		}
+
+		err = keyFile.Write(keyFilePath)
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to write key file: %w", err)}
+		}
+
 		if state.InitExecutorBot {
 			srv, err := service.NewService(service.OPinitExecutor)
 			if err != nil {
