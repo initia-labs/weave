@@ -1790,7 +1790,11 @@ func NewGenesisGasStationBalanceInput(ctx context.Context) (*GenesisGasStationBa
 		address:    gasStationKey.InitiaAddress,
 	}
 	model.WithPlaceholder("Enter a positive amount")
-	model.WithValidatorFn(common.ValidatePositiveBigInt)
+	if state.vmType == string(Move) {
+		model.WithValidatorFn(common.ValidateUint64)
+	} else {
+		model.WithValidatorFn(common.ValidatePositiveBigInt)
+	}
 	model.WithTooltip(&toolTip)
 	return model, nil
 }
@@ -2923,10 +2927,8 @@ func launchingMinitia(ctx context.Context, streamingLogs *[]string) tea.Cmd {
 		}()
 
 		if err = launchCmd.Wait(); err != nil {
-			if err != nil {
-				*streamingLogs = append(*streamingLogs, fmt.Sprintf("Launch command finished with error: %v", err))
-				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("command execution failed: %v", err)}
-			}
+			*streamingLogs = append(*streamingLogs, fmt.Sprintf("Launch command finished with error: %v", err))
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("command execution failed: %v", err)}
 		}
 
 		appConfigPath := filepath.Join(userHome, common.MinitiaConfigPath, "app.toml")
