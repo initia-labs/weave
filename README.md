@@ -7,7 +7,7 @@ developers can use a single command-line interface for the entire development an
 
 Its primary purpose is to solve several key challenges:
 
-1. **Infrastructure Management:** Weave can handles all critical infrastructure components within the Interwoven Rollup ecosystem:
+1. **Infrastructure Management:** Weave can handle all critical infrastructure components within the Interwoven Rollup ecosystem:
    - Initia node setup and management (including state sync and chain upgrade management)
    - Rollup deployment and configuration
    - OPinit bots setup for the Optimistic bridge
@@ -15,7 +15,7 @@ Its primary purpose is to solve several key challenges:
 2. **Built for both local development and production deployments:** Weave provides
    - Interactive guided setup for step-by-step configuration and
    - Configuration file support for automated deployments
-3. **Developer Experience:** Not only it consolidates multiple complex operations into a single CLI tool, but it also changes how you interact with the tool to setup your configuration.
+3. **Developer Experience:** Not only does it consolidate multiple complex operations into a single CLI tool, but it also changes how you interact with the tool to set up your configuration.
 
 ## Prerequisites
 
@@ -49,7 +49,7 @@ brew install initia-labs/tap/weave
 
 Install _Weave_ by downloading the appropriate binary for your architecture using `wget`:
 
-**For x86_86 (amd64)**
+**For x86_64 (amd64)**
 
 ```bash
 VERSION=$(curl -s https://api.github.com/repos/initia-labs/weave/releases/latest | grep '"tag_name":' | cut -d'"' -f4 | cut -c 2-)
@@ -101,7 +101,7 @@ To get started with Weave, run
 weave init
 ```
 
-It will ask you to setup the [Gas Station](/docs/gas_station.md) account and ask which infrastructure you want to setup.
+It will ask you to set up the [Gas Station](/docs/gas_station.md) account and ask which infrastructure you want to setup.
 After that, Weave will guide you through the setup process step-by-step.
 
 ## Usage
