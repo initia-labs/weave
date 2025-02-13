@@ -52,17 +52,17 @@ Install _Weave_ by downloading the appropriate binary for your architecture usin
 **For x86_86 (amd64)**
 
 ```bash
-WEAVE_VERSION=$(curl -s https://api.github.com/repos/initia-labs/weave/releases/latest | grep '"tag_name":' | cut -d'"' -f4)
-wget https://github.com/initia-labs/weave/releases/download/${WEAVE_VERSION}/weave-${WEAVE_VERSION#v}-linux-amd64.tar.gz
-tar -xvf weave-${WEAVE_VERSION#v}-linux-amd64.tar.gz
+VERSION=$(curl -s https://api.github.com/repos/initia-labs/weave/releases/latest | grep '"tag_name":' | cut -d'"' -f4 | cut -c 2-)
+wget https://github.com/initia-labs/weave/releases/download/v$VERSION/weave-$VERSION-linux-amd64.tar.gz
+tar -xvf weave-$VERSION-linux-amd64.tar.gz
 ```
 
 **For arm64**
 
 ```bash
-WEAVE_VERSION=$(curl -s https://api.github.com/repos/initia-labs/weave/releases/latest | grep '"tag_name":' | cut -d'"' -f4)
-wget https://github.com/initia-labs/weave/releases/download/${WEAVE_VERSION}/weave-${WEAVE_VERSION#v}-linux-arm64.tar.gz
-tar -xvf weave-${WEAVE_VERSION#v}-linux-arm64.tar.gz
+VERSION=$(curl -s https://api.github.com/repos/initia-labs/weave/releases/latest | grep '"tag_name":' | cut -d'"' -f4 | cut -c 2-)
+wget https://github.com/initia-labs/weave/releases/download/v$VERSION/weave-$VERSION-linux-arm64.tar.gz
+tar -xvf weave-$VERSION-linux-arm64.tar.gz
 ```
 
 ### Building from Scratch
@@ -72,8 +72,8 @@ To build _Weave_ from source, you will need a working Go environment and `make`.
 ```bash
 git clone https://github.com/initia-labs/weave.git
 cd weave
-WEAVE_VERSION=$(curl -s https://api.github.com/repos/initia-labs/weave/releases/latest | grep '"tag_name":' | cut -d'"' -f4)
-git checkout tags/${WEAVE_VERSION}
+WEAVE_VERSION=$(curl -s https://api.github.com/repos/initia-labs/weave/releases/latest | grep '"tag_name":' | cut -d'"' -f4 | cut -c 2-)
+git checkout tags/v$WEAVE_VERSION
 make install
 ```
 
@@ -90,7 +90,7 @@ weave version
 This should return the version of the Weave binary you have installed. Example output:
 
 ```bash
-${WEAVE_VERSION}
+vx.x.x  # The actual version number will reflect your installed version
 ```
 
 ## Quick Start
