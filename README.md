@@ -52,15 +52,17 @@ Install _Weave_ by downloading the appropriate binary for your architecture usin
 **For x86_86 (amd64)**
 
 ```bash
-wget https://github.com/initia-labs/weave/releases/download/v0.1.3/weave-0.1.3-linux-amd64.tar.gz
-tar -xvf weave-0.1.3-linux-amd64.tar.gz
+VERSION=$(curl -s https://api.github.com/repos/initia-labs/weave/releases/latest | grep '"tag_name":' | cut -d'"' -f4 | cut -c 2-)
+wget https://github.com/initia-labs/weave/releases/download/v$VERSION/weave-$VERSION-linux-amd64.tar.gz
+tar -xvf weave-$VERSION-linux-amd64.tar.gz
 ```
 
 **For arm64**
 
 ```bash
-wget https://github.com/initia-labs/weave/releases/download/v0.1.3/weave-0.1.3-linux-arm64.tar.gz
-tar -xvf weave-0.1.3-linux-arm64.tar.gz
+VERSION=$(curl -s https://api.github.com/repos/initia-labs/weave/releases/latest | grep '"tag_name":' | cut -d'"' -f4 | cut -c 2-)
+wget https://github.com/initia-labs/weave/releases/download/v$VERSION/weave-$VERSION-linux-arm64.tar.gz
+tar -xvf weave-$VERSION-linux-arm64.tar.gz
 ```
 
 ### Building from Scratch
@@ -70,7 +72,8 @@ To build _Weave_ from source, you will need a working Go environment and `make`.
 ```bash
 git clone https://github.com/initia-labs/weave.git
 cd weave
-git checkout tags/v0.1.3
+VERSION=$(curl -s https://api.github.com/repos/initia-labs/weave/releases/latest | grep '"tag_name":' | cut -d'"' -f4 | cut -c 2-)
+git checkout tags/v$VERSION
 make install
 ```
 
@@ -87,7 +90,7 @@ weave version
 This should return the version of the Weave binary you have installed. Example output:
 
 ```bash
-v0.1.3
+vx.x.x  # The actual version number will reflect your installed version
 ```
 
 ## Quick Start

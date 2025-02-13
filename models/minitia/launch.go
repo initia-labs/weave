@@ -2923,10 +2923,8 @@ func launchingMinitia(ctx context.Context, streamingLogs *[]string) tea.Cmd {
 		}()
 
 		if err = launchCmd.Wait(); err != nil {
-			if err != nil {
-				*streamingLogs = append(*streamingLogs, fmt.Sprintf("Launch command finished with error: %v", err))
-				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("command execution failed: %v", err)}
-			}
+			*streamingLogs = append(*streamingLogs, fmt.Sprintf("Launch command finished with error: %v", err))
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("command execution failed: %v", err)}
 		}
 
 		appConfigPath := filepath.Join(userHome, common.MinitiaConfigPath, "app.toml")
