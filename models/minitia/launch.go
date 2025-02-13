@@ -1793,7 +1793,7 @@ func NewGenesisGasStationBalanceInput(ctx context.Context) (*GenesisGasStationBa
 	if state.vmType == string(Move) {
 		model.WithValidatorFn(common.ValidateUint64)
 	} else {
-		model.WithValidatorFn(common.ValidatePositiveBigIntOrZero)
+		model.WithValidatorFn(common.ValidatePositiveBigInt)
 	}
 	model.WithTooltip(&toolTip)
 	return model, nil
