@@ -421,3 +421,16 @@ func ValidatePositiveBigInt(s string) error {
 
 	return nil
 }
+
+func ValidateUint64(s string) error {
+	if s == "" {
+		return errors.New("empty string is not a valid integer")
+	}
+
+	_, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		return fmt.Errorf("failed to parse '%s' as uint64: %w", s, err)
+	}
+
+	return nil
+}

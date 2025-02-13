@@ -1790,7 +1790,11 @@ func NewGenesisGasStationBalanceInput(ctx context.Context) (*GenesisGasStationBa
 		address:    gasStationKey.InitiaAddress,
 	}
 	model.WithPlaceholder("Enter a positive amount")
-	model.WithValidatorFn(common.ValidatePositiveBigInt)
+	if state.vmType == string(Move) {
+		model.WithValidatorFn(common.ValidateUint64)
+	} else {
+		model.WithValidatorFn(common.ValidatePositiveBigIntOrZero)
+	}
 	model.WithTooltip(&toolTip)
 	return model, nil
 }
