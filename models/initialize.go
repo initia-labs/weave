@@ -322,7 +322,7 @@ func WaitSetGasStation(mnemonic string) tea.Cmd {
 			return ui.ErrorLoading{Err: fmt.Errorf("failed to recover gas station key: %w", err)}
 		}
 
-		err = config.SetConfig("common.gas_station", gasStationKey)
+		err = config.SetConfig("gas_station", gasStationKey)
 		if err != nil {
 			return ui.ErrorLoading{Err: fmt.Errorf("failed to set gas station in config: %w", err)}
 		}
