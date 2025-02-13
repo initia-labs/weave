@@ -90,7 +90,7 @@ weave version
 This should return the version of the Weave binary you have installed. Example output:
 
 ```bash
-v0.1.3
+${WEAVE_VERSION}
 ```
 
 ## Quick Start
