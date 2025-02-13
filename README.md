@@ -72,8 +72,8 @@ To build _Weave_ from source, you will need a working Go environment and `make`.
 ```bash
 git clone https://github.com/initia-labs/weave.git
 cd weave
-WEAVE_VERSION=$(curl -s https://api.github.com/repos/initia-labs/weave/releases/latest | grep '"tag_name":' | cut -d'"' -f4 | cut -c 2-)
-git checkout tags/v$WEAVE_VERSION
+VERSION=$(curl -s https://api.github.com/repos/initia-labs/weave/releases/latest | grep '"tag_name":' | cut -d'"' -f4 | cut -c 2-)
+git checkout tags/v$VERSION
 make install
 ```
 
