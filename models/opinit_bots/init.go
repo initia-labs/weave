@@ -1202,7 +1202,12 @@ func WaitStartingInitBot(ctx context.Context) tea.Cmd {
 			if err != nil {
 				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get user home dir: %v", err)}
 			}
-			binaryPath := filepath.Join(userHome, common.WeaveDataDirectory, fmt.Sprintf("opinitd@%s", OpinitBotBinaryVersion), AppName)
+
+			binaryPath, err := ensureOPInitBotsBinary(userHome)
+			if err != nil {
+				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to ensure OPInit bots binary: %v", err)}
+			}
+
 			if address, err := cosmosutils.OPInitGetAddressForKey(binaryPath, OracleBridgeExecutorKeyName, opInitHome); err == nil {
 				if err := cosmosutils.OPInitGrantOracle(binaryPath, address, opInitHome); err != nil {
 					return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to grant oracle to address: %v", err)}
@@ -1445,7 +1450,10 @@ func WaitSetupOPInitBotsMissingKey(ctx context.Context) tea.Cmd {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get user home directory: %v", err)}
 		}
 
-		binaryPath := filepath.Join(userHome, common.WeaveDataDirectory, fmt.Sprintf("opinitd@%s", OpinitBotBinaryVersion), AppName)
+		binaryPath, err := ensureOPInitBotsBinary(userHome)
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to ensure OPInit bots binary: %v", err)}
+		}
 
 		opInitHome, err := weavecontext.GetOPInitHome(ctx)
 		if err != nil {
