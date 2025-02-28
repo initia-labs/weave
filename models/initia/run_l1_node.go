@@ -1155,13 +1155,13 @@ func initializeApp(ctx context.Context) tea.Cmd {
 				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to move genesis file: %v", err)}
 			}
 		}
-		var serviceCommand service.CommandName
+
+		var serviceCommand service.Command
 
 		if state.allowAutoUpgrade {
 			serviceCommand = service.UpgradableInitia
 		} else {
 			serviceCommand = service.NonUpgradableInitia
-
 		}
 
 		srv, err := service.NewService(serviceCommand)
@@ -1169,7 +1169,7 @@ func initializeApp(ctx context.Context) tea.Cmd {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to initialize service: %v", err)}
 		}
 
-		if err = srv.Create(fmt.Sprintf("cosmovisor@%s", CosmovisorVersion), initiaHome); err != nil {
+		if err = srv.Create(initiaHome, ""); err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to create service: %v", err)}
 		}
 

@@ -20,13 +20,13 @@ import (
 )
 
 func setupOPInit(t *testing.T) context.Context {
-	setup(t, []service.CommandName{service.OPinitExecutor, service.OPinitChallenger})
+	setup(t, []service.Command{service.OPinitExecutor, service.OPinitChallenger})
 
 	return prepareContext()
 }
 
 func teardownOPInit(t *testing.T) {
-	teardown(t, []service.CommandName{service.OPinitExecutor, service.OPinitChallenger})
+	teardown(t, []service.Command{service.OPinitExecutor, service.OPinitChallenger})
 }
 
 func prepareContext() context.Context {

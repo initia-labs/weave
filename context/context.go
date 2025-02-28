@@ -12,6 +12,7 @@ type Key string
 const (
 	PageKey          Key = "currentPage"
 	StateKey         Key = "currentState"
+	ServiceKey       Key = "service"
 	PageStackKey     Key = "pageStack"
 	TooltipToggleKey Key = "tooltipToggle"
 	WindowWidth      Key = "windowWidth"

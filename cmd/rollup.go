@@ -190,28 +190,20 @@ func minitiaStartCommand() *cobra.Command {
 		Use:     "start",
 		Short:   shortDescription,
 		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, RollupHelperText),
-		PreRunE: isInitiated(service.Minitia),
+		PreRunE: isInitiated(service.Rollup),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			detach, err := cmd.Flags().GetBool(FlagDetach)
 			if err != nil {
 				return err
 			}
 
-			s, err := service.NewService(service.Minitia)
+			s, err := service.NewService(service.Rollup)
 			if err != nil {
 				return err
 			}
 
-			if detach {
-				err = s.Start()
-				if err != nil {
-					return err
-				}
-				fmt.Println("Started rollup full node service. You can see the logs with `weave rollup log`")
-				return nil
-			}
-
-			return service.NonDetachStart(s)
+			fmt.Println("Starting rollup full node service. You can see the logs with `weave rollup log`")
+			return s.Start(detach)
 		},
 	}
 
@@ -226,9 +218,9 @@ func minitiaStopCommand() *cobra.Command {
 		Use:     "stop",
 		Short:   shortDescription,
 		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, RollupHelperText),
-		PreRunE: isInitiated(service.Minitia),
+		PreRunE: isInitiated(service.Rollup),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := service.NewService(service.Minitia)
+			s, err := service.NewService(service.Rollup)
 			if err != nil {
 				return err
 			}
@@ -250,9 +242,9 @@ func minitiaRestartCommand() *cobra.Command {
 		Use:     "restart",
 		Short:   shortDescription,
 		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, RollupHelperText),
-		PreRunE: isInitiated(service.Minitia),
+		PreRunE: isInitiated(service.Rollup),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := service.NewService(service.Minitia)
+			s, err := service.NewService(service.Rollup)
 			if err != nil {
 				return err
 			}
@@ -281,7 +273,7 @@ func minitiaLogCommand() *cobra.Command {
 				return err
 			}
 
-			s, err := service.NewService(service.Minitia)
+			s, err := service.NewService(service.Rollup)
 			if err != nil {
 				return err
 			}

@@ -22,14 +22,14 @@ import (
 )
 
 func setupRelayer(t *testing.T) context.Context {
-	setup(t, []service.CommandName{service.Relayer})
+	setup(t, []service.Command{service.Relayer})
 
 	ctx := weavecontext.NewAppContext(relayer.NewRelayerState())
 	return weavecontext.SetMinitiaHome(ctx, TestMinitiaHome)
 }
 
 func teardownRelayer(t *testing.T) {
-	teardown(t, []service.CommandName{service.Relayer})
+	teardown(t, []service.Command{service.Relayer})
 }
 
 func TestRelayerInit(t *testing.T) {

@@ -93,16 +93,8 @@ func initiaStartCommand() *cobra.Command {
 				return err
 			}
 
-			if detach {
-				err = s.Start()
-				if err != nil {
-					return err
-				}
-				fmt.Println("Started Initia full node service. You can see the logs with `weave initia log`")
-				return nil
-			}
-
-			return service.NonDetachStart(s)
+			fmt.Println("Starting Initia full node service. You can see the logs with `weave initia log`")
+			return s.Start(detach)
 		},
 	}
 

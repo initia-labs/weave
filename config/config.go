@@ -138,6 +138,22 @@ func SetAnalyticsOptOut(optOut bool) error {
 	return SetConfig("common.analytics_opt_out", optOut)
 }
 
+func GetCommandImageURL(commandName string) string {
+	return GetConfig(fmt.Sprintf("%s.image_url", commandName)).(string)
+}
+
+func GetCommandHome(commandName string) string {
+	return GetConfig(fmt.Sprintf("%s.home", commandName)).(string)
+}
+
+func SetCommandImageURL(commandName string, imageURL string) error {
+	return SetConfig(fmt.Sprintf("%s.image_url", commandName), imageURL)
+}
+
+func SetCommandHome(commandName string, home string) error {
+	return SetConfig(fmt.Sprintf("%s.home", commandName), home)
+}
+
 const DefaultConfigTemplate = `{}`
 
 type GasStationKey struct {

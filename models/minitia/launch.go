@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -2115,54 +2114,29 @@ func downloadMinitiaApp(ctx context.Context) tea.Cmd {
 	return func() tea.Msg {
 		state := weavecontext.GetCurrentState[LaunchState](ctx)
 
-		userHome, err := os.UserHomeDir()
+		srv, err := service.NewService(service.Rollup)
 		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get user home directory: %v", err)}
-		}
-		weaveDataPath := filepath.Join(userHome, common.WeaveDataDirectory)
-		tarballPath := filepath.Join(weaveDataPath, "minitia.tar.gz")
-		extractedPath := filepath.Join(weaveDataPath, fmt.Sprintf("mini%s@%s", strings.ToLower(state.vmType), state.minitiadVersion))
-
-		var binaryPath string
-		switch runtime.GOOS {
-		case "linux":
-			binaryPath = filepath.Join(extractedPath, fmt.Sprintf("mini%s_%s", strings.ToLower(state.vmType), state.minitiadVersion), AppName)
-		case "darwin":
-			binaryPath = filepath.Join(extractedPath, AppName)
-		default:
-			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("unsupported OS: %v", runtime.GOOS)}
-		}
-		state.binaryPath = binaryPath
-
-		if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
-			if _, err := os.Stat(extractedPath); os.IsNotExist(err) {
-				err := os.MkdirAll(extractedPath, os.ModePerm)
-				if err != nil {
-					return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to create weave data directory: %v", err)}
-				}
-			}
-
-			if err = io.DownloadAndExtractTarGz(state.minitiadEndpoint, tarballPath, extractedPath); err != nil {
-				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to download and extract binary: %v", err)}
-			}
-
-			err = os.Chmod(binaryPath, 0755)
-			if err != nil {
-				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to set permissions for binary: %v", err)}
-			}
-
-			state.downloadedNewBinary = true
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to initialize service: %v", err)}
 		}
 
-		if state.vmType == string(Move) || state.vmType == string(Wasm) {
-			err = io.SetLibraryPaths(filepath.Dir(binaryPath))
-			if err != nil {
-				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to set library path: %v", err)}
-			}
+		minitiaHome, err := weavecontext.GetMinitiaHome(ctx)
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get minitia home: %v", err)}
 		}
+
+		minitiadDockerImage := service.GetMinitiaImage(state.vmType, state.minitiadVersion)
+
+		if err = srv.Create(minitiaHome, minitiadDockerImage); err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to create minitia: %v", err)}
+		}
+
+		_ = srv.PruneLogs()
+
+		ctx = weavecontext.SetService(ctx, srv)
+		ctx = weavecontext.SetCurrentState(ctx, state)
 
 		return ui.EndLoading{
-			Ctx: weavecontext.SetCurrentState(ctx, state),
+			Ctx: ctx,
 		}
 	}
 }
@@ -2881,7 +2855,13 @@ func launchingMinitia(ctx context.Context, streamingLogs *[]string) tea.Cmd {
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get minitia home directory: %v", err)}
 		}
-		launchCmd := exec.Command(state.binaryPath, "launch", "--with-config", configFilePath, "--home", minitiaHome)
+
+		srv, err := weavecontext.GetService(ctx)
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get service: %v", err)}
+		}
+
+		launchCmd := srv.RunCmd([]string{}, "launch", "--with-config", configFilePath, "--home", minitiaHome)
 
 		stdout, err := launchCmd.StdoutPipe()
 		if err != nil {
@@ -2936,18 +2916,6 @@ func launchingMinitia(ctx context.Context, streamingLogs *[]string) tea.Cmd {
 		if err = config.UpdateTomlValue(appConfigPath, "minimum-gas-prices", fmt.Sprintf("0%s", state.gasDenom)); err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to set minimum-gas-prices: %v", err)}
 		}
-
-		srv, err := service.NewService(service.Minitia)
-		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to initialize service: %v", err)}
-		}
-
-		if err = srv.Create(fmt.Sprintf("mini%s@%s", strings.ToLower(state.vmType), state.minitiadVersion), minitiaHome); err != nil {
-			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to create service: %v", err)}
-		}
-
-		// prune existing logs, ignore error
-		_ = srv.PruneLogs()
 
 		return ui.EndLoading{
 			Ctx: weavecontext.SetCurrentState(ctx, state),
@@ -3033,12 +3001,12 @@ func (m *LaunchingNewMinitiaLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		state.weave.PushPreviousResponse(scanText)
 
-		srv, err := service.NewService(service.Minitia)
+		srv, err := service.NewService(service.Rollup)
 		if err != nil {
 			state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.NoSeparator, "Invalid OS: only Linux and Darwin are supported", []string{}, fmt.Sprintf("%v", err)))
 		}
 
-		if err = srv.Start(); err != nil {
+		if err = srv.Start(true); err != nil {
 			state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.NoSeparator, "Failed to start rollup service", []string{}, fmt.Sprintf("%v", err)))
 		}
 
@@ -3075,7 +3043,7 @@ func (m *LaunchingNewMinitiaLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.HandlePanic(fmt.Errorf("failed to create update params message: %v", err))
 			}
 
-			runCmd := exec.Command(state.binaryPath, "tx", "opchild", "execute-messages", messageJsonPath,
+			runCmd := srv.RunCmd([]string{}, "tx", "opchild", "execute-messages", messageJsonPath,
 				"--from", "Validator", "--keyring-backend", "test",
 				"--chain-id", state.chainId, "-y",
 			)

@@ -366,22 +366,18 @@ func OPInitBotsStartCommand() *cobra.Command {
 			}
 
 			botName := args[0]
-			bot := service.CommandName(botName)
+			bot := service.OPinitExecutor
+			if botName == service.OPinitChallenger.Name {
+				botName = service.OPinitChallenger.Name
+			}
+
 			s, err := service.NewService(bot)
 			if err != nil {
 				return err
 			}
 
-			if detach {
-				err = s.Start()
-				if err != nil {
-					return err
-				}
-				fmt.Printf("Started the OPinit %[1]s bot. You can see the logs with `weave opinit log %[1]s`\n", botName)
-				return nil
-			}
-
-			return service.NonDetachStart(s)
+			fmt.Printf("Starting the OPinit %s bot. You can see the logs with `weave opinit log %s`\n", botName, botName)
+			return s.Start(detach)
 		},
 	}
 
@@ -399,7 +395,10 @@ func OPInitBotsStopCommand() *cobra.Command {
 		PreRunE: isInitiated(service.OPinitExecutor),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			botName := args[0]
-			bot := service.CommandName(botName)
+			bot := service.OPinitExecutor
+			if botName == service.OPinitChallenger.Name {
+				bot = service.OPinitChallenger
+			}
 			s, err := service.NewService(bot)
 			if err != nil {
 				return err
@@ -425,7 +424,10 @@ func OPInitBotsRestartCommand() *cobra.Command {
 		PreRunE: isInitiated(service.OPinitExecutor),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			botName := args[0]
-			bot := service.CommandName(botName)
+			bot := service.OPinitExecutor
+			if botName == service.OPinitChallenger.Name {
+				bot = service.OPinitChallenger
+			}
 			s, err := service.NewService(bot)
 			if err != nil {
 				return err
@@ -456,7 +458,10 @@ func OPInitBotsLogCommand() *cobra.Command {
 			}
 
 			botName := args[0]
-			bot := service.CommandName(botName)
+			bot := service.OPinitExecutor
+			if botName == service.OPinitChallenger.Name {
+				bot = service.OPinitChallenger
+			}
 			s, err := service.NewService(bot)
 			if err != nil {
 				return err
@@ -485,7 +490,11 @@ func OPInitBotsResetCommand() *cobra.Command {
 			}
 
 			binaryPath := filepath.Join(userHome, common.WeaveDataDirectory, opinit_bots.AppName)
-			_, err = cosmosutils.GetBinaryVersion(binaryPath)
+			srv, err := service.NewService(service.OPinitExecutor)
+			if err != nil {
+				return fmt.Errorf("error getting the opinitd binary: %v", err)
+			}
+			_, err = cosmosutils.GetBinaryVersion(srv, binaryPath)
 			if err != nil {
 				return fmt.Errorf("error getting the opinitd binary: %v", err)
 			}

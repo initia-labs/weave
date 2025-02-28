@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -16,6 +15,7 @@ import (
 	weavecontext "github.com/initia-labs/weave/context"
 	"github.com/initia-labs/weave/cosmosutils"
 	"github.com/initia-labs/weave/io"
+	"github.com/initia-labs/weave/service"
 	"github.com/initia-labs/weave/styles"
 	"github.com/initia-labs/weave/types"
 	"github.com/initia-labs/weave/ui"
@@ -618,47 +618,14 @@ func EnsureOPInitBotsBinary(ctx context.Context) tea.Cmd {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get user home directory: %v", err)}
 		}
 
-		binaryPath := GetBinaryPath(userHome)
-		_, err = cosmosutils.GetBinaryVersion(binaryPath)
-		if err == nil {
-			return ui.EndLoading{
-				Ctx: ctx,
-			}
-		}
-
-		weaveDataPath := filepath.Join(userHome, common.WeaveDataDirectory)
-		tarballPath := filepath.Join(weaveDataPath, "opinitd.tar.gz")
-
-		goos := runtime.GOOS
-		goarch := runtime.GOARCH
-		url, err := getBinaryURL(OpinitBotBinaryVersion, goos, goarch)
+		srv, err := service.NewService(service.OPinitExecutor)
 		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get binary url: %v", err)}
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get OPinit service: %v", err)}
 		}
 
-		extractedPath := filepath.Join(weaveDataPath, fmt.Sprintf("opinitd@%s", OpinitBotBinaryVersion))
-
-		if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
-
-			if _, err := os.Stat(extractedPath); os.IsNotExist(err) {
-				err := os.MkdirAll(extractedPath, os.ModePerm)
-				if err != nil {
-					return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to create weave data directory: %v", err)}
-				}
-			}
-
-			if err = io.DownloadAndExtractTarGz(url, tarballPath, extractedPath); err != nil {
-				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to download and extract binary: %v", err)}
-			}
-			err = os.Chmod(binaryPath, 0755) // 0755 ensuring read, write, execute permissions for the owner, and read-execute for group/others
-			if err != nil {
-				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to set permissions for binary: %v", err)}
-			}
-		}
-
-		err = cosmosutils.SetSymlink(binaryPath)
+		err = srv.Create(filepath.Join(userHome, common.OPinitDirectory), "")
 		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: err}
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to create OPinit service: %v", err)}
 		}
 
 		return ui.EndLoading{
@@ -670,19 +637,17 @@ func EnsureOPInitBotsBinary(ctx context.Context) tea.Cmd {
 func WaitSetupOPInitBots(ctx context.Context) tea.Cmd {
 	return func() tea.Msg {
 		state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
-		userHome, err := os.UserHomeDir()
+		srv, err := weavecontext.GetService(ctx)
 		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get user home directory: %v", err)}
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get OPinit service: %v", err)}
 		}
-
-		binaryPath := GetBinaryPath(userHome)
 		opInitHome, err := weavecontext.GetOPInitHome(ctx)
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get OPinit home: %v", err)}
 		}
 		for _, info := range state.BotInfos {
 			if info.Mnemonic != "" {
-				res, err := cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, info.KeyName, info.Mnemonic, info.DALayer == string(CelestiaLayerOption), opInitHome)
+				res, err := cosmosutils.OPInitRecoverKeyFromMnemonic(srv, info.KeyName, info.Mnemonic, info.DALayer == string(CelestiaLayerOption), opInitHome)
 				if err != nil {
 					return ui.ErrorLoading{Err: err}
 				}
@@ -690,7 +655,7 @@ func WaitSetupOPInitBots(ctx context.Context) tea.Cmd {
 				continue
 			}
 			if info.IsGenerateKey {
-				res, err := cosmosutils.OPInitAddOrReplace(binaryPath, info.KeyName, info.DALayer == string(CelestiaLayerOption), opInitHome)
+				res, err := cosmosutils.OPInitAddOrReplace(srv, info.KeyName, info.DALayer == string(CelestiaLayerOption), opInitHome)
 				if err != nil {
 					return ui.ErrorLoading{Err: err}
 

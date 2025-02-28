@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -1198,13 +1197,8 @@ func WaitStartingInitBot(ctx context.Context) tea.Cmd {
 				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to write config file: %v", err)}
 			}
 
-			userHome, err := os.UserHomeDir()
-			if err != nil {
-				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get user home dir: %v", err)}
-			}
-			binaryPath := filepath.Join(userHome, common.WeaveDataDirectory, fmt.Sprintf("opinitd@%s", OpinitBotBinaryVersion), AppName)
-			if address, err := cosmosutils.OPInitGetAddressForKey(binaryPath, OracleBridgeExecutorKeyName, opInitHome); err == nil {
-				if err := cosmosutils.OPInitGrantOracle(binaryPath, address, opInitHome); err != nil {
+			if address, err := cosmosutils.OPInitGetAddressForKey(srv, OracleBridgeExecutorKeyName, opInitHome); err == nil {
+				if err := cosmosutils.OPInitGrantOracle(srv, address, opInitHome); err != nil {
 					return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to grant oracle to address: %v", err)}
 				}
 			}
@@ -1415,20 +1409,17 @@ func (m *SetupOPInitBotsMissingKey) View() string {
 func WaitSetupOPInitBotsMissingKey(ctx context.Context) tea.Cmd {
 	return func() tea.Msg {
 		state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
-		userHome, err := os.UserHomeDir()
+		srv, err := weavecontext.GetService(ctx)
 		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get user home directory: %v", err)}
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get opinit service: %v", err)}
 		}
-
-		binaryPath := filepath.Join(userHome, common.WeaveDataDirectory, fmt.Sprintf("opinitd@%s", OpinitBotBinaryVersion), AppName)
-
 		opInitHome, err := weavecontext.GetOPInitHome(ctx)
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get opinit home directory: %v", err)}
 		}
 		for _, info := range state.BotInfos {
 			if info.Mnemonic != "" {
-				res, err := cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, info.KeyName, info.Mnemonic, info.DALayer == string(CelestiaLayerOption), opInitHome)
+				res, err := cosmosutils.OPInitRecoverKeyFromMnemonic(srv, info.KeyName, info.Mnemonic, info.DALayer == string(CelestiaLayerOption), opInitHome)
 				if err != nil {
 					return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to recover key from mnemonic: %v", err)}
 				}
@@ -1436,7 +1427,7 @@ func WaitSetupOPInitBotsMissingKey(ctx context.Context) tea.Cmd {
 				continue
 			}
 			if info.IsGenerateKey {
-				res, err := cosmosutils.OPInitAddOrReplace(binaryPath, info.KeyName, info.DALayer == string(CelestiaLayerOption), opInitHome)
+				res, err := cosmosutils.OPInitAddOrReplace(srv, info.KeyName, info.DALayer == string(CelestiaLayerOption), opInitHome)
 				if err != nil {
 					return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to add or replace key: %v", err)}
 
@@ -1453,23 +1444,28 @@ func WaitSetupOPInitBotsMissingKey(ctx context.Context) tea.Cmd {
 }
 
 func InitializeExecutorWithConfig(config ExecutorConfig, keyFile io.KeyFile, opInitHome, userHome string) error {
-	binaryPath, err := ensureOPInitBotsBinary(userHome)
+	srv, err := service.NewService(service.OPinitExecutor)
 	if err != nil {
 		return err
 	}
-	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, BridgeExecutorKeyName, keyFile.GetMnemonic(BridgeExecutorKeyName), false, opInitHome)
+
+	if err = srv.Create("", opInitHome); err != nil {
+		return fmt.Errorf("failed to create service: %v", err)
+	}
+
+	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(srv, BridgeExecutorKeyName, keyFile.GetMnemonic(BridgeExecutorKeyName), false, opInitHome)
 	if err != nil {
 		return err
 	}
-	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, OutputSubmitterKeyName, keyFile.GetMnemonic(OutputSubmitterKeyName), false, opInitHome)
+	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(srv, OutputSubmitterKeyName, keyFile.GetMnemonic(OutputSubmitterKeyName), false, opInitHome)
 	if err != nil {
 		return err
 	}
-	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, BatchSubmitterKeyName, keyFile.GetMnemonic(BatchSubmitterKeyName), config.DANode.Bech32Prefix != "init", opInitHome)
+	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(srv, BatchSubmitterKeyName, keyFile.GetMnemonic(BatchSubmitterKeyName), config.DANode.Bech32Prefix != "init", opInitHome)
 	if err != nil {
 		return err
 	}
-	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, OracleBridgeExecutorKeyName, keyFile.GetMnemonic(OracleBridgeExecutorKeyName), false, opInitHome)
+	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(srv, OracleBridgeExecutorKeyName, keyFile.GetMnemonic(OracleBridgeExecutorKeyName), false, opInitHome)
 	if err != nil {
 		return err
 	}
@@ -1498,16 +1494,6 @@ func InitializeExecutorWithConfig(config ExecutorConfig, keyFile io.KeyFile, opI
 		}
 	}
 
-	// Additional initialization steps for executor
-	srv, err := service.NewService(service.OPinitExecutor)
-	if err != nil {
-		return fmt.Errorf("failed to initialize service: %v", err)
-	}
-
-	if err = srv.Create("", opInitHome); err != nil {
-		return fmt.Errorf("failed to create service: %v", err)
-	}
-
 	// Write config to file
 	configFilePath := filepath.Join(opInitHome, "executor.json")
 	configBz, err := json.MarshalIndent(config, "", " ")
@@ -1526,11 +1512,12 @@ func InitializeExecutorWithConfig(config ExecutorConfig, keyFile io.KeyFile, opI
 }
 
 func InitializeChallengerWithConfig(config ChallengerConfig, keyFile io.KeyFile, opInitHome, userHome string) error {
-	binaryPath, err := ensureOPInitBotsBinary(userHome)
+	srv, err := service.NewService(service.OPinitChallenger)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to initialize service: %v", err)
 	}
-	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, ChallengerKeyName, keyFile.GetMnemonic(ChallengerKeyName), false, opInitHome)
+
+	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(srv, ChallengerKeyName, keyFile.GetMnemonic(ChallengerKeyName), false, opInitHome)
 	if err != nil {
 		return err
 	}
@@ -1548,12 +1535,6 @@ func InitializeChallengerWithConfig(config ChallengerConfig, keyFile io.KeyFile,
 	err = io.CopyDirectory(weaveDummyKeyPath, l2KeyPath)
 	if err != nil {
 		return fmt.Errorf("failed to copy dummy key for l2: %w", err)
-	}
-
-	// Additional initialization steps for executor
-	srv, err := service.NewService(service.OPinitChallenger)
-	if err != nil {
-		return fmt.Errorf("failed to initialize service: %v", err)
 	}
 
 	if err = srv.Create("", opInitHome); err != nil {
@@ -1575,55 +1556,6 @@ func InitializeChallengerWithConfig(config ChallengerConfig, keyFile io.KeyFile,
 	_ = srv.PruneLogs()
 
 	return nil
-}
-
-func ensureOPInitBotsBinary(userHome string) (string, error) {
-	// Define paths
-	binaryPath := GetBinaryPath(userHome)
-	weaveDataPath := filepath.Join(userHome, common.WeaveDataDirectory)
-	tarballPath := filepath.Join(weaveDataPath, "opinitd.tar.gz")
-	goos := runtime.GOOS
-	goarch := runtime.GOARCH
-	extractedPath := filepath.Join(weaveDataPath, fmt.Sprintf("opinitd@%s", OpinitBotBinaryVersion))
-
-	// Check if the binary already exists
-	if _, err := os.Stat(binaryPath); err == nil {
-		// Binary exists, no need to download
-		return binaryPath, nil
-	}
-	fmt.Printf("Downloading opinit bot\n")
-	// If the binary doesn't exist, proceed to download and extract
-	// Check if the extracted directory exists, if not, create it
-	if _, err := os.Stat(extractedPath); os.IsNotExist(err) {
-		err := os.MkdirAll(extractedPath, os.ModePerm)
-		if err != nil {
-			return binaryPath, fmt.Errorf("failed to create weave data directory: %v", err)
-		}
-	}
-
-	// Get the binary download URL
-	url, err := getBinaryURL(OpinitBotBinaryVersion, goos, goarch)
-	if err != nil {
-		return binaryPath, fmt.Errorf("failed to get binary URL: %v", err)
-	}
-
-	// Download and extract the binary
-	if err := io.DownloadAndExtractTarGz(url, tarballPath, extractedPath); err != nil {
-		return binaryPath, fmt.Errorf("failed to download and extract binary: %v", err)
-	}
-
-	// Set the correct file permissions for the binary
-	err = os.Chmod(binaryPath, 0755) // 0755 ensuring read, write, execute permissions for the owner, and read-execute for group/others
-	if err != nil {
-		return binaryPath, fmt.Errorf("failed to set permissions for binary: %v", err)
-	}
-
-	// Create a symlink to the binary (if needed)
-	if err := cosmosutils.SetSymlink(binaryPath); err != nil {
-		return binaryPath, err
-	}
-	fmt.Printf("Successfully download opinit bot\n")
-	return binaryPath, nil
 }
 
 func PrepareExecutorBotKey(ctx context.Context) (tea.Model, error) {

@@ -14,6 +14,7 @@ import (
 	"github.com/initia-labs/weave/common"
 	"github.com/initia-labs/weave/crypto"
 	"github.com/initia-labs/weave/io"
+	"github.com/initia-labs/weave/service"
 )
 
 type KeyInfo struct {
@@ -34,9 +35,9 @@ func UnmarshalKeyInfo(rawJson string) (KeyInfo, error) {
 }
 
 // AddOrReplace adds or replaces a key using `initiad keys add <keyname> --keyring-backend test` with 'y' confirmation
-func AddOrReplace(appName, keyname string) (string, error) {
+func AddOrReplace(srv service.Service, keyname string) (string, error) {
 	// Command to add the key: echo 'y' | initiad keys add <keyname> --keyring-backend test
-	cmd := exec.Command(appName, "keys", "add", keyname, "--keyring-backend", "test", "--output", "json")
+	cmd := srv.RunCmd([]string{}, "keys", "add", keyname, "--keyring-backend", "test", "--output", "json")
 
 	// Simulate pressing 'y' for confirmation
 	cmd.Stdin = bytes.NewBufferString("y\n")
@@ -94,8 +95,8 @@ func RecoverKeyFromMnemonic(appName, keyname, mnemonic string) (string, error) {
 	return string(outputBytes), nil
 }
 
-func GenerateNewKeyInfo(appName, keyname string) (KeyInfo, error) {
-	rawKey, err := AddOrReplace(appName, keyname)
+func GenerateNewKeyInfo(srv service.Service, appName, keyname string) (KeyInfo, error) {
+	rawKey, err := AddOrReplace(srv, appName, keyname)
 	if err != nil {
 		return KeyInfo{}, err
 	}
@@ -123,9 +124,9 @@ func GetAddressFromMnemonic(appName, mnemonic string) (string, error) {
 
 // OPInitRecoverKeyFromMnemonic recovers or replaces a key using a mnemonic phrase
 // If the key already exists, it will replace the key and confirm with 'y' before adding the mnemonic
-func OPInitRecoverKeyFromMnemonic(appName, keyname, mnemonic string, isCelestia bool, opInitHome string) (string, error) {
+func OPInitRecoverKeyFromMnemonic(srv service.Service, keyname, mnemonic string, isCelestia bool, opInitHome string) (string, error) {
 	// Check if the key already exists
-	exists := OPInitKeyExist(appName, keyname, opInitHome)
+	exists := OPInitKeyExist(srv, keyname, opInitHome)
 
 	{
 		var cmd *exec.Cmd
@@ -133,7 +134,7 @@ func OPInitRecoverKeyFromMnemonic(appName, keyname, mnemonic string, isCelestia 
 		if exists {
 			// Simulate pressing 'y' for confirmation
 			inputBuffer.WriteString("y\n")
-			cmd = exec.Command(appName, "keys", "delete", "weave-dummy", keyname, "--home", opInitHome)
+			cmd = srv.RunCmd([]string{}, "keys", "delete", "weave-dummy", keyname, "--home", opInitHome)
 			// Run the command and capture the output
 			outputBytes, err := cmd.CombinedOutput()
 			if err != nil {
@@ -148,9 +149,9 @@ func OPInitRecoverKeyFromMnemonic(appName, keyname, mnemonic string, isCelestia 
 	// Add the mnemonic input after the confirmation (if any)
 	inputBuffer.WriteString(mnemonic + "\n")
 	if isCelestia {
-		cmd = exec.Command(appName, "keys", "add", "weave-dummy", keyname, "--recover", "--bech32", "celestia", "--home", opInitHome)
+		cmd = srv.RunCmd([]string{}, "keys", "add", "weave-dummy", keyname, "--recover", "--bech32", "celestia", "--home", opInitHome)
 	} else {
-		cmd = exec.Command(appName, "keys", "add", "weave-dummy", keyname, "--recover", "--home", opInitHome)
+		cmd = srv.RunCmd([]string{}, "keys", "add", "weave-dummy", keyname, "--recover", "--home", opInitHome)
 	}
 	// Pass the combined confirmation and mnemonic as input to the command
 	cmd.Stdin = &inputBuffer
@@ -165,16 +166,16 @@ func OPInitRecoverKeyFromMnemonic(appName, keyname, mnemonic string, isCelestia 
 	return string(outputBytes), nil
 }
 
-func OPInitKeyExist(appName, keyname, opInitHome string) bool {
-	cmd := exec.Command(appName, "keys", "show", "weave-dummy", keyname, "--home", opInitHome)
+func OPInitKeyExist(srv service.Service, keyname, opInitHome string) bool {
+	cmd := srv.RunCmd([]string{}, "keys", "show", "weave-dummy", keyname, "--home", opInitHome)
 	// Run the command and capture the output or error
 	err := cmd.Run()
 	return err == nil
 }
 
 // OPInitGetAddressForKey retrieves the address for a given key using opinitd.
-func OPInitGetAddressForKey(appName, keyname, opInitHome string) (string, error) {
-	cmd := exec.Command(appName, "keys", "show", "weave-dummy", keyname, "--home", opInitHome)
+func OPInitGetAddressForKey(srv service.Service, keyname, opInitHome string) (string, error) {
+	cmd := srv.RunCmd([]string{}, "keys", "show", "weave-dummy", keyname, "--home", opInitHome)
 	outputBytes, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("failed to get address for key %s: %v, output: %s", keyname, err, string(outputBytes))
@@ -190,8 +191,8 @@ func OPInitGetAddressForKey(appName, keyname, opInitHome string) (string, error)
 }
 
 // OPInitGrantOracle grants oracle permissions to a specific address.
-func OPInitGrantOracle(appName, address, opInitHome string) error {
-	cmd := exec.Command(appName, "tx", "grant-oracle", address, "--home", opInitHome)
+func OPInitGrantOracle(srv service.Service, address, opInitHome string) error {
+	cmd := srv.RunCmd([]string{}, "tx", "grant-oracle", address, "--home", opInitHome)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		outputStr := string(output)
 		if strings.Contains(outputStr, "fee allowance already exists") {
@@ -219,16 +220,16 @@ func extractAddress(output, keyname string) (string, error) {
 
 // OPInitAddOrReplace adds or replaces a key using `opinitd keys add <keyname> --keyring-backend test`
 // with 'y' confirmation
-func OPInitAddOrReplace(appName, keyname string, isCelestia bool, opInitHome string) (string, error) {
+func OPInitAddOrReplace(srv service.Service, keyname string, isCelestia bool, opInitHome string) (string, error) {
 	// Check if the key already exists
-	exists := OPInitKeyExist(appName, keyname, opInitHome)
+	exists := OPInitKeyExist(srv, keyname, opInitHome)
 	{
 		var cmd *exec.Cmd
 		var inputBuffer bytes.Buffer
 		if exists {
 			// Simulate pressing 'y' for confirmation
 			inputBuffer.WriteString("y\n")
-			cmd = exec.Command(appName, "keys", "delete", "weave-dummy", keyname, "--home", opInitHome)
+			cmd = srv.RunCmd([]string{}, "keys", "delete", "weave-dummy", keyname, "--home", opInitHome)
 			// Run the command and capture the output
 			outputBytes, err := cmd.CombinedOutput()
 			if err != nil {
@@ -241,9 +242,9 @@ func OPInitAddOrReplace(appName, keyname string, isCelestia bool, opInitHome str
 	var cmd *exec.Cmd
 
 	if isCelestia {
-		cmd = exec.Command(appName, "keys", "add", "weave-dummy", keyname, "--bech32", "celestia", "--home", opInitHome)
+		cmd = srv.RunCmd([]string{}, "keys", "add", "weave-dummy", keyname, "--bech32", "celestia", "--home", opInitHome)
 	} else {
-		cmd = exec.Command(appName, "keys", "add", "weave-dummy", keyname, "--home", opInitHome)
+		cmd = srv.RunCmd([]string{}, "keys", "add", "weave-dummy", keyname, "--home", opInitHome)
 
 	}
 	// Simulate pressing 'y' for confirmation
@@ -258,12 +259,12 @@ func OPInitAddOrReplace(appName, keyname string, isCelestia bool, opInitHome str
 	return string(outputBytes), nil
 }
 
-func GetBinaryVersion(appName string) (string, error) {
+func GetBinaryVersion(srv service.Service, appName string) (string, error) {
 	var cmd *exec.Cmd
 	var inputBuffer bytes.Buffer
 	// Simulate pressing 'y' for confirmation
 	inputBuffer.WriteString("y\n")
-	cmd = exec.Command(appName, "version")
+	cmd = srv.RunCmd([]string{}, "version")
 	// Run the command and capture the output
 	outputBytes, err := cmd.CombinedOutput()
 	if err != nil {

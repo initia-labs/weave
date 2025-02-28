@@ -119,16 +119,8 @@ func relayerStartCommand() *cobra.Command {
 				return err
 			}
 
-			if detach {
-				err = s.Start()
-				if err != nil {
-					return err
-				}
-				fmt.Println("Started relayer service. You can see the logs with `weave relayer log`")
-				return nil
-			}
-
-			return service.NonDetachStart(s)
+			fmt.Println("Starting relayer service. You can see the logs with `weave relayer log`")
+			return s.Start(detach)
 		},
 	}
 	startCmd.Flags().String(FlagUpdateClient, "true", "Update light clients with new header information before starting the relayer (can be 'true' or 'false')")

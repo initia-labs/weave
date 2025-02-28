@@ -4,27 +4,39 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+
+	"github.com/initia-labs/weave/config"
 )
 
 type Docker struct {
-	commandName CommandName
+	command Command
 }
 
-func NewDocker(commandName CommandName) *Docker {
+func NewDocker(command Command) *Docker {
 	return &Docker{
-		commandName: commandName,
+		command: command,
 	}
 }
 
-func (d *Docker) Create(version, appHome string) error {
+func (d *Docker) Create(appHome string, customDockerImage string) error {
 	// Create Docker network if it doesn't exist
 	networkCmd := exec.Command("docker", "network", "create", "weave-network")
 	_ = networkCmd.Run() // Ignore error if network already exists
 
 	// Pull the appropriate image based on command type and version
-	imageName, err := d.getImageName(version)
+	imageName := customDockerImage
+	if imageName == "" {
+		imageName = d.command.DefaultImageURL
+	}
+
+	err := config.SetCommandImageURL(d.command.Name, imageName)
 	if err != nil {
-		return fmt.Errorf("failed to get image name: %v", err)
+		return fmt.Errorf("failed to set command image URL: %v", err)
+	}
+
+	err = config.SetCommandHome(d.command.Name, appHome)
+	if err != nil {
+		return fmt.Errorf("failed to set command home: %v", err)
 	}
 
 	pullCmd := exec.Command("docker", "pull", imageName)
@@ -32,200 +44,82 @@ func (d *Docker) Create(version, appHome string) error {
 		return fmt.Errorf("failed to pull docker image: %v, output: %s", err, string(output))
 	}
 
-	// add
-
 	return nil
 }
 
-func (d *Docker) Start() error {
-	serviceName, err := d.GetServiceName()
-	if err != nil {
-		return err
+func (d *Docker) buildArgs(detach bool, options []string, args []string) []string {
+	imageName := config.GetCommandImageURL(d.command.Name)
+	appHome := config.GetCommandHome(d.command.Name)
+
+	dockerArgs := []string{"run"}
+
+	if detach {
+		dockerArgs = append(dockerArgs,
+			"-d",
+			"--name", d.command.Name,
+			"--restart", "unless-stopped",
+		)
+	} else {
+		dockerArgs = append(dockerArgs, "--rm")
 	}
 
-	// Get binary and home paths
-	_, appHome, err := d.GetServiceBinaryAndHome()
-	if err != nil {
-		return err
-	}
-
-	args := []string{
-		"run",
-		"-d",
-		"--name", serviceName,
+	// Common arguments for both Start and Run
+	dockerArgs = append(dockerArgs,
 		"--network", "weave-network",
-		"--restart", "unless-stopped",
-		// Bind mount the host directory instead of using Docker volume
 		"-v", fmt.Sprintf("%s:/app/data", appHome),
-	}
+	)
 
-	// Add port mappings
-	ports, err := d.getPortMappings()
-	if err != nil {
-		return err
-	}
-	args = append(args, ports...)
+	dockerArgs = append(dockerArgs, options...)
 
 	// Add the image name
-	imageName, err := d.getImageName("")
-	if err != nil {
-		return err
-	}
-	args = append(args, imageName)
+	dockerArgs = append(dockerArgs, imageName)
 
-	// Add command arguments
-	cmdArgs, err := d.getCommandArgs()
-	if err != nil {
-		return err
-	}
-	args = append(args, cmdArgs...)
+	// Add the start command
+	dockerArgs = append(dockerArgs, args...)
 
+	return dockerArgs
+}
+
+func (d *Docker) Start(detach bool) error {
+	args := d.buildArgs(detach, append(d.command.StartPortArgs, d.command.StartEnvArgs...), d.command.StartCommandArgs)
 	cmd := exec.Command("docker", args...)
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to start container: %v, output: %s", err, string(output))
+
+	if detach {
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("failed to start container: %v, output: %s", err, string(output))
+		}
+
+		return nil
 	}
 
-	return nil
+	// For attached mode, stream output directly
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
 }
 
 func (d *Docker) Stop() error {
-	serviceName, err := d.GetServiceName()
-	if err != nil {
-		return err
-	}
-
-	cmd := exec.Command("docker", "stop", serviceName)
+	cmd := exec.Command("docker", "stop", d.command.Name)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to stop container: %v, output: %s", err, string(output))
 	}
 
 	// Remove the container after stopping
-	rmCmd := exec.Command("docker", "rm", serviceName)
+	rmCmd := exec.Command("docker", "rm", d.command.Name)
 	_ = rmCmd.Run() // Ignore error if container doesn't exist
 
 	return nil
 }
 
 func (d *Docker) Log(n int) error {
-	serviceName, err := d.GetServiceName()
-	if err != nil {
-		return err
-	}
-
-	cmd := exec.Command("docker", "logs", "--tail", fmt.Sprintf("%d", n), "-f", serviceName)
+	cmd := exec.Command("docker", "logs", "--tail", fmt.Sprintf("%d", n), "-f", d.command.Name)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 
-func (d *Docker) getImageName(version string) (string, error) {
-	baseImage := "ghcr.io/initia-labs"
-
-	switch d.commandName {
-	case Minitia:
-		return fmt.Sprintf("%s/minitiad:%s", baseImage, version), nil
-	case UpgradableInitia, NonUpgradableInitia:
-		return fmt.Sprintf("%s/initiad:%s", baseImage, version), nil
-	case OPinitExecutor:
-		return fmt.Sprintf("%s/opinit-bots:%s", baseImage, version), nil
-	case OPinitChallenger:
-		return fmt.Sprintf("%s/opinit-bots:%s", baseImage, version), nil
-	case Relayer:
-		return fmt.Sprintf("%s/hermes:%s", baseImage, version), nil
-	default:
-		return "", fmt.Errorf("unsupported command: %v", d.commandName)
-	}
-}
-
-func (d *Docker) getPortMappings() ([]string, error) {
-	switch d.commandName {
-	case Minitia:
-		return []string{
-			"-p", "26656:26656", // P2P
-			"-p", "26657:26657", // RPC
-			"-p", "1317:1317", // REST
-			"-p", "8545:8545", // JSON-RPC
-			"-p", "9090:9090", // gRPC
-		}, nil
-	case UpgradableInitia, NonUpgradableInitia:
-		return []string{
-			"-p", "26656:26656",
-			"-p", "26657:26657",
-			"-p", "1317:1317",
-			"-p", "9090:9090", // gRPC
-		}, nil
-	case OPinitChallenger:
-		return []string{
-			"-p", "3000:3000", // REST API
-		}, nil
-	case OPinitExecutor:
-		return []string{
-			"-p", "3001:3001", // REST API
-		}, nil
-	case Relayer:
-		return []string{
-			"-p", "7010:7010", // REST API
-			"-p", "7011:7011", // Telemetry
-		}, nil
-	default:
-		return []string{}, nil
-	}
-}
-
-func (d *Docker) getVolumeName() (string, error) {
-	serviceName, err := d.GetServiceName()
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%s-data", serviceName), nil
-}
-
-func (d *Docker) getCommandArgs() ([]string, error) {
-	switch d.commandName {
-	case Minitia:
-		return []string{"start", "--home", "/app/data"}, nil
-	case UpgradableInitia, NonUpgradableInitia:
-		return []string{"start", "--home", "/app/data"}, nil
-	case OPinitExecutor:
-		return []string{"start", "executor", "--home", "/app/data"}, nil
-	case OPinitChallenger:
-		return []string{"start", "challenger", "--home", "/app/data"}, nil
-	case Relayer:
-		return []string{"start"}, nil
-	default:
-		return nil, fmt.Errorf("unsupported command: %v", d.commandName)
-	}
-}
-
-func (d *Docker) GetServiceName() (string, error) {
-	prettyName, err := d.commandName.GetPrettyName()
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("weave-%s", prettyName), nil
-}
-
-func (d *Docker) GetServiceFile() (string, error) {
-	// Not needed for Docker implementation
-	return "", nil
-}
-
-func (d *Docker) GetServiceBinaryAndHome() (string, string, error) {
-	volumeName, err := d.getVolumeName()
-	if err != nil {
-		return "", "", err
-	}
-	// Return the volume path as home
-	return "", fmt.Sprintf("/var/lib/docker/volumes/%s/_data", volumeName), nil
-}
-
 func (d *Docker) PruneLogs() error {
-	serviceName, err := d.GetServiceName()
-	if err != nil {
-		return err
-	}
-
-	cmd := exec.Command("docker", "logs", "--truncate", "0", serviceName)
+	cmd := exec.Command("docker", "logs", "--truncate", "0", d.command.Name)
 	return cmd.Run()
 }
 
@@ -233,5 +127,13 @@ func (d *Docker) Restart() error {
 	if err := d.Stop(); err != nil {
 		return err
 	}
-	return d.Start()
+	return d.Start(true)
+}
+
+func (d *Docker) RunCmd(options []string, args ...string) *exec.Cmd {
+	dockerArgs := d.buildArgs(false, options, args)
+	cmd := exec.Command("docker", dockerArgs...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd
 }

@@ -215,21 +215,6 @@ func padVersionParts(version string) []string {
 	return parts
 }
 
-func GetOPInitVersions() (BinaryVersionWithDownloadURL, string, error) {
-	versions, err := ListBinaryReleases("https://api.github.com/repos/initia-labs/opinit-bots/releases")
-	if err != nil {
-		return nil, "", err
-	}
-	userHome, err := os.UserHomeDir()
-	if err != nil {
-		return nil, "", err
-	}
-	binaryPath := filepath.Join(userHome, common.WeaveDataDirectory, common.OPinitAppName)
-	currentVersion, _ := GetBinaryVersion(binaryPath)
-
-	return versions, currentVersion, nil
-}
-
 func GetInitiaBinaryUrlFromLcd(httpClient *client.HTTPClient, rest string) (string, string, error) {
 	var result NodeInfoResponse
 	_, err := httpClient.Get(rest, "/cosmos/base/tendermint/v1beta1/node_info", nil, &result)

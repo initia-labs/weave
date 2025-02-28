@@ -18,7 +18,7 @@ import (
 )
 
 func setupInitia(t *testing.T) (string, tea.Model) {
-	setup(t, []service.CommandName{service.UpgradableInitia})
+	setup(t, []service.Command{service.UpgradableInitia})
 
 	ctx := context.NewAppContext(initia.NewRunL1NodeState())
 
@@ -33,7 +33,7 @@ func setupInitia(t *testing.T) (string, tea.Model) {
 }
 
 func teardownInitia(t *testing.T) {
-	teardown(t, []service.CommandName{service.UpgradableInitia})
+	teardown(t, []service.Command{service.UpgradableInitia})
 }
 
 func TestInitiaInitTestnetNoSync(t *testing.T) {
