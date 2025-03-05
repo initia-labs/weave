@@ -120,7 +120,7 @@ func ValidateDecCoin(coinStr string) (err error) {
 
 func ValidateDecFromStr(str string) error {
 	if str[0] == '-' {
-		return fmt.Errorf("decimal string cannot be positve")
+		return fmt.Errorf("decimal string cannot be positive")
 	}
 
 	if len(str) == 0 {

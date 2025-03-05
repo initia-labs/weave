@@ -12,7 +12,7 @@ import (
 func AnalyticsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:                        "analytics",
-		Short:                      "Configure analytics ex. enable/disable data collection",
+		Short:                      "Configure analytics e.g. enable/disable data collection",
 		DisableFlagParsing:         true,
 		SuggestionsMinimumDistance: 2,
 	}
