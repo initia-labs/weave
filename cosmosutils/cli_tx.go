@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/initia-labs/weave/client"
+	"github.com/initia-labs/weave/service"
 )
 
 const (
@@ -37,7 +38,7 @@ type MinimalTxResponse struct {
 }
 
 type InitiadTxExecutor struct {
-	binaryPath string
+	srv service.Service
 }
 
 type MsgUpdateParams struct {
@@ -87,7 +88,7 @@ func CreateOPChildUpdateParamsMsg(filePath string, params OPChildParams) error {
 	return nil
 }
 
-func NewInitiadTxExecutor(rest string) (*InitiadTxExecutor, error) {
+func NewInitiadTxExecutor(srv service.Service, rest string) (*InitiadTxExecutor, error) {
 	httpClient := client.NewHTTPClient()
 	nodeVersion, url, err := GetInitiaBinaryUrlFromLcd(httpClient, rest)
 	if err != nil {
@@ -103,20 +104,20 @@ func NewInitiadTxExecutor(rest string) (*InitiadTxExecutor, error) {
 	}
 
 	return &InitiadTxExecutor{
-		binaryPath: binaryPath,
+		srv: srv,
 	}, nil
 }
 
 func (te *InitiadTxExecutor) BroadcastMsgSend(senderMnemonic, recipientAddress, amount, gasPrices, rpc, chainId string) (*InitiadTxResponse, error) {
-	_, err := RecoverKeyFromMnemonic(te.binaryPath, TmpKeyName, senderMnemonic)
+	_, err := RecoverKeyFromMnemonic(te.srv, TmpKeyName, senderMnemonic)
 	if err != nil {
 		return nil, fmt.Errorf("failed to recover gas station key: %v", err)
 	}
 	defer func() {
-		_ = DeleteKey(te.binaryPath, TmpKeyName)
+		_ = DeleteKey(te.srv, TmpKeyName)
 	}()
 
-	cmd := exec.Command(te.binaryPath, "tx", "bank", "send", TmpKeyName, recipientAddress, amount, "--from",
+	cmd := te.srv.RunCmd([]string{}, "tx", "bank", "send", TmpKeyName, recipientAddress, amount, "--from",
 		TmpKeyName, "--chain-id", chainId, "--gas", "auto", "--gas-adjustment", DefaultGasAdjustment,
 		"--gas-prices", gasPrices, "--node", rpc, "--output", "json", "--keyring-backend", "test", "-y")
 
@@ -155,7 +156,7 @@ func (te *InitiadTxExecutor) waitForTransactionInclusion(rpcURL, txHash string) 
 			return fmt.Errorf("transaction not included in block within timeout")
 		case <-ticker.C:
 			// Query transaction status
-			statusCmd := exec.Command(te.binaryPath, "query", "tx", txHash, "--node", rpcURL, "--output", "json")
+			statusCmd := te.srv.RunCmd([]string{}, "query", "tx", txHash, "--node", rpcURL, "--output", "json")
 			statusRes, err := statusCmd.CombinedOutput()
 			// If the transaction is not included in a block yet, just continue polling
 			if err != nil {

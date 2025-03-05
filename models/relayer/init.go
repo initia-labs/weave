@@ -62,7 +62,32 @@ const (
 
 var Local RollupSelectOption = "Local Rollup"
 
+// InitializeRelayerService creates a new service instance and stores it in the context
+func InitializeRelayerService(ctx context.Context) (context.Context, error) {
+	// Check if service already exists in context
+	_, err := weavecontext.GetService(ctx)
+	if err == nil {
+		// Service already exists
+		return ctx, nil
+	}
+
+	// Create a new service
+	srv, err := service.NewService(service.Relayer)
+	if err != nil {
+		return ctx, fmt.Errorf("failed to initialize service: %v", err)
+	}
+
+	// Store the service in context for future use
+	return weavecontext.SetService(ctx, srv), nil
+}
+
 func NewRollupSelect(ctx context.Context) (*RollupSelect, error) {
+	// Initialize service early
+	ctx, err := InitializeRelayerService(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	options := make([]RollupSelectOption, 0)
 	tooltips := make([]ui.Tooltip, 0)
 	minitiaConfigPath, err := weavecontext.GetMinitiaArtifactsConfigJson(ctx)
@@ -1280,7 +1305,14 @@ func broadcastDefaultPresetFromGasStation(ctx context.Context) tea.Cmd {
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: err}
 		}
-		cliTx, err := cosmosutils.NewInitiadTxExecutor(l1ActiveLcd)
+
+		// Get the service from context
+		srv, err := weavecontext.GetService(ctx)
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get service from context: %v", err)}
+		}
+
+		cliTx, err := cosmosutils.NewInitiadTxExecutor(srv, l1ActiveLcd)
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: err}
 		}
@@ -2613,9 +2645,17 @@ func WaitSettingUpRelayer(ctx context.Context) tea.Cmd {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to create hermes config: %v", err)}
 		}
 
-		srv, err := service.NewService(service.Relayer)
+		// Try to get existing service from context
+		srv, err := weavecontext.GetService(ctx)
 		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to initialize service: %v", err)}
+			// Create a new service if not found
+			srv, err = service.NewService(service.Relayer)
+			if err != nil {
+				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to initialize service: %v", err)}
+			}
+
+			// Store the service in context
+			ctx = weavecontext.SetService(ctx, srv)
 		}
 
 		if err = srv.Create("", filepath.Join(userHome, common.HermesHome)); err != nil {

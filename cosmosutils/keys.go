@@ -51,14 +51,14 @@ func AddOrReplace(srv service.Service, keyname string) (string, error) {
 	return string(outputBytes), nil
 }
 
-func DeleteKey(appName, keyname string) error {
-	cmd := exec.Command(appName, "keys", "delete", keyname, "--keyring-backend", "test", "-y")
+func DeleteKey(srv service.Service, keyname string) error {
+	cmd := srv.RunCmd([]string{}, "keys", "delete", keyname, "--keyring-backend", "test", "-y")
 	return cmd.Run()
 }
 
 // KeyExists checks if a key with the given keyName exists using `initiad keys show`
-func KeyExists(appName, keyname string) bool {
-	cmd := exec.Command(appName, "keys", "show", keyname, "--keyring-backend", "test")
+func KeyExists(srv service.Service, keyname string) bool {
+	cmd := srv.RunCmd([]string{}, "keys", "show", keyname, "--keyring-backend", "test")
 	// Run the command and capture the output or error
 	err := cmd.Run()
 	return err == nil
@@ -66,9 +66,9 @@ func KeyExists(appName, keyname string) bool {
 
 // RecoverKeyFromMnemonic recovers or replaces a key using a mnemonic phrase
 // If the key already exists, it will replace the key and confirm with 'y' before adding the mnemonic
-func RecoverKeyFromMnemonic(appName, keyname, mnemonic string) (string, error) {
+func RecoverKeyFromMnemonic(srv service.Service, keyname, mnemonic string) (string, error) {
 	// Check if the key already exists
-	exists := KeyExists(appName, keyname)
+	exists := KeyExists(srv, keyname)
 
 	var inputBuffer bytes.Buffer
 	if exists {
@@ -80,7 +80,7 @@ func RecoverKeyFromMnemonic(appName, keyname, mnemonic string) (string, error) {
 	inputBuffer.WriteString(mnemonic + "\n")
 
 	// Command to recover (or replace) the key: initiad keys add <keyname> --recover --keyring-backend test
-	cmd := exec.Command(appName, "keys", "add", keyname, "--recover", "--keyring-backend", "test", "--output", "json")
+	cmd := srv.RunCmd([]string{}, "keys", "add", keyname, "--recover", "--keyring-backend", "test", "--output", "json")
 
 	// Pass the combined confirmation and mnemonic as input to the command
 	cmd.Stdin = &inputBuffer
@@ -95,24 +95,24 @@ func RecoverKeyFromMnemonic(appName, keyname, mnemonic string) (string, error) {
 	return string(outputBytes), nil
 }
 
-func GenerateNewKeyInfo(srv service.Service, appName, keyname string) (KeyInfo, error) {
-	rawKey, err := AddOrReplace(srv, appName, keyname)
+func GenerateNewKeyInfo(srv service.Service, keyname string) (KeyInfo, error) {
+	rawKey, err := AddOrReplace(srv, keyname)
 	if err != nil {
 		return KeyInfo{}, err
 	}
-	if err = DeleteKey(appName, keyname); err != nil {
+	if err = DeleteKey(srv, keyname); err != nil {
 		return KeyInfo{}, err
 	}
 	return UnmarshalKeyInfo(rawKey)
 }
 
-func GetAddressFromMnemonic(appName, mnemonic string) (string, error) {
+func GetAddressFromMnemonic(srv service.Service, mnemonic string) (string, error) {
 	keyname := "weave.DummyKey"
-	rawKey, err := RecoverKeyFromMnemonic(appName, keyname, mnemonic)
+	rawKey, err := RecoverKeyFromMnemonic(srv, keyname, mnemonic)
 	if err != nil {
 		return "", err
 	}
-	if err := DeleteKey(appName, keyname); err != nil {
+	if err := DeleteKey(srv, keyname); err != nil {
 		return "", err
 	}
 	key, err := UnmarshalKeyInfo(rawKey)

@@ -3,6 +3,7 @@ package minitia
 import (
 	"fmt"
 
+	"github.com/initia-labs/weave/service"
 	"github.com/initia-labs/weave/types"
 )
 
@@ -56,8 +57,8 @@ type LaunchState struct {
 	preL1BalancesResponsesCount      int
 	preL2BalancesResponsesCount      int
 
-	binaryPath         string
-	celestiaBinaryPath string
+	binaryPath      string
+	celestiaService service.Service
 
 	launchFromExistingConfig bool
 	existingConfigPath       string

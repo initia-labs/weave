@@ -15,20 +15,25 @@ import (
 	"github.com/initia-labs/weave/cosmosutils"
 	"github.com/initia-labs/weave/io"
 	"github.com/initia-labs/weave/registry"
+	"github.com/initia-labs/weave/service"
 	"github.com/initia-labs/weave/types"
 )
 
 var ErrInsufficientBalance = errors.New("insufficient balance")
 
 type L1SystemKeys struct {
+	srv             service.Service
+	celestiaService service.Service
 	BridgeExecutor  *types.GenesisAccount
 	OutputSubmitter *types.GenesisAccount
 	BatchSubmitter  *types.GenesisAccount
 	Challenger      *types.GenesisAccount
 }
 
-func NewL1SystemKeys(bridgeExecutor, outputSubmitter, batchSubmitter, challenger *types.GenesisAccount) *L1SystemKeys {
+func NewL1SystemKeys(srv service.Service, celestiaService service.Service, bridgeExecutor, outputSubmitter, batchSubmitter, challenger *types.GenesisAccount) *L1SystemKeys {
 	return &L1SystemKeys{
+		srv:             srv,
+		celestiaService: celestiaService,
 		BridgeExecutor:  bridgeExecutor,
 		OutputSubmitter: outputSubmitter,
 		BatchSubmitter:  batchSubmitter,
@@ -49,12 +54,12 @@ func (lsk *L1SystemKeys) FundAccountsWithGasStation(state *LaunchState) (*FundAc
 		return nil, fmt.Errorf("failed to get gas station key: %v", err)
 	}
 
-	_, err = cosmosutils.RecoverKeyFromMnemonic(state.binaryPath, common.WeaveGasStationKeyName, gasStationKey.Mnemonic)
+	_, err = cosmosutils.RecoverKeyFromMnemonic(lsk.srv, common.WeaveGasStationKeyName, gasStationKey.Mnemonic)
 	if err != nil {
 		return nil, fmt.Errorf("failed to recover gas station key: %v", err)
 	}
 	defer func() {
-		_ = cosmosutils.DeleteKey(state.binaryPath, common.WeaveGasStationKeyName)
+		_ = cosmosutils.DeleteKey(lsk.srv, common.WeaveGasStationKeyName)
 	}()
 
 	var rawTxContent string
@@ -69,12 +74,12 @@ func (lsk *L1SystemKeys) FundAccountsWithGasStation(state *LaunchState) (*FundAc
 			lsk.Challenger.Address,
 			lsk.Challenger.Coins,
 		)
-		_, err = cosmosutils.RecoverKeyFromMnemonic(state.celestiaBinaryPath, common.WeaveGasStationKeyName, gasStationKey.Mnemonic)
+		_, err = cosmosutils.RecoverKeyFromMnemonic(lsk.srv, common.WeaveGasStationKeyName, gasStationKey.Mnemonic)
 		if err != nil {
 			return nil, fmt.Errorf("failed to recover celestia gas station key: %v", err)
 		}
 		defer func() {
-			_ = cosmosutils.DeleteKey(state.celestiaBinaryPath, common.WeaveGasStationKeyName)
+			_ = cosmosutils.DeleteKey(lsk.srv, common.WeaveGasStationKeyName)
 		}()
 
 		// TODO: Choose DA layer based on the chosen L1 network
@@ -94,7 +99,7 @@ func (lsk *L1SystemKeys) FundAccountsWithGasStation(state *LaunchState) (*FundAc
 		//}
 
 		celestiaChainId := celestiaRegistry.GetChainId()
-		sendCmd := exec.Command(state.celestiaBinaryPath, "tx", "bank", "send", common.WeaveGasStationKeyName,
+		sendCmd := lsk.celestiaService.RunCmd([]string{"tx", "bank", "send"}, common.WeaveGasStationKeyName,
 			lsk.BatchSubmitter.Address, fmt.Sprintf("%sutia", lsk.BatchSubmitter.Coins), "--node", celestiaRpc,
 			"--chain-id", celestiaChainId, "--gas", "200000", "--gas-prices", "0.1utia", "--output", "json", "-y",
 		)

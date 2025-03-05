@@ -48,7 +48,7 @@ func (d *Docker) Create(appHome string, customDockerImage string) error {
 }
 
 func (d *Docker) buildArgs(detach bool, options []string, args []string) []string {
-	imageName := config.GetCommandImageURL(d.command.Name)
+	imageURL := config.GetCommandImageURL(d.command.Name)
 	appHome := config.GetCommandHome(d.command.Name)
 
 	dockerArgs := []string{"run"}
@@ -71,10 +71,14 @@ func (d *Docker) buildArgs(detach bool, options []string, args []string) []strin
 
 	dockerArgs = append(dockerArgs, options...)
 
-	// Add the image name
-	dockerArgs = append(dockerArgs, imageName)
+	// Add image url
+	dockerArgs = append(dockerArgs, imageURL)
 
-	// Add the start command
+	if !d.command.IsEntrypointImage {
+		dockerArgs = append(dockerArgs, d.command.BinaryName)
+	}
+
+	// Add command args
 	dockerArgs = append(dockerArgs, args...)
 
 	return dockerArgs

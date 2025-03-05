@@ -6,12 +6,14 @@ import (
 )
 
 type Command struct {
-	Name             string
-	DefaultImageURL  string
-	StartCommandArgs []string
-	StartPortArgs    []string
-	StartEnvArgs     []string
-	InitCommand      string
+	Name              string
+	DefaultImageURL   string
+	BinaryName        string
+	StartCommandArgs  []string
+	StartPortArgs     []string
+	StartEnvArgs      []string
+	InitCommand       string
+	IsEntrypointImage bool
 }
 
 const (
@@ -20,7 +22,7 @@ const (
 
 var (
 	COSMOVISOR_DOCKER_IMAGE_URL = "ghcr.io/initia-labs/cosmovisor:v1.1.1"
-	OPINIT_DOCKER_IMAGE_URL     = "ghcr.io/initia-labs/opinitd:v0.1.14-2"
+	OPINIT_DOCKER_IMAGE_URL     = "ghcr.io/initia-labs/opinitd:v0.1.16"
 	HERMES_DOCKER_IMAGE_URL     = "ghcr.io/initia-labs/hermes:v1.1.1"
 )
 
@@ -46,7 +48,8 @@ var (
 			"-e", "DAEMON_ALLOW_DOWNLOAD_BINARIES=true",
 			"-e", "DAEMON_RESTART_AFTER_UPGRADE=true",
 		},
-		InitCommand: "initia init",
+		IsEntrypointImage: true,
+		InitCommand:       "initia init",
 	}
 	NonUpgradableInitia Command = Command{
 		Name:             "initia",
@@ -58,11 +61,13 @@ var (
 			"-p", "1317:1317",
 			"-p", "9090:9090",
 		},
-		InitCommand: "initia init",
+		IsEntrypointImage: true,
+		InitCommand:       "initia init",
 	}
 	Rollup Command = Command{
-		Name:             "rollup",
-		DefaultImageURL:  "",
+		Name:            "rollup",
+		DefaultImageURL: "",
+		// minitiad Dockerfile doesn't use entrypoint, so we need to start it with the minitiad binary
 		StartCommandArgs: []string{"start", "--home", "/app/data"},
 		StartPortArgs: []string{
 			"-p", "26656:26656",
@@ -72,7 +77,18 @@ var (
 			"-p", "8545:8545", // JSON-RPC
 			"-p", "8546:8546", // JSON-RPC-WS
 		},
-		InitCommand: "rollup launch",
+		BinaryName:        "minitiad",
+		IsEntrypointImage: false,
+		InitCommand:       "rollup launch",
+	}
+	Celestia Command = Command{
+		Name:             "celestia",
+		DefaultImageURL:  "",
+		StartCommandArgs: []string{"start"},
+		StartPortArgs: []string{
+			"-p", "26656:26656",
+		},
+		IsEntrypointImage: true,
 	}
 	OPinitExecutor Command = Command{
 		Name:             "executor",
@@ -81,7 +97,8 @@ var (
 		StartPortArgs: []string{
 			"-p", "3000:3000",
 		},
-		InitCommand: "opinit init",
+		IsEntrypointImage: true,
+		InitCommand:       "opinit init",
 	}
 	OPinitChallenger Command = Command{
 		Name:             "challenger",
@@ -90,7 +107,8 @@ var (
 		StartPortArgs: []string{
 			"-p", "3001:3001",
 		},
-		InitCommand: "opinit init",
+		IsEntrypointImage: true,
+		InitCommand:       "opinit init",
 	}
 	Relayer Command = Command{
 		Name:             "relayer",
@@ -100,6 +118,7 @@ var (
 			"-p", "7010:7010",
 			"-p", "7011:7011",
 		},
-		InitCommand: "relayer init",
+		IsEntrypointImage: true,
+		InitCommand:       "relayer init",
 	}
 )

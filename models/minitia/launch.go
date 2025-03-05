@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 	"time"
 
@@ -2215,74 +2214,80 @@ func NewDownloadCelestiaBinaryLoading(ctx context.Context) (*DownloadCelestiaBin
 		return nil, fmt.Errorf("failed to get node version")
 	}
 	version := applicationVersion["version"].(string)
-	goos := runtime.GOOS
-	goarch := runtime.GOARCH
-	binaryUrl, err := getCelestiaBinaryURL(version, goos, goarch)
+	dockerURL, err := getCelestiaDockerImage(version)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get celestia binary url: %v", err)
 	}
+
+	srv, err := service.NewService(service.Celestia)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get celestia service: %v", err)
+	}
+
+	ctx = weavecontext.SetService(ctx, srv)
 	return &DownloadCelestiaBinaryLoading{
-		Loading:   ui.NewLoading(fmt.Sprintf("Downloading Celestia binary <%s>", version), downloadCelestiaApp(ctx, version, binaryUrl)),
+		Loading:   ui.NewLoading(fmt.Sprintf("Downloading Celestia binary <%s>", version), downloadCelestiaApp(ctx, version, dockerURL)),
 		BaseModel: weavecontext.BaseModel{Ctx: ctx, CannotBack: true},
 	}, nil
 }
 
-func getCelestiaBinaryURL(version, os, arch string) (string, error) {
-	switch os {
-	case "darwin":
-		switch arch {
-		case "amd64":
-			return fmt.Sprintf("https://github.com/celestiaorg/celestia-app/releases/download/v%s/celestia-app_Darwin_x86_64.tar.gz", version), nil
-		case "arm64":
-			return fmt.Sprintf("https://github.com/celestiaorg/celestia-app/releases/download/v%s/celestia-app_Darwin_arm64.tar.gz", version), nil
-		}
-	case "linux":
-		switch arch {
-		case "amd64":
-			return fmt.Sprintf("https://github.com/celestiaorg/celestia-app/releases/download/v%s/celestia-app_Linux_x86_64.tar.gz", version), nil
-		case "arm64":
-			return fmt.Sprintf("https://github.com/celestiaorg/celestia-app/releases/download/v%s/celestia-app_Linux_arm64.tar.gz", version), nil
-		}
-	}
-	return "", fmt.Errorf("unsupported OS or architecture: %v %v", os, arch)
+func getCelestiaDockerImage(version string) (string, error) {
+	return fmt.Sprintf("ghcr.io/celestiaorg/celestia-app:%s", version), nil
 }
 
 func (m *DownloadCelestiaBinaryLoading) Init() tea.Cmd {
 	return m.Loading.Init()
 }
 
-func downloadCelestiaApp(ctx context.Context, version, binaryUrl string) tea.Cmd {
+func downloadCelestiaApp(ctx context.Context, version, dockerURL string) tea.Cmd {
 	return func() tea.Msg {
 		state := weavecontext.GetCurrentState[LaunchState](ctx)
-		userHome, err := os.UserHomeDir()
+
+		minitiaHome, err := weavecontext.GetMinitiaHome(ctx)
 		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get user home directory: %v", err)}
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get minitia home: %v", err)}
 		}
-		weaveDataPath := filepath.Join(userHome, common.WeaveDataDirectory)
-		tarballPath := filepath.Join(weaveDataPath, "celestia.tar.gz")
-		extractedPath := filepath.Join(weaveDataPath, fmt.Sprintf("celestia@%s", version))
-		binaryPath := filepath.Join(extractedPath, CelestiaAppName)
-		state.celestiaBinaryPath = binaryPath
 
-		if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
-			if _, err := os.Stat(extractedPath); os.IsNotExist(err) {
-				err := os.MkdirAll(extractedPath, os.ModePerm)
-				if err != nil {
-					return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to create weave data directory: %v", err)}
-				}
-			}
-
-			if err = io.DownloadAndExtractTarGz(binaryUrl, tarballPath, extractedPath); err != nil {
-				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to download and extract binary: %v", err)}
-			}
-
-			err = os.Chmod(binaryPath, 0755)
-			if err != nil {
-				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to set permissions for binary: %v", err)}
-			}
-
-			state.downloadedNewCelestiaBinary = true
+		srv, err := weavecontext.GetService(ctx)
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get celestia service: %v", err)}
 		}
+
+		if err = srv.Create(minitiaHome, dockerURL); err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to create celestia service: %v", err)}
+		}
+
+		_ = srv.PruneLogs()
+
+		// userHome, err := os.UserHomeDir()
+		// if err != nil {
+		// 	return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get user home directory: %v", err)}
+		// }
+		// weaveDataPath := filepath.Join(userHome, common.WeaveDataDirectory)
+		// tarballPath := filepath.Join(weaveDataPath, "celestia.tar.gz")
+		// extractedPath := filepath.Join(weaveDataPath, fmt.Sprintf("celestia@%s", version))
+		// binaryPath := filepath.Join(extractedPath, CelestiaAppName)
+		// state.celestiaBinaryPath = binaryPath
+
+		// if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
+		// 	if _, err := os.Stat(extractedPath); os.IsNotExist(err) {
+		// 		err := os.MkdirAll(extractedPath, os.ModePerm)
+		// 		if err != nil {
+		// 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to create weave data directory: %v", err)}
+		// 		}
+		// 	}
+
+		// 	if err = io.DownloadAndExtractTarGz(binaryUrl, tarballPath, extractedPath); err != nil {
+		// 		return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to download and extract binary: %v", err)}
+		// 	}
+
+		// 	err = os.Chmod(binaryPath, 0755)
+		// 	if err != nil {
+		// 		return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to set permissions for binary: %v", err)}
+		// 	}
+
+		// 	state.downloadedNewCelestiaBinary = true
+		// }
 
 		return ui.EndLoading{
 			Ctx: weavecontext.SetCurrentState(ctx, state),
@@ -2344,37 +2349,46 @@ func (m *GenerateOrRecoverSystemKeysLoading) Init() tea.Cmd {
 func generateOrRecoverSystemKeys(ctx context.Context) tea.Cmd {
 	return func() tea.Msg {
 		state := weavecontext.GetCurrentState[LaunchState](ctx)
+		srv, err := weavecontext.GetService(ctx)
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get service: %v", err)}
+		}
 		if state.generateKeys {
-			operatorKey, err := cosmosutils.GenerateNewKeyInfo(state.binaryPath, OperatorKeyName)
+			operatorKey, err := cosmosutils.GenerateNewKeyInfo(srv, OperatorKeyName)
 			if err != nil {
 				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to generate operator key: %v", err)}
 			}
 			state.systemKeyOperatorMnemonic = operatorKey.Mnemonic
 			state.systemKeyOperatorAddress = operatorKey.Address
 
-			bridgeExecutorKey, err := cosmosutils.GenerateNewKeyInfo(state.binaryPath, BridgeExecutorKeyName)
+			bridgeExecutorKey, err := cosmosutils.GenerateNewKeyInfo(srv, BridgeExecutorKeyName)
 			if err != nil {
 				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to generate bridge executor key: %v", err)}
 			}
 			state.systemKeyBridgeExecutorMnemonic = bridgeExecutorKey.Mnemonic
 			state.systemKeyBridgeExecutorAddress = bridgeExecutorKey.Address
 
-			outputSubmitterKey, err := cosmosutils.GenerateNewKeyInfo(state.binaryPath, OutputSubmitterKeyName)
+			outputSubmitterKey, err := cosmosutils.GenerateNewKeyInfo(srv, OutputSubmitterKeyName)
 			if err != nil {
 				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to generate output submitter key: %v", err)}
 			}
 			state.systemKeyOutputSubmitterMnemonic = outputSubmitterKey.Mnemonic
 			state.systemKeyOutputSubmitterAddress = outputSubmitterKey.Address
 
+			// should be celestia service here
+			celestiaSrv, err := service.NewService(service.Celestia)
+			if err != nil {
+				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get celestia service: %v", err)}
+			}
 			if state.batchSubmissionIsCelestia {
-				batchSubmitterKey, err := cosmosutils.GenerateNewKeyInfo(state.celestiaBinaryPath, BatchSubmitterKeyName)
+				batchSubmitterKey, err := cosmosutils.GenerateNewKeyInfo(celestiaSrv, BatchSubmitterKeyName)
 				if err != nil {
 					return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to generate celestia batch submitter key: %v", err)}
 				}
 				state.systemKeyBatchSubmitterMnemonic = batchSubmitterKey.Mnemonic
 				state.systemKeyBatchSubmitterAddress = batchSubmitterKey.Address
 			} else {
-				batchSubmitterKey, err := cosmosutils.GenerateNewKeyInfo(state.binaryPath, BatchSubmitterKeyName)
+				batchSubmitterKey, err := cosmosutils.GenerateNewKeyInfo(srv, BatchSubmitterKeyName)
 				if err != nil {
 					return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to generate initia batch submitter key: %v", err)}
 				}
@@ -2382,7 +2396,7 @@ func generateOrRecoverSystemKeys(ctx context.Context) tea.Cmd {
 				state.systemKeyBatchSubmitterAddress = batchSubmitterKey.Address
 			}
 
-			challengerKey, err := cosmosutils.GenerateNewKeyInfo(state.binaryPath, ChallengerKeyName)
+			challengerKey, err := cosmosutils.GenerateNewKeyInfo(srv, ChallengerKeyName)
 			if err != nil {
 				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to generate challenger key: %v", err)}
 			}
@@ -2390,30 +2404,30 @@ func generateOrRecoverSystemKeys(ctx context.Context) tea.Cmd {
 			state.systemKeyChallengerAddress = challengerKey.Address
 		} else {
 			var err error
-			state.systemKeyOperatorAddress, err = cosmosutils.GetAddressFromMnemonic(state.binaryPath, state.systemKeyOperatorMnemonic)
+			state.systemKeyOperatorAddress, err = cosmosutils.GetAddressFromMnemonic(srv, state.systemKeyOperatorMnemonic)
 			if err != nil {
 				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to recover key operator address: %v", err)}
 			}
-			state.systemKeyBridgeExecutorAddress, err = cosmosutils.GetAddressFromMnemonic(state.binaryPath, state.systemKeyBridgeExecutorMnemonic)
+			state.systemKeyBridgeExecutorAddress, err = cosmosutils.GetAddressFromMnemonic(srv, state.systemKeyBridgeExecutorMnemonic)
 			if err != nil {
 				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to recover key bridge executor address: %v", err)}
 			}
-			state.systemKeyOutputSubmitterAddress, err = cosmosutils.GetAddressFromMnemonic(state.binaryPath, state.systemKeyOutputSubmitterMnemonic)
+			state.systemKeyOutputSubmitterAddress, err = cosmosutils.GetAddressFromMnemonic(srv, state.systemKeyOutputSubmitterMnemonic)
 			if err != nil {
 				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to recover key output submitter address: %v", err)}
 			}
 			if state.batchSubmissionIsCelestia {
-				state.systemKeyBatchSubmitterAddress, err = cosmosutils.GetAddressFromMnemonic(state.celestiaBinaryPath, state.systemKeyBatchSubmitterMnemonic)
+				state.systemKeyBatchSubmitterAddress, err = cosmosutils.GetAddressFromMnemonic(srv, state.systemKeyBatchSubmitterMnemonic)
 				if err != nil {
 					return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to recover celestia batch submitter address: %v", err)}
 				}
 			} else {
-				state.systemKeyBatchSubmitterAddress, err = cosmosutils.GetAddressFromMnemonic(state.binaryPath, state.systemKeyBatchSubmitterMnemonic)
+				state.systemKeyBatchSubmitterAddress, err = cosmosutils.GetAddressFromMnemonic(srv, state.systemKeyBatchSubmitterMnemonic)
 				if err != nil {
 					return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to recover initia batch submitter address: %v", err)}
 				}
 			}
-			state.systemKeyChallengerAddress, err = cosmosutils.GetAddressFromMnemonic(state.binaryPath, state.systemKeyChallengerMnemonic)
+			state.systemKeyChallengerAddress, err = cosmosutils.GetAddressFromMnemonic(srv, state.systemKeyChallengerMnemonic)
 			if err != nil {
 				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to recover challenger address: %v", err)}
 			}
@@ -2575,7 +2589,12 @@ func (m *FundGasStationConfirmationInput) Update(msg tea.Msg) (tea.Model, tea.Cm
 	input, cmd, done := m.TextInput.Update(msg)
 	if done {
 		state := weavecontext.PushPageAndGetState[LaunchState](m)
+		srv, err := weavecontext.GetService(m.Ctx)
+		if err != nil {
+			return m, m.HandlePanic(err)
+		}
 		systemKeys := NewL1SystemKeys(
+			srv,
 			&types.GenesisAccount{
 				Address: state.systemKeyBridgeExecutorAddress,
 				Coins:   state.systemKeyL1BridgeExecutorBalance,
@@ -2593,7 +2612,7 @@ func (m *FundGasStationConfirmationInput) Update(msg tea.Msg) (tea.Model, tea.Cm
 				Coins:   state.systemKeyL1ChallengerBalance,
 			},
 		)
-		err := systemKeys.VerifyGasStationBalances(&state)
+		err = systemKeys.VerifyGasStationBalances(&state)
 		if err != nil {
 			if errors.Is(err, ErrInsufficientBalance) {
 				m.err = err
@@ -2671,7 +2690,17 @@ func (m *FundGasStationBroadcastLoading) Init() tea.Cmd {
 func broadcastFundingFromGasStation(ctx context.Context) tea.Cmd {
 	return func() tea.Msg {
 		state := weavecontext.GetCurrentState[LaunchState](ctx)
+		srv, err := weavecontext.GetService(ctx)
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get service: %v", err)}
+		}
+		celestiaService, err := weavecontext.GetService(ctx)
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get celestia service: %v", err)}
+		}
 		systemKeys := NewL1SystemKeys(
+			srv,
+			celestiaService,
 			&types.GenesisAccount{
 				Address: state.systemKeyBridgeExecutorAddress,
 				Coins:   state.systemKeyL1BridgeExecutorBalance,
