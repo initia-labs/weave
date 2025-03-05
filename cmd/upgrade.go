@@ -66,6 +66,10 @@ If the specified version does not exist, an error will be shown with a link to t
 			if err != nil {
 				return fmt.Errorf("failed to get latest weave version: %w", err)
 			}
+			isNewer := cosmosutils.CompareSemVer(requestedVersion, Version)
+			if !isNewer {
+				return fmt.Errorf("the specified version is older than the current version: %s", Version)
+			}
 			return handleUpgrade(requestedVersion)
 		},
 	}
