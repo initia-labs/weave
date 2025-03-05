@@ -93,13 +93,53 @@ func ListBinaryReleases(url string) (BinaryVersionWithDownloadURL, error) {
 	return mapReleasesToVersions(releases)
 }
 
+func GetLatestWeaveVersion() (string, string, error) {
+	releases, err := fetchReleases("https://api.github.com/repos/initia-labs/weave/releases")
+	if err != nil {
+		return "", "", err
+	}
+	if len(releases) < 1 {
+		return "", "", fmt.Errorf("no releases found")
+	}
+
+	goos, _, err := getOSArch()
+	if err != nil {
+		return "", "", err
+	}
+
+	searchString := fmt.Sprintf("%s-%s.tar.gz", strings.ToLower(goos), strings.ToLower(runtime.GOARCH))
+	var highestStableRelease *BinaryRelease
+	var downloadURL string
+
+	for _, release := range releases {
+		for _, asset := range release.Assets {
+			if strings.Contains(asset.BrowserDownloadURL, searchString) {
+				if highestStableRelease == nil || CompareSemVer(release.TagName, highestStableRelease.TagName) {
+					highestStableRelease = &release
+					downloadURL = asset.BrowserDownloadURL
+				}
+			}
+		}
+	}
+
+	if highestStableRelease == nil {
+		return "", "", fmt.Errorf("no compatible stable release found for %s", searchString)
+	}
+
+	return highestStableRelease.TagName, downloadURL, nil
+}
+
 func ListWeaveReleases(url string) (BinaryVersionWithDownloadURL, error) {
 	releases, err := fetchReleases(url)
 	if err != nil {
 		return nil, err
 	}
 	versions := make(BinaryVersionWithDownloadURL)
-	searchString := fmt.Sprintf("%s_%s.tar.gz", runtime.GOOS, runtime.GOARCH)
+	goos, _, err := getOSArch()
+	if err != nil {
+		return nil, err
+	}
+	searchString := fmt.Sprintf("%s-%s.tar.gz", strings.ToLower(goos), strings.ToLower(runtime.GOARCH))
 
 	for _, release := range releases {
 		for _, asset := range release.Assets {

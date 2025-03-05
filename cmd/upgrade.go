@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/fynelabs/selfupdate"
@@ -43,26 +44,43 @@ func UpgradeCommand() *cobra.Command {
 
 Examples:
   weave upgrade            Upgrade to the latest release
-  weave upgrade 1.2.3      Upgrade to a specific version (v1.2.3)
-  weave upgrade 1.2        Upgrade to the latest patch version of 1.2
-  weave upgrade 1          Upgrade to the latest minor version of 1.x
+  weave upgrade v1.2.3      Upgrade to a specific version (v1.2.3)
+  weave upgrade v1.2        Upgrade to the latest patch version of v1.2
+  weave upgrade v1          Upgrade to the latest minor version of v1.x
 
 If the specified version does not exist, an error will be shown with a link to the available releases.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			requestedVersion := ""
+			var requestedVersion string
+			var err error
+
 			if len(args) > 0 {
-				requestedVersion = args[0]
+				inputVersion := args[0]
+				availableVersions, err := cosmosutils.ListWeaveReleases(WeaveReleaseAPI)
+				if err != nil {
+					return err
+				}
+
+				requestedVersion = findMatchingVersion(inputVersion, availableVersions)
+				if requestedVersion == "" {
+					return fmt.Errorf("no matching version found for pattern %s. See available versions at %s", inputVersion, WeaveReleaseURL)
+				}
+
 				if requestedVersion == Version {
 					fmt.Printf("ℹ️ The current Weave version matches the specified version.\n\n")
 					return nil
 				}
-				isNewer := cosmosutils.CompareSemVer(requestedVersion, Version)
-				if !isNewer {
-					return fmt.Errorf("the specified version is older than the current version: %s", Version)
+			} else {
+				requestedVersion, _, err = cosmosutils.GetLatestWeaveVersion()
+				if err != nil {
+					return fmt.Errorf("failed to get latest weave version: %w", err)
 				}
 			}
 
+			isNewer := cosmosutils.CompareSemVer(requestedVersion, Version)
+			if !isNewer {
+				return fmt.Errorf("the specified version is older than the current version: %s", Version)
+			}
 			return handleUpgrade(requestedVersion)
 		},
 	}
@@ -79,38 +97,14 @@ func handleUpgrade(requestedVersion string) error {
 		return fmt.Errorf("failed to fetch available Weave versions")
 	}
 
-	sortedVersions := cosmosutils.SortVersions(availableVersions)
-	var targetVersion string
-	if requestedVersion == "" {
-		targetVersion = sortedVersions[0]
-		if targetVersion == Version {
-			fmt.Printf("ℹ️ You are already using the latest version of Weave!\n\n")
-			return nil
-		}
-	} else {
-		targetVersion = findMatchingVersion(requestedVersion, sortedVersions)
-		if targetVersion == "" {
-			return fmt.Errorf("version %s does not exist. See available versions: %s", requestedVersion, WeaveReleaseURL)
-		}
-	}
-
-	fmt.Printf("⚙️ Upgrading to version %s...\n", targetVersion)
-	downloadURL := availableVersions[targetVersion]
+	fmt.Printf("⚙️ Upgrading to version %s...\n", requestedVersion)
+	downloadURL := availableVersions[requestedVersion]
 	if err := downloadAndReplaceBinary(downloadURL); err != nil {
-		return fmt.Errorf("failed to upgrade to version %s: %w", targetVersion, err)
+		return fmt.Errorf("failed to upgrade to version %s: %w", requestedVersion, err)
 	}
 
-	fmt.Printf("✅ Upgrade successful! You are now using %s of Weave.\n\n", targetVersion)
+	fmt.Printf("✅ Upgrade successful! You are now using %s of Weave.\n\n", requestedVersion)
 	return nil
-}
-
-func findMatchingVersion(input string, versions []string) string {
-	for _, version := range versions {
-		if strings.HasPrefix(version, input) {
-			return version
-		}
-	}
-	return ""
 }
 
 func downloadAndReplaceBinary(downloadURL string) error {
@@ -156,4 +150,41 @@ func doReplace(binaryPath string) error {
 	}
 
 	return nil
+}
+
+// findMatchingVersion finds the highest version that matches the given pattern
+func findMatchingVersion(pattern string, versions map[string]string) string {
+	var matchingVersions []string
+	parts := strings.Split(pattern, ".")
+
+	for version := range versions {
+		vParts := strings.Split(version, ".")
+
+		if len(vParts) != 3 {
+			continue
+		}
+
+		matches := true
+		for i := 0; i < len(parts); i++ {
+			if parts[i] != vParts[i] {
+				matches = false
+				break
+			}
+		}
+
+		if matches {
+			matchingVersions = append(matchingVersions, version)
+		}
+	}
+
+	if len(matchingVersions) == 0 {
+		return ""
+	}
+
+	// Sort versions to find the highest matching one
+	sort.Slice(matchingVersions, func(i, j int) bool {
+		return cosmosutils.CompareSemVer(matchingVersions[i], matchingVersions[j])
+	})
+
+	return matchingVersions[0]
 }
