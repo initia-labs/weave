@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/fynelabs/selfupdate"
 	"github.com/spf13/cobra"
@@ -61,8 +60,12 @@ If the specified version does not exist, an error will be shown with a link to t
 				if !isNewer {
 					return fmt.Errorf("the specified version is older than the current version: %s", Version)
 				}
+				return handleUpgrade(requestedVersion)
 			}
-
+			requestedVersion, _, err := cosmosutils.GetLatestWeaveVersion()
+			if err != nil {
+				return fmt.Errorf("failed to get latest weave version: %w", err)
+			}
 			return handleUpgrade(requestedVersion)
 		},
 	}
@@ -79,38 +82,14 @@ func handleUpgrade(requestedVersion string) error {
 		return fmt.Errorf("failed to fetch available Weave versions")
 	}
 
-	sortedVersions := cosmosutils.SortVersions(availableVersions)
-	var targetVersion string
-	if requestedVersion == "" {
-		targetVersion = sortedVersions[0]
-		if targetVersion == Version {
-			fmt.Printf("ℹ️ You are already using the latest version of Weave!\n\n")
-			return nil
-		}
-	} else {
-		targetVersion = findMatchingVersion(requestedVersion, sortedVersions)
-		if targetVersion == "" {
-			return fmt.Errorf("version %s does not exist. See available versions: %s", requestedVersion, WeaveReleaseURL)
-		}
-	}
-
-	fmt.Printf("⚙️ Upgrading to version %s...\n", targetVersion)
-	downloadURL := availableVersions[targetVersion]
+	fmt.Printf("⚙️ Upgrading to version %s...\n", requestedVersion)
+	downloadURL := availableVersions[requestedVersion]
 	if err := downloadAndReplaceBinary(downloadURL); err != nil {
-		return fmt.Errorf("failed to upgrade to version %s: %w", targetVersion, err)
+		return fmt.Errorf("failed to upgrade to version %s: %w", requestedVersion, err)
 	}
 
-	fmt.Printf("✅ Upgrade successful! You are now using %s of Weave.\n\n", targetVersion)
+	fmt.Printf("✅ Upgrade successful! You are now using %s of Weave.\n\n", requestedVersion)
 	return nil
-}
-
-func findMatchingVersion(input string, versions []string) string {
-	for _, version := range versions {
-		if strings.HasPrefix(version, input) {
-			return version
-		}
-	}
-	return ""
 }
 
 func downloadAndReplaceBinary(downloadURL string) error {
