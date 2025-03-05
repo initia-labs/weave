@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -1611,20 +1610,25 @@ func InitializeChallengerWithConfig(config ChallengerConfig, keyFile io.KeyFile,
 }
 
 func ensureOPInitBotsBinary(userHome string) (string, error) {
-	// Define paths
-	binaryPath := GetBinaryPath(userHome)
-	weaveDataPath := filepath.Join(userHome, common.WeaveDataDirectory)
-	tarballPath := filepath.Join(weaveDataPath, "opinitd.tar.gz")
-	goos := runtime.GOOS
-	goarch := runtime.GOARCH
-	extractedPath := filepath.Join(weaveDataPath, fmt.Sprintf("opinitd@%s", OpinitBotBinaryVersion))
+	// Get the latest opinitd version
+	latestVersion, url, err := cosmosutils.GetLatestOPInitBotVersion()
+	if err != nil {
+		return "", fmt.Errorf("failed to get latest opinitd version: %v", err)
+	}
 
+	// Define paths
+	binaryPath := GetBinaryPath(userHome, latestVersion)
 	// Check if the binary already exists
 	if _, err := os.Stat(binaryPath); err == nil {
 		// Binary exists, no need to download
 		return binaryPath, nil
 	}
+
+	weaveDataPath := filepath.Join(userHome, common.WeaveDataDirectory)
+	tarballPath := filepath.Join(weaveDataPath, "opinitd.tar.gz")
+	extractedPath := filepath.Join(weaveDataPath, fmt.Sprintf("opinitd@%s", latestVersion))
 	fmt.Printf("Downloading opinit bot\n")
+
 	// If the binary doesn't exist, proceed to download and extract
 	// Check if the extracted directory exists, if not, create it
 	if _, err := os.Stat(extractedPath); os.IsNotExist(err) {
@@ -1632,12 +1636,6 @@ func ensureOPInitBotsBinary(userHome string) (string, error) {
 		if err != nil {
 			return binaryPath, fmt.Errorf("failed to create weave data directory: %v", err)
 		}
-	}
-
-	// Get the binary download URL
-	url, err := getBinaryURL(OpinitBotBinaryVersion, goos, goarch)
-	if err != nil {
-		return binaryPath, fmt.Errorf("failed to get binary URL: %v", err)
 	}
 
 	// Download and extract the binary

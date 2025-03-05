@@ -1,6 +1,8 @@
 package cosmosutils
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -64,6 +66,141 @@ func TestCompareSemVer(t *testing.T) {
 			if result != tt.expected {
 				t.Errorf("CompareSemVer(%s, %s) = %v, want %v",
 					tt.v1, tt.v2, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestGetLatestVersionFromReleases(t *testing.T) {
+	// Get actual OS and arch
+	currentOS, currentArch, err := getOSArch()
+	if err != nil {
+		t.Fatalf("Failed to get OS/arch: %v", err)
+	}
+
+	tests := []struct {
+		name           string
+		releases       []BinaryRelease
+		expectedTag    string
+		expectedURL    string
+		expectedErrStr string
+	}{
+		{
+			name:           "empty releases",
+			releases:       []BinaryRelease{},
+			expectedErrStr: "no releases found",
+		},
+		{
+			name: "single compatible release",
+			releases: []BinaryRelease{
+				{
+					TagName: "v1.0.0",
+					Assets: []struct {
+						BrowserDownloadURL string `json:"browser_download_url"`
+					}{
+						{BrowserDownloadURL: fmt.Sprintf("example.com/v1.0.0_%s_%s.tar.gz", currentOS, currentArch)},
+					},
+				},
+			},
+			expectedTag: "v1.0.0",
+			expectedURL: fmt.Sprintf("example.com/v1.0.0_%s_%s.tar.gz", currentOS, currentArch),
+		},
+		{
+			name: "multiple releases with different versions",
+			releases: []BinaryRelease{
+				{
+					TagName: "v1.0.0",
+					Assets: []struct {
+						BrowserDownloadURL string `json:"browser_download_url"`
+					}{
+						{BrowserDownloadURL: fmt.Sprintf("example.com/v1.0.0_%s_%s.tar.gz", currentOS, currentArch)},
+					},
+				},
+				{
+					TagName: "v2.0.0",
+					Assets: []struct {
+						BrowserDownloadURL string `json:"browser_download_url"`
+					}{
+						{BrowserDownloadURL: fmt.Sprintf("example.com/v2.0.0_%s_%s.tar.gz", currentOS, currentArch)},
+					},
+				},
+				{
+					TagName: "v1.5.0",
+					Assets: []struct {
+						BrowserDownloadURL string `json:"browser_download_url"`
+					}{
+						{BrowserDownloadURL: fmt.Sprintf("example.com/v1.5.0_%s_%s.tar.gz", currentOS, currentArch)},
+					},
+				},
+			},
+			expectedTag: "v2.0.0",
+			expectedURL: fmt.Sprintf("example.com/v2.0.0_%s_%s.tar.gz", currentOS, currentArch),
+		},
+		{
+			name: "no compatible release for platform",
+			releases: []BinaryRelease{
+				{
+					TagName: "v1.0.0",
+					Assets: []struct {
+						BrowserDownloadURL string `json:"browser_download_url"`
+					}{
+						{BrowserDownloadURL: "example.com/v1.0.0_Windows_x86_64.tar.gz"},
+					},
+				},
+			},
+			expectedErrStr: fmt.Sprintf("no compatible stable release found for %s_%s", currentOS, currentArch),
+		},
+		{
+			name: "mixed compatible and incompatible releases",
+			releases: []BinaryRelease{
+				{
+					TagName: "v1.0.0",
+					Assets: []struct {
+						BrowserDownloadURL string `json:"browser_download_url"`
+					}{
+						{BrowserDownloadURL: "example.com/v1.0.0_Windows_x86_64.tar.gz"},
+					},
+				},
+				{
+					TagName: "v2.0.0",
+					Assets: []struct {
+						BrowserDownloadURL string `json:"browser_download_url"`
+					}{
+						{BrowserDownloadURL: fmt.Sprintf("example.com/v2.0.0_%s_%s.tar.gz", currentOS, currentArch)},
+					},
+				},
+			},
+			expectedTag: "v2.0.0",
+			expectedURL: fmt.Sprintf("example.com/v2.0.0_%s_%s.tar.gz", currentOS, currentArch),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tag, url, err := getLatestVersionFromReleases(tt.releases)
+
+			if tt.expectedErrStr != "" {
+				if err == nil {
+					t.Errorf("expected error containing %q, got nil", tt.expectedErrStr)
+					return
+				}
+				if !strings.Contains(err.Error(), tt.expectedErrStr) {
+					t.Errorf("expected error containing %q, got %q", tt.expectedErrStr, err.Error())
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+
+			if tag != tt.expectedTag {
+				t.Errorf("expected tag %q, got %q", tt.expectedTag, tag)
+			}
+
+			if url != tt.expectedURL {
+				t.Errorf("expected URL %q, got %q", tt.expectedURL, url)
 			}
 		})
 	}
