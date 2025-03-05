@@ -112,13 +112,7 @@ func ListWeaveReleases(url string) (BinaryVersionWithDownloadURL, error) {
 	return versions, nil
 }
 
-func GetLatestMinitiaVersion(vm string) (string, string, error) {
-	url := fmt.Sprintf("https://api.github.com/repos/initia-labs/mini%s/releases", vm)
-	releases, err := fetchReleases(url)
-	if err != nil {
-		return "", "", err
-	}
-
+func getLatestVersionFromReleases(releases []BinaryRelease) (string, string, error) {
 	if len(releases) < 1 {
 		return "", "", fmt.Errorf("no releases found")
 	}
@@ -148,6 +142,23 @@ func GetLatestMinitiaVersion(vm string) (string, string, error) {
 	}
 
 	return highestStableRelease.TagName, downloadURL, nil
+}
+
+func GetLatestMinitiaVersion(vm string) (string, string, error) {
+	url := fmt.Sprintf("https://api.github.com/repos/initia-labs/mini%s/releases", vm)
+	releases, err := fetchReleases(url)
+	if err != nil {
+		return "", "", err
+	}
+	return getLatestVersionFromReleases(releases)
+}
+
+func GetLatestOPInitBotVersion() (string, string, error) {
+	releases, err := fetchReleases("https://api.github.com/repos/initia-labs/opinit-bots/releases")
+	if err != nil {
+		return "", "", err
+	}
+	return getLatestVersionFromReleases(releases)
 }
 
 // SortVersions sorts the versions based on semantic versioning, including pre-release handling

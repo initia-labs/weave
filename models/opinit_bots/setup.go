@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -587,28 +586,8 @@ func (m *DALayerSelector) View() string {
 	return m.WrapView(state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{"DA Layer"}, styles.Question) + m.Selector.View())
 }
 
-func getBinaryURL(version, os, arch string) (string, error) {
-	switch os {
-	case "darwin":
-		switch arch {
-		case "amd64":
-			return fmt.Sprintf("https://github.com/initia-labs/opinit-bots/releases/download/%s/opinitd_%s_Darwin_x86_64.tar.gz", version, version), nil
-		case "arm64":
-			return fmt.Sprintf("https://github.com/initia-labs/opinit-bots/releases/download/%s/opinitd_%s_Darwin_aarch64.tar.gz", version, version), nil
-		}
-	case "linux":
-		switch arch {
-		case "amd64":
-			return fmt.Sprintf("https://github.com/initia-labs/opinit-bots/releases/download/%s/opinitd_%s_Linux_x86_64.tar.gz", version, version), nil
-		case "arm64":
-			return fmt.Sprintf("https://github.com/initia-labs/opinit-bots/releases/download/%s/opinitd_%s_Linux_aarch64.tar.gz", version, version), nil
-		}
-	}
-	return "", fmt.Errorf("unsupported OS or architecture: %v %v", os, arch)
-}
-
-func GetBinaryPath(userHome string) string {
-	return filepath.Join(userHome, common.WeaveDataDirectory, fmt.Sprintf("opinitd@%s", OpinitBotBinaryVersion), AppName)
+func GetBinaryPath(userHome, version string) string {
+	return filepath.Join(userHome, common.WeaveDataDirectory, fmt.Sprintf("opinitd@%s", version), AppName)
 }
 
 func EnsureOPInitBotsBinary(ctx context.Context) tea.Cmd {
@@ -618,7 +597,12 @@ func EnsureOPInitBotsBinary(ctx context.Context) tea.Cmd {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get user home directory: %v", err)}
 		}
 
-		binaryPath := GetBinaryPath(userHome)
+		version, url, err := cosmosutils.GetLatestOPInitBotVersion()
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get latest opinitd version: %v", err)}
+		}
+
+		binaryPath := GetBinaryPath(userHome, version)
 		_, err = cosmosutils.GetBinaryVersion(binaryPath)
 		if err == nil {
 			return ui.EndLoading{
@@ -629,14 +613,7 @@ func EnsureOPInitBotsBinary(ctx context.Context) tea.Cmd {
 		weaveDataPath := filepath.Join(userHome, common.WeaveDataDirectory)
 		tarballPath := filepath.Join(weaveDataPath, "opinitd.tar.gz")
 
-		goos := runtime.GOOS
-		goarch := runtime.GOARCH
-		url, err := getBinaryURL(OpinitBotBinaryVersion, goos, goarch)
-		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get binary url: %v", err)}
-		}
-
-		extractedPath := filepath.Join(weaveDataPath, fmt.Sprintf("opinitd@%s", OpinitBotBinaryVersion))
+		extractedPath := filepath.Join(weaveDataPath, fmt.Sprintf("opinitd@%s", version))
 
 		if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
 

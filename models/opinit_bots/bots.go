@@ -8,10 +8,7 @@ import (
 	"strings"
 
 	"github.com/initia-labs/weave/common"
-)
-
-const (
-	OpinitBotBinaryVersion = "v0.1.16"
+	"github.com/initia-labs/weave/cosmosutils"
 )
 
 // BotName defines a custom type for the bot names
@@ -124,7 +121,11 @@ func CheckIfKeysExist(botInfos []BotInfo) ([]BotInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not get user home dir: %v", err)
 	}
-	binaryPath := filepath.Join(userHome, common.WeaveDataDirectory, fmt.Sprintf("opinitd@%s", OpinitBotBinaryVersion), AppName)
+	version, _, err := cosmosutils.GetLatestOPInitBotVersion()
+	if err != nil {
+		return nil, fmt.Errorf("could not get latest opinitd version: %v", err)
+	}
+	binaryPath := filepath.Join(userHome, common.WeaveDataDirectory, fmt.Sprintf("opinitd@%s", version), AppName)
 	cmd := exec.Command(binaryPath, "keys", "list", "weave-dummy")
 	outputBytes, err := cmd.Output()
 	if err != nil {
