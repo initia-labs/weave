@@ -68,7 +68,7 @@ var (
 		Name:            "rollup",
 		DefaultImageURL: "",
 		// minitiad Dockerfile doesn't use entrypoint, so we need to start it with the minitiad binary
-		StartCommandArgs: []string{"start", "--home", "/app/data"},
+		StartCommandArgs: []string{"start"},
 		StartPortArgs: []string{
 			"-p", "26656:26656",
 			"-p", "26657:26657",
@@ -93,7 +93,7 @@ var (
 	OPinitExecutor Command = Command{
 		Name:             "executor",
 		DefaultImageURL:  OPINIT_DOCKER_IMAGE_URL,
-		StartCommandArgs: []string{"start", "executor", "--home", "/app/data"},
+		StartCommandArgs: []string{"start", "executor"},
 		StartPortArgs: []string{
 			"-p", "3000:3000",
 		},
@@ -103,7 +103,7 @@ var (
 	OPinitChallenger Command = Command{
 		Name:             "challenger",
 		DefaultImageURL:  OPINIT_DOCKER_IMAGE_URL,
-		StartCommandArgs: []string{"start", "challenger", "--home", "/app/data"},
+		StartCommandArgs: []string{"start", "challenger"},
 		StartPortArgs: []string{
 			"-p", "3001:3001",
 		},

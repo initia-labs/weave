@@ -81,6 +81,8 @@ func (d *Docker) buildArgs(detach bool, options []string, args []string) []strin
 	// Add command args
 	dockerArgs = append(dockerArgs, args...)
 
+	dockerArgs = append(dockerArgs, "--home", "/app/data")
+
 	return dockerArgs
 }
 

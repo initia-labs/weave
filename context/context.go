@@ -10,12 +10,13 @@ import (
 type Key string
 
 const (
-	PageKey          Key = "currentPage"
-	StateKey         Key = "currentState"
-	ServiceKey       Key = "service"
-	PageStackKey     Key = "pageStack"
-	TooltipToggleKey Key = "tooltipToggle"
-	WindowWidth      Key = "windowWidth"
+	PageKey            Key = "currentPage"
+	StateKey           Key = "currentState"
+	ServiceKey         Key = "service"
+	CelestiaServiceKey Key = "celestiaService"
+	PageStackKey       Key = "pageStack"
+	TooltipToggleKey   Key = "tooltipToggle"
+	WindowWidth        Key = "windowWidth"
 
 	InitiaHomeKey  Key = "initiaHome"
 	MinitiaHomeKey Key = "minitiaHome"
@@ -26,6 +27,8 @@ var (
 	ExistingContextKey = []Key{
 		PageKey,
 		StateKey,
+		ServiceKey,
+		CelestiaServiceKey,
 		PageStackKey,
 		TooltipToggleKey,
 		InitiaHomeKey,

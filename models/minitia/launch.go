@@ -2219,12 +2219,6 @@ func NewDownloadCelestiaBinaryLoading(ctx context.Context) (*DownloadCelestiaBin
 		return nil, fmt.Errorf("failed to get celestia binary url: %v", err)
 	}
 
-	srv, err := service.NewService(service.Celestia)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get celestia service: %v", err)
-	}
-
-	ctx = weavecontext.SetService(ctx, srv)
 	return &DownloadCelestiaBinaryLoading{
 		Loading:   ui.NewLoading(fmt.Sprintf("Downloading Celestia binary <%s>", version), downloadCelestiaApp(ctx, version, dockerURL)),
 		BaseModel: weavecontext.BaseModel{Ctx: ctx, CannotBack: true},
@@ -2232,7 +2226,7 @@ func NewDownloadCelestiaBinaryLoading(ctx context.Context) (*DownloadCelestiaBin
 }
 
 func getCelestiaDockerImage(version string) (string, error) {
-	return fmt.Sprintf("ghcr.io/celestiaorg/celestia-app:%s", version), nil
+	return fmt.Sprintf("ghcr.io/celestiaorg/celestia-app:v%s", version), nil
 }
 
 func (m *DownloadCelestiaBinaryLoading) Init() tea.Cmd {
@@ -2248,10 +2242,12 @@ func downloadCelestiaApp(ctx context.Context, version, dockerURL string) tea.Cmd
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get minitia home: %v", err)}
 		}
 
-		srv, err := weavecontext.GetService(ctx)
+		srv, err := service.NewService(service.Celestia)
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get celestia service: %v", err)}
 		}
+
+		state.celestiaService = srv
 
 		if err = srv.Create(minitiaHome, dockerURL); err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to create celestia service: %v", err)}
@@ -2375,13 +2371,8 @@ func generateOrRecoverSystemKeys(ctx context.Context) tea.Cmd {
 			state.systemKeyOutputSubmitterMnemonic = outputSubmitterKey.Mnemonic
 			state.systemKeyOutputSubmitterAddress = outputSubmitterKey.Address
 
-			// should be celestia service here
-			celestiaSrv, err := service.NewService(service.Celestia)
-			if err != nil {
-				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get celestia service: %v", err)}
-			}
 			if state.batchSubmissionIsCelestia {
-				batchSubmitterKey, err := cosmosutils.GenerateNewKeyInfo(celestiaSrv, BatchSubmitterKeyName)
+				batchSubmitterKey, err := cosmosutils.GenerateNewKeyInfo(state.celestiaService, BatchSubmitterKeyName)
 				if err != nil {
 					return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to generate celestia batch submitter key: %v", err)}
 				}
@@ -2595,6 +2586,7 @@ func (m *FundGasStationConfirmationInput) Update(msg tea.Msg) (tea.Model, tea.Cm
 		}
 		systemKeys := NewL1SystemKeys(
 			srv,
+			state.celestiaService,
 			&types.GenesisAccount{
 				Address: state.systemKeyBridgeExecutorAddress,
 				Coins:   state.systemKeyL1BridgeExecutorBalance,
@@ -2694,13 +2686,9 @@ func broadcastFundingFromGasStation(ctx context.Context) tea.Cmd {
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get service: %v", err)}
 		}
-		celestiaService, err := weavecontext.GetService(ctx)
-		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get celestia service: %v", err)}
-		}
 		systemKeys := NewL1SystemKeys(
 			srv,
-			celestiaService,
+			state.celestiaService,
 			&types.GenesisAccount{
 				Address: state.systemKeyBridgeExecutorAddress,
 				Coins:   state.systemKeyL1BridgeExecutorBalance,

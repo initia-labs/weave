@@ -36,11 +36,14 @@ func UnmarshalKeyInfo(rawJson string) (KeyInfo, error) {
 
 // AddOrReplace adds or replaces a key using `initiad keys add <keyname> --keyring-backend test` with 'y' confirmation
 func AddOrReplace(srv service.Service, keyname string) (string, error) {
-	// Command to add the key: echo 'y' | initiad keys add <keyname> --keyring-backend test
-	cmd := srv.RunCmd([]string{}, "keys", "add", keyname, "--keyring-backend", "test", "--output", "json")
+	// delete the key if it already exists
+	if KeyExists(srv, keyname) {
+		if err := DeleteKey(srv, keyname); err != nil {
+			return "", err
+		}
+	}
 
-	// Simulate pressing 'y' for confirmation
-	cmd.Stdin = bytes.NewBufferString("y\n")
+	cmd := srv.RunCmd([]string{}, "keys", "add", keyname, "--keyring-backend", "test", "--output", "json")
 
 	// Run the command and capture the output
 	outputBytes, err := cmd.CombinedOutput()

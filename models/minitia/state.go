@@ -111,7 +111,7 @@ func (ls LaunchState) Clone() LaunchState {
 		preL1BalancesResponsesCount:       ls.preL1BalancesResponsesCount,
 		preL2BalancesResponsesCount:       ls.preL2BalancesResponsesCount,
 		binaryPath:                        ls.binaryPath,
-		celestiaBinaryPath:                ls.celestiaBinaryPath,
+		celestiaService:                   ls.celestiaService,
 		launchFromExistingConfig:          ls.launchFromExistingConfig,
 		existingConfigPath:                ls.existingConfigPath,
 		feeWhitelistAccounts:              ls.feeWhitelistAccounts,

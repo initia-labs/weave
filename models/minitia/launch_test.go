@@ -1,7 +1,6 @@
 package minitia
 
 import (
-	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -1680,24 +1679,6 @@ func TestDownloadMinitiaBinaryLoading_View(t *testing.T) {
 
 	assert.Contains(t, view, state.weave.Render())
 	assert.Contains(t, view, loadingModel.Loading.View())
-}
-
-func TestGetCelestiaBinaryURL(t *testing.T) {
-	tests := []struct {
-		os     string
-		arch   string
-		expect string
-	}{
-		{"darwin", "amd64", "https://github.com/celestiaorg/celestia-app/releases/download/v1.0.0/celestia-app_Darwin_x86_64.tar.gz"},
-		{"linux", "arm64", "https://github.com/celestiaorg/celestia-app/releases/download/v1.0.0/celestia-app_Linux_arm64.tar.gz"},
-	}
-
-	for _, tt := range tests {
-		t.Run(fmt.Sprintf("%s_%s", tt.os, tt.arch), func(t *testing.T) {
-			url, _ := getCelestiaBinaryURL("1.0.0", tt.os, tt.arch)
-			assert.Equal(t, tt.expect, url)
-		})
-	}
 }
 
 func TestNewGenerateOrRecoverSystemKeysLoading_Generate(t *testing.T) {

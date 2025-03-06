@@ -116,7 +116,7 @@ func (lsk *L1SystemKeys) FundAccountsWithGasStation(state *LaunchState) (*FundAc
 		if txResponse.Code != 0 {
 			return nil, fmt.Errorf("celestia tx failed with error: %v", txResponse.RawLog)
 		}
-		err = lsk.waitForTransactionInclusion(state.celestiaBinaryPath, celestiaRpc, txResponse.TxHash)
+		err = lsk.waitForTransactionInclusion(celestiaRpc, txResponse.TxHash)
 		if err != nil {
 			return nil, err
 		}
@@ -172,7 +172,7 @@ func (lsk *L1SystemKeys) FundAccountsWithGasStation(state *LaunchState) (*FundAc
 		return nil, fmt.Errorf("initia l1 tx failed with error: %v", txResponse.RawLog)
 	}
 
-	err = lsk.waitForTransactionInclusion(state.binaryPath, state.l1RPC, txResponse.TxHash)
+	err = lsk.waitForTransactionInclusion(state.l1RPC, txResponse.TxHash)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +182,7 @@ func (lsk *L1SystemKeys) FundAccountsWithGasStation(state *LaunchState) (*FundAc
 }
 
 // waitForTransactionInclusion polls for the transaction inclusion in a block
-func (lsk *L1SystemKeys) waitForTransactionInclusion(binaryPath, rpcURL, txHash string) error {
+func (lsk *L1SystemKeys) waitForTransactionInclusion(rpcURL, txHash string) error {
 	// Poll for transaction status until it's included in a block
 	timeout := time.After(15 * time.Second)   // Example timeout for polling
 	ticker := time.NewTicker(3 * time.Second) // Poll every 3 seconds
@@ -194,7 +194,7 @@ func (lsk *L1SystemKeys) waitForTransactionInclusion(binaryPath, rpcURL, txHash 
 			return fmt.Errorf("transaction not included in block within timeout")
 		case <-ticker.C:
 			// Query transaction status
-			statusCmd := exec.Command(binaryPath, "query", "tx", txHash, "--node", rpcURL, "--output", "json")
+			statusCmd := lsk.celestiaService.RunCmd([]string{"query", "tx", txHash, "--node", rpcURL, "--output", "json"})
 			statusRes, err := statusCmd.CombinedOutput()
 			// If the transaction is not included in a block yet, just continue polling
 			if err != nil {
@@ -385,9 +385,9 @@ func (lsk *L1SystemKeys) calculateTotalWantedCoins(state *LaunchState) (l1Want *
 	return l1Want, daWant, nil
 }
 
-func queryChainBalance(binaryPath, rpc, address string) (map[string]string, error) {
-	queryCmd := exec.Command(binaryPath, "query", "bank", "balances", address,
-		"--node", rpc, "--output", "json")
+func queryChainBalance(service service.Service, rpc, address string) (map[string]string, error) {
+	queryCmd := service.RunCmd([]string{"query", "bank", "balances", address,
+		"--node", rpc, "--output", "json"})
 	balanceRes, err := queryCmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("failed to query balance: %v", err)
@@ -418,7 +418,7 @@ func (lsk *L1SystemKeys) VerifyGasStationBalances(state *LaunchState) error {
 	}
 
 	// Query L1 balances
-	l1Balances, err := queryChainBalance(state.binaryPath, state.l1RPC, gasStationKey.InitiaAddress)
+	l1Balances, err := queryChainBalance(lsk.srv, state.l1RPC, gasStationKey.InitiaAddress)
 	if err != nil {
 		return fmt.Errorf("failed to query L1 balance: %v", err)
 	}
@@ -468,7 +468,7 @@ func (lsk *L1SystemKeys) verifyCelestiaBalance(state *LaunchState, daWant *big.I
 	}
 
 	// Query Celestia balances
-	celestiaBalances, err := queryChainBalance(state.celestiaBinaryPath, celestiaRpc, gasStationKey.CelestiaAddress)
+	celestiaBalances, err := queryChainBalance(state.celestiaService, celestiaRpc, gasStationKey.CelestiaAddress)
 	if err != nil {
 		return fmt.Errorf("failed to query Celestia balance: %v", err)
 	}

@@ -18,3 +18,11 @@ func GetService(ctx context.Context) (service.Service, error) {
 	}
 	return srv, nil
 }
+
+func GetCelestiaService(ctx context.Context) (service.Service, error) {
+	srv, ok := ctx.Value(CelestiaServiceKey).(service.Service)
+	if !ok {
+		return nil, fmt.Errorf("celestia service not found in context")
+	}
+	return srv, nil
+}
