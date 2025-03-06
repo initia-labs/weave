@@ -38,5 +38,5 @@ func TestGasStationSetup(t *testing.T) {
 
 	// Assert values
 	weaveConfig := filepath.Join(weaveDir, "config.json")
-	testutil.CompareJsonValue(t, weaveConfig, "common.gas_station.mnemonic", testutil.GasStationMnemonic)
+	testutil.CompareJsonValue(t, weaveConfig, "gas_station.mnemonic", testutil.GasStationMnemonic)
 }
