@@ -190,7 +190,6 @@ func (j *Launchd) Start(optionalArgs ...string) error {
 			oldContent := string(content[arrayStart:arrayEnd])
 			newContent := strings.Replace(string(content), oldContent, "\n"+newArgsXML.String(), 1)
 
-			// Remove debug panic
 			// Write back to file
 			if err := os.WriteFile(plistPath, []byte(newContent), 0644); err != nil {
 				return fmt.Errorf("failed to write plist file: %w", err)
