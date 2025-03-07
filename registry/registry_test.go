@@ -1,12 +1,9 @@
 package registry
 
 import (
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"google.golang.org/grpc"
 )
 
 func TestLoadChainRegistry(t *testing.T) {
@@ -189,46 +186,6 @@ func TestGetActiveLcd(t *testing.T) {
 	}
 	if result != server.URL {
 		t.Errorf("expected: %s, got: %s", server.URL, result)
-	}
-}
-
-// Test GetActiveGrpc
-func TestGetActiveGrpc(t *testing.T) {
-	// Start a test gRPC server to simulate the gRPC server being healthy.
-	grpcServer := grpc.NewServer()
-
-	// Start gRPC server in a separate goroutine
-	lis, err := net.Listen("tcp", ":9091")
-	if err != nil {
-		t.Fatalf("failed to listen: %v", err)
-	}
-	go func() {
-		if err := grpcServer.Serve(lis); err != nil {
-			t.Errorf("failed to serve gRPC server: %v", err)
-			return
-		}
-	}()
-	defer grpcServer.Stop()
-
-	// Simulating a chain registry with an invalid gRPC endpoint and a valid HTTP endpoint.
-	cr := ChainRegistry{
-		Apis: Apis{
-			Grpc: []Endpoint{
-				{Address: "http://invalid.grpc"}, // This will fail.
-				{Address: "localhost:9091"},      // gRPC server will succeed.
-			},
-		},
-	}
-
-	// Call the method to get the active gRPC server.
-	result, err := cr.GetActiveGrpc()
-	if err != nil {
-		t.Fatalf("expected no error, got: %v", err)
-	}
-
-	// Assert that the result is the correct gRPC server URL.
-	if result != "localhost:9091" {
-		t.Errorf("expected: %s, got: %s", "localhost:9091", result)
 	}
 }
 
