@@ -372,8 +372,13 @@ func OPInitBotsStartCommand() *cobra.Command {
 				return err
 			}
 
+			optionalArgs := []string{}
+			if pollingInterval, err := cmd.Flags().GetString(FlagPollingInterval); err == nil {
+				optionalArgs = append(optionalArgs, "--polling-interval="+pollingInterval)
+			}
+
 			if detach {
-				err = s.Start("--polling-interval=1000ms")
+				err = s.Start(optionalArgs...)
 				if err != nil {
 					return err
 				}
@@ -381,7 +386,7 @@ func OPInitBotsStartCommand() *cobra.Command {
 				return nil
 			}
 
-			return service.NonDetachStart(s)
+			return service.NonDetachStart(s, optionalArgs...)
 		},
 	}
 
