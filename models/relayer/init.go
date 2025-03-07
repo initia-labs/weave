@@ -2488,7 +2488,7 @@ func (m *FillL2LCD) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var res types.ChannelsResponse
 		_, err := httpClient.Get(input.Text, "/ibc/core/channel/v1/channels", nil, &res)
 		if err != nil {
-			m.err = fmt.Errorf("unable to call the LCD endpoint '%s'. Please verify that the address is correct and reachablem", input.Text)
+			m.err = fmt.Errorf("unable to call the LCD endpoint '%s'. Please verify that the address is correct and reachable", input.Text)
 			return m, cmd
 		}
 
