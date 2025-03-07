@@ -363,3 +363,50 @@ func TestGetL2Registry(t *testing.T) {
 		t.Errorf("invalid bech32 prefix")
 	}
 }
+
+func TestNormalizeGRPCAddress(t *testing.T) {
+	tests := []struct {
+		name    string
+		addr    string
+		want    string
+		wantErr bool
+	}{
+		{
+			name:    "already has https protocol",
+			addr:    "https://grpc.example.com:443",
+			want:    "https://grpc.example.com:443",
+			wantErr: false,
+		},
+		{
+			name:    "no protocol",
+			addr:    "grpc.example.com:443",
+			want:    "https://grpc.example.com:443",
+			wantErr: false,
+		},
+		{
+			name:    "http protocol",
+			addr:    "http://grpc.example.com",
+			want:    "",
+			wantErr: true,
+		},
+		{
+			name:    "invalid protocol",
+			addr:    "ftp://grpc.example.com",
+			want:    "",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := normalizeGRPCAddress(tt.addr)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("normalizeGRPCAddress() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("normalizeGRPCAddress() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
