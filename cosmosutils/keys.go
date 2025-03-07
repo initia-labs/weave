@@ -380,13 +380,14 @@ func addNewKeyToHermes(appName, chainId, mnemonic string) (*KeyInfo, error) {
 		}
 	}()
 
-	cmd := exec.Command(appName, "keys", "add", "--chain", chainId, "--mnemonic-file", tempMnemonicPath)
+	cmd := exec.Command(appName, "keys", "add", "--chain", chainId, "--key-name", "weave-relayer", "--mnemonic-file", tempMnemonicPath)
 
 	var out bytes.Buffer
 	cmd.Stdout = &out
+	cmd.Stderr = &out
 
 	if err = cmd.Run(); err != nil {
-		return nil, fmt.Errorf("failed to run hermes keys add: %v", err)
+		return nil, fmt.Errorf("failed to run hermes keys add: %v (output: %s)", err, out.String())
 	}
 
 	output := out.String()
