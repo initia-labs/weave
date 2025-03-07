@@ -254,8 +254,8 @@ func (j *Systemd) Start(optionalArgs ...string) error {
 				j := 0
 				for ; j < len(parts); j++ {
 					if strings.HasPrefix(parts[j], "--home") {
-						newArgs = append(newArgs, parts[j])
-						j++
+						newArgs = append(newArgs, parts[j], parts[j+1])
+						j += 2
 						break
 					}
 					newArgs = append(newArgs, parts[j])
