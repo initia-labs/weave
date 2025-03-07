@@ -160,11 +160,9 @@ func (j *Launchd) Start(optionalArgs ...string) error {
 		// Create new arguments list
 		newArgs := make([]string, 0)
 
-		i := 0
-		for ; i < len(programArgs); i++ {
+		for i := 0; i < len(programArgs); i++ {
 			if strings.HasPrefix(programArgs[i], "--home=") {
 				newArgs = append(newArgs, programArgs[i])
-				i++
 				break
 			}
 			newArgs = append(newArgs, programArgs[i])

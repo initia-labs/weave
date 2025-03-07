@@ -251,11 +251,10 @@ func (j *Systemd) Start(optionalArgs ...string) error {
 
 				// Keep binary path and arguments up to --home
 				newArgs := make([]string, 0)
-				j := 0
-				for ; j < len(parts); j++ {
+
+				for j := 0; j < len(parts); j++ {
 					if strings.HasPrefix(parts[j], "--home") {
 						newArgs = append(newArgs, parts[j], parts[j+1])
-						j += 2
 						break
 					}
 					newArgs = append(newArgs, parts[j])
