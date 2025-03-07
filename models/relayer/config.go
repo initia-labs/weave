@@ -207,10 +207,9 @@ list = [
 
 	// Populate data for placeholders
 	data := Data{
-		ID: state.Config["l1.chain_id"],
-		// TODO: revisit
-		RPCAddr:  "https://initia-testnet-rpc.polkachu.com/",
-		GRPCAddr: "https://" + state.Config["l1.grpc_address"],
+		ID:       state.Config["l1.chain_id"],
+		RPCAddr:  state.Config["l1.rpc_address"],
+		GRPCAddr: state.Config["l1.grpc_address"],
 		EventSource: EventSource{
 			Mode:       "push",
 			URL:        state.Config["l1.websocket"],

@@ -187,22 +187,14 @@ func (cr *ChainRegistry) GetCounterPartyIBCChannel(port, channel string) (types.
 }
 
 func normalizeGRPCAddress(addr string) (string, error) {
-	// Parse the URL
-	u, err := url.Parse(addr)
-	if err != nil {
-		return "", fmt.Errorf("invalid address: %v", err)
+	if strings.Contains(addr, "://") {
+		if !strings.HasPrefix(addr, "https://") {
+			return "", fmt.Errorf("only https:// protocol is allowed")
+		}
+		return addr, nil
 	}
-
-	if u.Scheme == "grpc" {
-		u.Scheme = "http"
-	}
-
-	// Add default port if missing
-	if u.Port() == "" {
-		u.Host = u.Host + ":9090"
-	}
-
-	return u.String(), nil
+	addr = "https://" + addr
+	return addr, nil
 }
 
 func (cr *ChainRegistry) GetActiveGrpc() (string, error) {
@@ -217,7 +209,6 @@ func (cr *ChainRegistry) GetActiveGrpc() (string, error) {
 		if err != nil {
 			continue
 		}
-
 		return addr, nil
 	}
 

@@ -190,6 +190,35 @@ func ValidateURL(str string) error {
 	return validateURLWithSchemes(str, "http", "https")
 }
 
+// ValidateURLWithPort is a function to validate if a string is a valid URL with a port number.
+// Only http and https schemes are allowed, and the URL must include a valid port.
+func ValidateURLWithPort(str string) error {
+	u, err := url.Parse(str)
+	if err != nil {
+		return fmt.Errorf("invalid URL format: %v", err)
+	}
+	if u.Host == "" {
+		return fmt.Errorf("URL is missing host")
+	}
+	if !slices.Contains([]string{"http", "https"}, u.Scheme) {
+		return fmt.Errorf("URL must use one of the following schemes: [http https]")
+	}
+
+	// Check if port is present
+	_, port, err := net.SplitHostPort(u.Host)
+	if err != nil {
+		return fmt.Errorf("URL must include a port number")
+	}
+
+	// Validate port number
+	portNum, err := strconv.Atoi(port)
+	if err != nil || portNum < 1 || portNum > 65535 {
+		return fmt.Errorf("invalid port number: must be between 1 and 65535")
+	}
+
+	return nil
+}
+
 // ValidateWSURL is a function to validate if a string is a valid WebSocket URL and return an error if invalid.
 // Only ws and wss schemes are allowed.
 func ValidateWSURL(str string) error {
