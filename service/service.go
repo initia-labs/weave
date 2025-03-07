@@ -12,7 +12,7 @@ import (
 type Service interface {
 	Create(binaryVersion, appHome string) error
 	Log(n int) error
-	Start() error
+	Start(optionalArgs ...string) error
 	Stop() error
 	Restart() error
 	PruneLogs() error
@@ -38,7 +38,7 @@ func NonDetachStart(s Service) error {
 	defer signal.Stop(signalChan)
 
 	go func() {
-		err := s.Start()
+		err := s.Start("--polling-interval=1000ms")
 		if err != nil {
 			_ = s.Stop()
 			panic(err)

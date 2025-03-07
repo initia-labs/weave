@@ -219,14 +219,69 @@ func (j *Systemd) PruneLogs() error {
 	return j.journalctl("--vacuum-time=1s", "--unit", serviceName)
 }
 
-func (j *Systemd) Start() error {
+func (j *Systemd) Start(optionalArgs ...string) error {
 	if err := j.ensureUserServicePrerequisites(); err != nil {
 		return err
 	}
+
 	serviceName, err := j.GetServiceName()
 	if err != nil {
 		return err
 	}
+
+	// If we have optional arguments, we need to modify the service file
+	if len(optionalArgs) > 0 {
+		serviceFile, err := j.GetServiceFile()
+		if err != nil {
+			return fmt.Errorf("failed to get service file: %v", err)
+		}
+
+		// Read the service file
+		content, err := os.ReadFile(serviceFile)
+		if err != nil {
+			return fmt.Errorf("failed to read service file: %w", err)
+		}
+
+		// Parse the file line by line to find and modify ExecStart
+		lines := strings.Split(string(content), "\n")
+		for i, line := range lines {
+			if strings.HasPrefix(strings.TrimSpace(line), "ExecStart=") {
+				// Extract existing command and arguments
+				parts := strings.Fields(strings.TrimPrefix(strings.TrimSpace(line), "ExecStart="))
+
+				// Keep binary path and arguments up to --home
+				newArgs := make([]string, 0)
+				j := 0
+				for ; j < len(parts); j++ {
+					if strings.HasPrefix(parts[j], "--home") {
+						newArgs = append(newArgs, parts[j])
+						j++
+						break
+					}
+					newArgs = append(newArgs, parts[j])
+				}
+
+				// Add optional arguments
+				newArgs = append(newArgs, optionalArgs...)
+
+				// Create new ExecStart line
+				lines[i] = "ExecStart=" + strings.Join(newArgs, " ")
+				break
+			}
+		}
+
+		// Write the modified content back to the file
+		newContent := strings.Join(lines, "\n")
+		if err := os.WriteFile(serviceFile, []byte(newContent), 0644); err != nil {
+			return fmt.Errorf("failed to write service file: %w", err)
+		}
+
+		// Reload daemon to apply changes
+		if err := j.daemonReload(); err != nil {
+			return fmt.Errorf("failed to reload daemon: %w", err)
+		}
+	}
+
 	return j.systemctl("start", serviceName)
 }
 

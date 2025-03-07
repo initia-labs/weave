@@ -373,7 +373,7 @@ func OPInitBotsStartCommand() *cobra.Command {
 			}
 
 			if detach {
-				err = s.Start()
+				err = s.Start("--polling-interval=1000ms")
 				if err != nil {
 					return err
 				}
@@ -386,6 +386,7 @@ func OPInitBotsStartCommand() *cobra.Command {
 	}
 
 	startCmd.Flags().BoolP(FlagDetach, "d", false, "Run the OPinit bot in detached mode")
+	startCmd.Flags().String(FlagPollingInterval, "100ms", "Polling interval in milliseconds (default 100ms)")
 
 	return startCmd
 }
