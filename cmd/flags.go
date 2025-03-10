@@ -10,6 +10,8 @@ const (
 	FlagMinitiaHome = "minitia-dir"
 	FlagOPInitHome  = "opinit-dir"
 
+	FlagPollingInterval = "polling-interval"
+
 	FlagUpdateClient = "update-client"
 
 	FlagWithConfig      = "with-config"

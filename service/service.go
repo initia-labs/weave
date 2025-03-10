@@ -12,7 +12,7 @@ import (
 type Service interface {
 	Create(binaryVersion, appHome string) error
 	Log(n int) error
-	Start() error
+	Start(optionalArgs ...string) error
 	Stop() error
 	Restart() error
 	PruneLogs() error
@@ -32,13 +32,13 @@ func NewService(commandName CommandName) (Service, error) {
 	}
 }
 
-func NonDetachStart(s Service) error {
+func NonDetachStart(s Service, optionalArgs ...string) error {
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(signalChan)
 
 	go func() {
-		err := s.Start()
+		err := s.Start(optionalArgs...)
 		if err != nil {
 			_ = s.Stop()
 			panic(err)
