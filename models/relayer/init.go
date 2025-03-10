@@ -34,7 +34,7 @@ import (
 
 var defaultL2ConfigLocal = []*Field{
 	{Name: "l2.rpc_address", Type: StringField, Question: "Specify rollup RPC endpoint", Highlights: []string{"rollup RPC endpoint"}, Placeholder: `Press tab to use "http://localhost:26657"`, DefaultValue: "http://localhost:26657", ValidateFn: common.ValidateURL, Tooltip: &tooltip.RollupRPCEndpointTooltip},
-	{Name: "l2.grpc_address", Type: StringField, Question: "Specify rollup GRPC endpoint", Highlights: []string{"rollup GRPC endpoint"}, Placeholder: `Press tab to use "http://localhost:9090"`, DefaultValue: "http://localhost:9090", ValidateFn: common.ValidateURL, Tooltip: &tooltip.RollupGRPCEndpointTooltip},
+	{Name: "l2.grpc_address", Type: StringField, Question: "Specify rollup GRPC endpoint", Highlights: []string{"rollup GRPC endpoint"}, Placeholder: `Press tab to use "http://localhost:9090"`, DefaultValue: "http://localhost:9090", ValidateFn: common.ValidateURLWithPort, Tooltip: &tooltip.RollupGRPCEndpointTooltip},
 	{Name: "l2.websocket", Type: StringField, Question: "Specify rollup WebSocket endpoint", Highlights: []string{"rollup WebSocket endpoint"}, Placeholder: `Press tab to use "ws://localhost:26657/websocket"`, DefaultValue: "ws://localhost:26657/websocket", ValidateFn: common.ValidateWSURL, Tooltip: &tooltip.RollupWebSocketEndpointTooltip},
 }
 
