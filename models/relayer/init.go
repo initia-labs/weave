@@ -41,7 +41,7 @@ var defaultL2ConfigLocal = []*Field{
 var defaultL2ConfigManual = []*Field{
 	{Name: "l2.chain_id", Type: StringField, Question: "Specify rollup chain ID", Highlights: []string{"rollup chain ID"}, Placeholder: "ex. rollup-1", ValidateFn: common.ValidateEmptyString, Tooltip: &tooltip.RollupChainIdTooltip},
 	{Name: "l2.rpc_address", Type: StringField, Question: "Specify rollup RPC endpoint", Highlights: []string{"rollup RPC endpoint"}, Placeholder: "ex. http://localhost:26657", ValidateFn: common.ValidateURL, Tooltip: &tooltip.RollupRPCEndpointTooltip},
-	{Name: "l2.grpc_address", Type: StringField, Question: "Specify rollup GRPC endpoint", Highlights: []string{"rollup GRPC endpoint"}, Placeholder: "ex. http://localhost:9090", ValidateFn: common.ValidateURL, Tooltip: &tooltip.RollupGRPCEndpointTooltip},
+	{Name: "l2.grpc_address", Type: StringField, Question: "Specify rollup GRPC endpoint", Highlights: []string{"rollup GRPC endpoint"}, Placeholder: "ex. http://localhost:9090", ValidateFn: common.ValidateURLWithPort, Tooltip: &tooltip.RollupGRPCEndpointTooltip},
 	{Name: "l2.websocket", Type: StringField, Question: "Specify rollup WebSocket endpoint", Highlights: []string{"rollup WebSocket endpoint"}, Placeholder: "ex. ws://localhost:26657/websocket", ValidateFn: common.ValidateWSURL, Tooltip: &tooltip.RollupWebSocketEndpointTooltip},
 	{Name: "l2.gas_price.denom", Type: StringField, Question: "Specify rollup gas denom", Highlights: []string{"rollup gas denom"}, Placeholder: "ex. umin", ValidateFn: common.ValidateDenom, Tooltip: &tooltip.RollupGasDenomTooltip},
 	{Name: "l2.gas_price.price", Type: StringField, Question: "Specify rollup gas price", Highlights: []string{"rollup gas price"}, Placeholder: "ex. 0.15", ValidateFn: common.ValidateDecFromStr, Tooltip: &tooltip.RollupGasPriceTooltip},
@@ -462,6 +462,7 @@ func waitGenerateL1RelayerKeyLoading(ctx context.Context) tea.Cmd {
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("could not generate hermes key: %s", err)}
 		}
+
 		state.l1RelayerAddress = relayerKey.Address
 		state.l1RelayerMnemonic = relayerKey.Mnemonic
 

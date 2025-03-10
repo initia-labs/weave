@@ -1,12 +1,9 @@
 package registry
 
 import (
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"google.golang.org/grpc"
 )
 
 func TestLoadChainRegistry(t *testing.T) {
@@ -192,46 +189,6 @@ func TestGetActiveLcd(t *testing.T) {
 	}
 }
 
-// Test GetActiveGrpc
-func TestGetActiveGrpc(t *testing.T) {
-	// Start a test gRPC server to simulate the gRPC server being healthy.
-	grpcServer := grpc.NewServer()
-
-	// Start gRPC server in a separate goroutine
-	lis, err := net.Listen("tcp", ":9091")
-	if err != nil {
-		t.Fatalf("failed to listen: %v", err)
-	}
-	go func() {
-		if err := grpcServer.Serve(lis); err != nil {
-			t.Errorf("failed to serve gRPC server: %v", err)
-			return
-		}
-	}()
-	defer grpcServer.Stop()
-
-	// Simulating a chain registry with an invalid gRPC endpoint and a valid HTTP endpoint.
-	cr := ChainRegistry{
-		Apis: Apis{
-			Grpc: []Endpoint{
-				{Address: "http://invalid.grpc"}, // This will fail.
-				{Address: "localhost:9091"},      // gRPC server will succeed.
-			},
-		},
-	}
-
-	// Call the method to get the active gRPC server.
-	result, err := cr.GetActiveGrpc()
-	if err != nil {
-		t.Fatalf("expected no error, got: %v", err)
-	}
-
-	// Assert that the result is the correct gRPC server URL.
-	if result != "localhost:9091" {
-		t.Errorf("expected: %s, got: %s", "localhost:9091", result)
-	}
-}
-
 // Test GetSeeds
 func TestGetSeeds(t *testing.T) {
 	cr1 := ChainRegistry{
@@ -404,5 +361,52 @@ func TestGetL2Registry(t *testing.T) {
 
 	if registry.Bech32Prefix == "" {
 		t.Errorf("invalid bech32 prefix")
+	}
+}
+
+func TestNormalizeGRPCAddress(t *testing.T) {
+	tests := []struct {
+		name    string
+		addr    string
+		want    string
+		wantErr bool
+	}{
+		{
+			name:    "already has https protocol",
+			addr:    "https://grpc.example.com:443",
+			want:    "https://grpc.example.com:443",
+			wantErr: false,
+		},
+		{
+			name:    "no protocol",
+			addr:    "grpc.example.com:443",
+			want:    "https://grpc.example.com:443",
+			wantErr: false,
+		},
+		{
+			name:    "http protocol",
+			addr:    "http://grpc.example.com",
+			want:    "",
+			wantErr: true,
+		},
+		{
+			name:    "invalid protocol",
+			addr:    "ftp://grpc.example.com",
+			want:    "",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := normalizeGRPCAddress(tt.addr)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("normalizeGRPCAddress() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("normalizeGRPCAddress() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
