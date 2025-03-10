@@ -3,6 +3,8 @@ package common
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestValidateURL(t *testing.T) {
@@ -158,6 +160,58 @@ func TestValidatePositiveBigInt(t *testing.T) {
 			err := ValidatePositiveBigInt(tt.input)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ValidatePositiveBigInt() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateURLWithPort(t *testing.T) {
+	tests := []struct {
+		name    string
+		url     string
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:    "valid http URL with port",
+			url:     "http://example.com:8080",
+			wantErr: false,
+		},
+		{
+			name:    "valid https URL with port",
+			url:     "https://example.com:443",
+			wantErr: false,
+		},
+		{
+			name:    "missing port",
+			url:     "http://example.com",
+			wantErr: true,
+			errMsg:  "URL must include a port number",
+		},
+		{
+			name:    "invalid port (too high)",
+			url:     "http://example.com:65536",
+			wantErr: true,
+			errMsg:  "invalid port number: must be between 1 and 65535",
+		},
+		{
+			name:    "invalid port (zero)",
+			url:     "http://example.com:0",
+			wantErr: true,
+			errMsg:  "invalid port number: must be between 1 and 65535",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateURLWithPort(tt.url)
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.errMsg != "" {
+					require.Contains(t, err.Error(), tt.errMsg)
+				}
+			} else {
+				require.NoError(t, err)
 			}
 		})
 	}
