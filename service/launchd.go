@@ -2,6 +2,7 @@ package service
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -108,10 +109,95 @@ func (j *Launchd) reloadService() error {
 	return nil
 }
 
-func (j *Launchd) Start() error {
+func (j *Launchd) Start(optionalArgs ...string) error {
 	serviceName, err := j.GetServiceName()
 	if err != nil {
 		return fmt.Errorf("failed to get service name: %v", err)
+	}
+	if len(optionalArgs) > 0 {
+		plistPath, err := j.GetServiceFile()
+		if err != nil {
+			return fmt.Errorf("failed to get service file path: %v", err)
+		}
+
+		// Read the plist file
+		content, err := os.ReadFile(plistPath)
+		if err != nil {
+			return fmt.Errorf("failed to read plist file: %w", err)
+		}
+
+		// Parse the plist XML
+		decoder := xml.NewDecoder(bytes.NewReader(content))
+		var inProgramArgs bool
+		programArgs := make([]string, 0)
+		for {
+			token, err := decoder.Token()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return fmt.Errorf("failed to parse plist: %w", err)
+			}
+
+			switch t := token.(type) {
+			case xml.StartElement:
+				if t.Name.Local == "key" && inProgramArgs {
+					inProgramArgs = false
+				}
+				if t.Name.Local == "array" && inProgramArgs {
+					programArgs = []string{}
+				}
+			case xml.CharData:
+				if string(t) == "ProgramArguments" {
+					inProgramArgs = true
+				}
+				if inProgramArgs && len(strings.TrimSpace(string(t))) > 0 {
+					programArgs = append(programArgs, strings.TrimSpace(string(t)))
+				}
+			}
+		}
+
+		// Create new arguments list
+		newArgs := make([]string, 0)
+
+		for i := 0; i < len(programArgs); i++ {
+			if strings.HasPrefix(programArgs[i], "--home=") {
+				newArgs = append(newArgs, programArgs[i])
+				break
+			}
+			newArgs = append(newArgs, programArgs[i])
+		}
+
+		newArgs = append(newArgs, optionalArgs...)
+		// Replace program arguments in the original content
+		var oldArgsXML, newArgsXML strings.Builder
+		for _, arg := range programArgs {
+			fmt.Fprintf(&oldArgsXML, "\t\t<string>%s</string>\n", arg)
+		}
+		for _, arg := range newArgs {
+			fmt.Fprintf(&newArgsXML, "\t\t<string>%s</string>\n", arg)
+		}
+
+		// Find the ProgramArguments array section and replace its content
+		startTag := "<array>"
+		endTag := "</array>"
+		arrayStart := strings.Index(string(content), startTag)
+		arrayEnd := strings.Index(string(content), endTag)
+		if arrayStart != -1 && arrayEnd != -1 {
+			arrayStart += len(startTag)
+			oldContent := string(content[arrayStart:arrayEnd])
+			newContent := strings.Replace(string(content), oldContent, "\n"+newArgsXML.String(), 1)
+
+			// Write back to file
+			if err := os.WriteFile(plistPath, []byte(newContent), 0644); err != nil {
+				return fmt.Errorf("failed to write plist file: %w", err)
+			}
+		}
+
+		// Reload and start the service
+		if err := j.reloadService(); err != nil {
+			return fmt.Errorf("failed to reload service: %w", err)
+		}
 	}
 	cmd := exec.Command("launchctl", "start", serviceName)
 	return cmd.Run()
