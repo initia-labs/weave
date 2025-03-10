@@ -32,13 +32,13 @@ func NewService(commandName CommandName) (Service, error) {
 	}
 }
 
-func NonDetachStart(s Service, opinitdArgs ...string) error {
+func NonDetachStart(s Service, optionalArgs ...string) error {
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(signalChan)
 
 	go func() {
-		err := s.Start(opinitdArgs...)
+		err := s.Start(optionalArgs...)
 		if err != nil {
 			_ = s.Stop()
 			panic(err)
