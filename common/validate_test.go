@@ -200,6 +200,12 @@ func TestValidateURLWithPort(t *testing.T) {
 			wantErr: true,
 			errMsg:  "invalid port number: must be between 1 and 65535",
 		},
+		{
+			name:    "invalid protocol",
+			url:     "example.com:300",
+			wantErr: true,
+			errMsg:  "URL is missing host",
+		},
 	}
 
 	for _, tt := range tests {
