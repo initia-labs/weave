@@ -342,9 +342,9 @@ func GetHermesRelayerAddress(appName, chainId string) (string, bool) {
 	}
 
 	secondLine := strings.TrimSpace(lines[1])
-	re := regexp.MustCompile(`- (\S+) \(([^)]+)\)`)
+	re := regexp.MustCompile(`weave-relayer' \(([^)]+)\)`)
 	match := re.FindStringSubmatch(secondLine)
-	if len(match) != 3 {
+	if len(match) != 2 {
 		return "", false
 	}
 	keyName := match[1]
@@ -384,13 +384,14 @@ func addNewKeyToHermes(appName, chainId, mnemonic string) (*KeyInfo, error) {
 
 	var out bytes.Buffer
 	cmd.Stdout = &out
+	cmd.Stderr = &out
 
 	if err = cmd.Run(); err != nil {
-		return nil, fmt.Errorf("failed to run hermes keys add: %v", err)
+		return nil, fmt.Errorf("failed to run hermes keys add: %v (output: %s)", err, out.String())
 	}
 
 	output := out.String()
-	re := regexp.MustCompile(`\(([^)]+)\)`)
+	re := regexp.MustCompile(`weave-relayer' \(([^)]+)\)`)
 	match := re.FindStringSubmatch(output)
 
 	if len(match) < 2 {
