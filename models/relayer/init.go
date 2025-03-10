@@ -462,6 +462,7 @@ func waitGenerateL1RelayerKeyLoading(ctx context.Context) tea.Cmd {
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("could not generate hermes key: %s", err)}
 		}
+
 		state.l1RelayerAddress = relayerKey.Address
 		state.l1RelayerMnemonic = relayerKey.Mnemonic
 

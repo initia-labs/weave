@@ -342,9 +342,9 @@ func GetHermesRelayerAddress(appName, chainId string) (string, bool) {
 	}
 
 	secondLine := strings.TrimSpace(lines[1])
-	re := regexp.MustCompile(`- (\S+) \(([^)]+)\)`)
+	re := regexp.MustCompile(`weave-relayer' \(([^)]+)\)`)
 	match := re.FindStringSubmatch(secondLine)
-	if len(match) != 3 {
+	if len(match) != 2 {
 		return "", false
 	}
 	keyName := match[1]
@@ -380,7 +380,7 @@ func addNewKeyToHermes(appName, chainId, mnemonic string) (*KeyInfo, error) {
 		}
 	}()
 
-	cmd := exec.Command(appName, "keys", "add", "--chain", chainId, "--key-name", "weave-relayer", "--mnemonic-file", tempMnemonicPath)
+	cmd := exec.Command(appName, "keys", "add", "--chain", chainId, "--mnemonic-file", tempMnemonicPath)
 
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -391,7 +391,7 @@ func addNewKeyToHermes(appName, chainId, mnemonic string) (*KeyInfo, error) {
 	}
 
 	output := out.String()
-	re := regexp.MustCompile(`\(([^)]+)\)`)
+	re := regexp.MustCompile(`weave-relayer' \(([^)]+)\)`)
 	match := re.FindStringSubmatch(output)
 
 	if len(match) < 2 {
