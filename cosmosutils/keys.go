@@ -155,9 +155,9 @@ func OPInitRecoverKeyFromMnemonic(appName, keyname, mnemonic string, isCelestia 
 	// Add the mnemonic input after the confirmation (if any)
 	inputBuffer.WriteString(mnemonic + "\n")
 	if isCelestia {
-		cmd = exec.Command(appName, "keys", "add", "weave-dummy", keyname, "--recover", "--bech32", "celestia", "--home", opInitHome)
+		cmd = exec.Command(appName, "keys", "add", "weave-dummy", keyname, "--coin-type", "118", "--key-type", "secp256k1", "--recover", "--bech32", "celestia", "--home", opInitHome)
 	} else {
-		cmd = exec.Command(appName, "keys", "add", "weave-dummy", keyname, "--recover", "--home", opInitHome)
+		cmd = exec.Command(appName, "keys", "add", "weave-dummy", keyname, "--coin-type", "118", "--key-type", "secp256k1", "--recover", "--home", opInitHome)
 	}
 	// Pass the combined confirmation and mnemonic as input to the command
 	cmd.Stdin = &inputBuffer
@@ -248,9 +248,9 @@ func OPInitAddOrReplace(appName, keyname string, isCelestia bool, opInitHome str
 	var cmd *exec.Cmd
 
 	if isCelestia {
-		cmd = exec.Command(appName, "keys", "add", "weave-dummy", keyname, "--bech32", "celestia", "--home", opInitHome)
+		cmd = exec.Command(appName, "keys", "add", "weave-dummy", keyname, "--coin-type", "118", "--key-type", "secp256k1", "--bech32", "celestia", "--home", opInitHome)
 	} else {
-		cmd = exec.Command(appName, "keys", "add", "weave-dummy", keyname, "--home", opInitHome)
+		cmd = exec.Command(appName, "keys", "add", "weave-dummy", keyname, "--coin-type", "118", "--key-type", "secp256k1", "--home", opInitHome)
 
 	}
 	// Simulate pressing 'y' for confirmation
