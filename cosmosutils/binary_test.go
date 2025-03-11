@@ -29,16 +29,6 @@ func TestCompareSemVer(t *testing.T) {
 			expected: false,
 		},
 		{
-			v1:       "1.0.0",
-			v2:       "1.0.0-1",
-			expected: false,
-		},
-		{
-			v1:       "1.0.0-2",
-			v2:       "1.0.0-1",
-			expected: true,
-		},
-		{
 			v1:       "1.2.0",
 			v2:       "1.1.9",
 			expected: true,
@@ -54,9 +44,28 @@ func TestCompareSemVer(t *testing.T) {
 			expected: false,
 		},
 		{
-			v1:       "1.0.0",
-			v2:       "1.0.0-2",
+			name:     "complex prerelease identifiers",
+			v1:       "1.0.0-alpha.2",
+			v2:       "1.0.0-alpha.1",
+			expected: true,
+		},
+		{
+			name:     "complex prerelease identifiers reverse",
+			v1:       "1.0.0-alpha.1",
+			v2:       "1.0.0-alpha.2",
 			expected: false,
+		},
+		{
+			name:     "different prerelease identifiers",
+			v1:       "1.0.0-beta.1",
+			v2:       "1.0.0-alpha.2",
+			expected: true,
+		},
+		{
+			name:     "release vs complex prerelease",
+			v1:       "1.0.0",
+			v2:       "1.0.0-beta.1",
+			expected: true,
 		},
 	}
 

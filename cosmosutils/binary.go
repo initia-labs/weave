@@ -216,7 +216,13 @@ func SortVersions(versions BinaryVersionWithDownloadURL) []string {
 	return versionTags
 }
 
-// CompareSemVer compares two semantic version strings and returns true if v1 should be ordered before v2
+// CompareSemVer compares two semantic version strings and returns true if v1 is greater than v2.
+// Examples:
+//   - CompareSemVer("v2.0.0", "v1.0.0") returns true
+//   - CompareSemVer("v1.2.0", "v1.1.0") returns true
+//   - CompareSemVer("v1.0.0", "v1.0.0-beta") returns true
+//   - CompareSemVer("v1.0.0-beta.2", "v1.0.0-beta.1") returns true
+//   - CompareSemVer("v1.0.0", "v2.0.0") returns false
 func CompareSemVer(v1, v2 string) bool {
 	// Trim "v" prefix
 	v1 = strings.TrimPrefix(v1, "v")
@@ -237,15 +243,49 @@ func CompareSemVer(v1, v2 string) bool {
 		}
 	}
 
-	// Compare pre-release parts if main versions are equal
-	// A pre-release version is always ordered greater than the normal version
+	// If main versions are equal, handle pre-release versions
+	// A pre-release version has lower precedence than the normal version
 	if v1Pre == "" && v2Pre != "" {
-		return false
+		return true // v1 (normal version) is greater
 	}
 	if v1Pre != "" && v2Pre == "" {
-		return true
+		return false // v2 (normal version) is greater
 	}
-	return v1Pre > v2Pre
+
+	// If both have pre-release versions, compare them
+	if v1Pre != "" && v2Pre != "" {
+		v1PreParts := strings.Split(v1Pre, ".")
+		v2PreParts := strings.Split(v2Pre, ".")
+
+		// Compare each pre-release identifier
+		minLen := len(v1PreParts)
+		if len(v2PreParts) < minLen {
+			minLen = len(v2PreParts)
+		}
+
+		for i := 0; i < minLen; i++ {
+			// Try to compare as integers first
+			v1Int, v1IsInt := strconv.Atoi(v1PreParts[i])
+			v2Int, v2IsInt := strconv.Atoi(v2PreParts[i])
+
+			if v1IsInt == nil && v2IsInt == nil {
+				// Both are integers
+				if v1Int != v2Int {
+					return v1Int > v2Int
+				}
+			} else {
+				// Compare as strings if not both integers
+				if v1PreParts[i] != v2PreParts[i] {
+					return v1PreParts[i] > v2PreParts[i]
+				}
+			}
+		}
+
+		// If all parts so far are equal, longer one is greater
+		return len(v1PreParts) > len(v2PreParts)
+	}
+
+	return false // versions are exactly equal
 }
 
 // splitVersion separates the main version (e.g., "0.4.11") from the pre-release (e.g., "Binarytion.1")
