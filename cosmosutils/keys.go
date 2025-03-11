@@ -36,7 +36,7 @@ func UnmarshalKeyInfo(rawJson string) (KeyInfo, error) {
 // AddOrReplace adds or replaces a key using `initiad keys add <keyname> --keyring-backend test` with 'y' confirmation
 func AddOrReplace(appName, keyname string) (string, error) {
 	var cmd *exec.Cmd
-	if strings.HasSuffix(appName, "celestiad") {
+	if strings.HasSuffix(appName, "celestia-appd") {
 		cmd = exec.Command(appName, "keys", "add", keyname, "--keyring-backend", "test", "--output", "json")
 	} else {
 		cmd = exec.Command(appName, "keys", "add", keyname, "--coin-type", "118", "--key-type", "secp256k1", "--keyring-backend", "test", "--output", "json")
@@ -82,7 +82,7 @@ func RecoverKeyFromMnemonic(appName, keyname, mnemonic string) (string, error) {
 	inputBuffer.WriteString(mnemonic + "\n")
 
 	var cmd *exec.Cmd
-	if strings.HasSuffix(appName, "celestiad") {
+	if strings.HasSuffix(appName, "celestia-appd") {
 		cmd = exec.Command(appName, "keys", "add", keyname, "--recover", "--keyring-backend", "test", "--output", "json")
 	} else {
 		cmd = exec.Command(appName, "keys", "add", keyname, "--coin-type", "118", "--key-type", "secp256k1", "--recover", "--keyring-backend", "test", "--output", "json")
