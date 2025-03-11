@@ -36,8 +36,7 @@ func UnmarshalKeyInfo(rawJson string) (KeyInfo, error) {
 // AddOrReplace adds or replaces a key using `initiad keys add <keyname> --keyring-backend test` with 'y' confirmation
 func AddOrReplace(appName, keyname string) (string, error) {
 	// Command to add the key: echo 'y' | initiad keys add <keyname> --keyring-backend test
-	cmd := exec.Command(appName, "keys", "add", keyname, "--keyring-backend", "test", "--output", "json")
-
+	cmd := exec.Command(appName, "keys", "add", keyname, "--coin-type", "118", "--key-type", "secp256k1", "--keyring-backend", "test", "--output", "json")
 	// Simulate pressing 'y' for confirmation
 	cmd.Stdin = bytes.NewBufferString("y\n")
 
@@ -79,7 +78,7 @@ func RecoverKeyFromMnemonic(appName, keyname, mnemonic string) (string, error) {
 	inputBuffer.WriteString(mnemonic + "\n")
 
 	// Command to recover (or replace) the key: initiad keys add <keyname> --recover --keyring-backend test
-	cmd := exec.Command(appName, "keys", "add", keyname, "--recover", "--keyring-backend", "test", "--output", "json")
+	cmd := exec.Command(appName, "keys", "add", keyname, "--coin-type", "118", "--key-type", "secp256k1", "--recover", "--keyring-backend", "test", "--output", "json")
 
 	// Pass the combined confirmation and mnemonic as input to the command
 	cmd.Stdin = &inputBuffer
