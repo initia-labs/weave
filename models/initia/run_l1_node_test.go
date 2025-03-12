@@ -232,8 +232,7 @@ func TestRunL1NodeMonikerInputUpdateMainnetNetwork(t *testing.T) {
 	state := weavecontext.GetCurrentState[RunL1NodeState](model.Ctx)
 	state.network = string(Mainnet)
 
-	// TODO: change to mainnet after launch
-	state.chainRegistry, _ = registry.GetChainRegistry(registry.InitiaL1Testnet)
+	state.chainRegistry, _ = registry.GetChainRegistry(registry.InitiaL1Mainnet)
 	model.Ctx = weavecontext.SetCurrentState(model.Ctx, state)
 
 	// Simulate entering the moniker "NodeMain"

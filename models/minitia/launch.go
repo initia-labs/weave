@@ -203,14 +203,17 @@ func NewNetworkSelect(ctx context.Context) (*NetworkSelect, error) {
 	if err != nil {
 		return nil, err
 	}
-	//mainnetRegistry := registry.MustGetChainRegistry(registry.InitiaL1Mainnet)
+	mainnetRegistry, err := registry.GetChainRegistry(registry.InitiaL1Mainnet)
+	if err != nil {
+		return nil, err
+	}
 	Testnet = NetworkSelectOption(fmt.Sprintf("Testnet (%s)", testnetRegistry.GetChainId()))
-	//Mainnet = NetworkSelectOption(fmt.Sprintf("Mainnet (%s)", mainnetRegistry.GetChainId()))
+	Mainnet = NetworkSelectOption(fmt.Sprintf("Mainnet (%s)", mainnetRegistry.GetChainId()))
 	return &NetworkSelect{
 		Selector: ui.Selector[NetworkSelectOption]{
 			Options: []NetworkSelectOption{
 				Testnet,
-				//Mainnet,
+				Mainnet,
 			},
 			CannotBack: true,
 		},
@@ -255,6 +258,26 @@ func (m *NetworkSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.HandlePanic(err)
 		}
 		state.l1RPC = activeRpc
+
+		var celestiaType registry.ChainType
+		switch *selected {
+		case Testnet:
+			celestiaType = registry.CelestiaTestnet
+		case Mainnet:
+			celestiaType = registry.CelestiaMainnet
+		default:
+			return m, m.HandlePanic(fmt.Errorf("invalid network option: %v", *selected))
+		}
+
+		celestiaRegistry, err := registry.GetChainRegistry(celestiaType)
+		if err != nil {
+			return m, m.HandlePanic(err)
+		}
+		state.daRPC, err = celestiaRegistry.GetActiveRpc()
+		if err != nil {
+			return m, m.HandlePanic(err)
+		}
+		state.daChainId = celestiaRegistry.GetChainId()
 
 		return NewVMTypeSelect(weavecontext.SetCurrentState(m.Ctx, state)), nil
 	}
@@ -688,7 +711,9 @@ func (m *OpBridgeOutputFinalizationPeriodInput) Update(msg tea.Msg) (tea.Model, 
 
 		state.opBridgeOutputFinalizationPeriod = input.Text
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.DotsSeparator, m.GetQuestion(), m.highlights, input.Text))
-		return NewOpBridgeBatchSubmissionTargetSelect(weavecontext.SetCurrentState(m.Ctx, state)), nil
+		state.opBridgeBatchSubmissionTarget = common.TransformFirstWordUpperCase(string(Celestia))
+		state.batchSubmissionIsCelestia = true
+		return NewOracleEnableSelect(weavecontext.SetCurrentState(m.Ctx, state)), nil
 	}
 	m.TextInput = input
 	return m, cmd
@@ -1353,25 +1378,7 @@ func NewAccountsFundingPresetSelect(ctx context.Context) (*AccountsFundingPreset
 		batchSubmitterDenom = DefaultCelestiaGasDenom
 		batchSubmitterText = " on Celestia"
 		initiaNeededBalance = DefaultL1InitiaNeededBalanceIfCelestiaDA
-		var celestiaChainId string
-		l1Registry, err := registry.GetChainRegistry(registry.InitiaL1Testnet)
-		if err != nil {
-			return nil, err
-		}
-		if state.l1ChainId == l1Registry.GetChainId() {
-			celestiaRegistry, err := registry.GetChainRegistry(registry.CelestiaTestnet)
-			if err != nil {
-				return nil, err
-			}
-			celestiaChainId = celestiaRegistry.GetChainId()
-		} else {
-			celestiaRegistry, err := registry.GetChainRegistry(registry.CelestiaMainnet)
-			if err != nil {
-				return nil, err
-			}
-			celestiaChainId = celestiaRegistry.GetChainId()
-		}
-		celestiaNeededBalance = fmt.Sprintf("%s %s (%s)\n    ", styles.Text(fmt.Sprintf("• Celestia (%s):", celestiaChainId), styles.Cyan), styles.BoldText(fmt.Sprintf("%s%s", DefaultL1BatchSubmitterBalance, DefaultCelestiaGasDenom), styles.White), gasStationKey.CelestiaAddress)
+		celestiaNeededBalance = fmt.Sprintf("%s %s (%s)\n    ", styles.Text(fmt.Sprintf("• Celestia (%s):", state.daChainId), styles.Cyan), styles.BoldText(fmt.Sprintf("%s%s", DefaultL1BatchSubmitterBalance, DefaultCelestiaGasDenom), styles.White), gasStationKey.CelestiaAddress)
 	} else {
 		batchSubmitterDenom = DefaultL1GasDenom
 		batchSubmitterText = " on L1"
@@ -2658,7 +2665,7 @@ func (m *FundGasStationConfirmationInput) View() string {
 		false: formatSendMsg(state.systemKeyL1BatchSubmitterBalance, "uinit", "Batch Submitter on Initia L1", state.systemKeyBatchSubmitterAddress),
 	}
 	celestiaText := map[bool]string{
-		true:  fmt.Sprintf("\nSending tokens from the Gas Station account on Celestia Testnet %s ⛽️\n%s", styles.Text(fmt.Sprintf("(%s)", m.celestiaGasStationAddress), styles.Gray), formatSendMsg(state.systemKeyL1BatchSubmitterBalance, DefaultCelestiaGasDenom, "Batch Submitter on Celestia Testnet", state.systemKeyBatchSubmitterAddress)),
+		true:  fmt.Sprintf("\nSending tokens from the Gas Station account %s on Celestia %s ⛽️\n%s", styles.Text(fmt.Sprintf("(%s)", m.celestiaGasStationAddress), styles.Gray), styles.Text(fmt.Sprintf("(%s)", state.daChainId), styles.Gray), formatSendMsg(state.systemKeyL1BatchSubmitterBalance, DefaultCelestiaGasDenom, "Batch Submitter on Celestia", state.systemKeyBatchSubmitterAddress)),
 		false: "",
 	}
 	var textInputView string
@@ -2673,7 +2680,7 @@ func (m *FundGasStationConfirmationInput) View() string {
 			styles.BoldUnderlineText(headerText[state.batchSubmissionIsCelestia], styles.Yellow),
 			[]string{}, styles.Empty,
 		) + "\n\n" +
-		fmt.Sprintf("Sending tokens from the Gas Station account on Initia L1 %s ⛽️\n", styles.Text(fmt.Sprintf("(%s)", m.initiaGasStationAddress), styles.Gray)) +
+		fmt.Sprintf("Sending tokens from the Gas Station account %s on Initia L1 %s ⛽️\n", styles.Text(fmt.Sprintf("(%s)", m.initiaGasStationAddress), styles.Gray), styles.Text(fmt.Sprintf("(%s)", state.l1ChainId), styles.Gray)) +
 		formatSendMsg(state.systemKeyL1BridgeExecutorBalance, "uinit", "Bridge Executor on Initia L1", state.systemKeyBridgeExecutorAddress) +
 		formatSendMsg(state.systemKeyL1OutputSubmitterBalance, "uinit", "Output Submitter on Initia L1", state.systemKeyOutputSubmitterAddress) +
 		batchSubmitterText[state.batchSubmissionIsCelestia] +
