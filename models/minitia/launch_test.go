@@ -1035,7 +1035,7 @@ func TestWaitExistingGasStationChecker_ExistingSetup(t *testing.T) {
 func TestWaitExistingGasStationChecker_NonExistingSetup(t *testing.T) {
 	InitializeViperForTest(t)
 	key, _ := config.RecoverGasStationKey("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon")
-	viper.Set("common.gas_station", key)
+	viper.Set("gas_station", key)
 	ctx := weavecontext.NewAppContext(*NewLaunchState())
 
 	cmd := waitExistingGasStationChecker(ctx)

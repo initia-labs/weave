@@ -1291,7 +1291,7 @@ func (m *GasStationMnemonicInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
-		err = config.SetConfig("common.gas_station", gasStationKey)
+		err = config.SetConfig("gas_station", gasStationKey)
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
