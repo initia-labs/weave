@@ -1961,12 +1961,29 @@ func (m *SelectSettingUpIBCChannelsMethod) Update(msg tea.Msg) (tea.Model, tea.C
 			}
 			var metadata types.Metadata
 			var networkRegistry *registry.ChainRegistry
-			l1Registry, err := registry.GetChainRegistry(registry.InitiaL1Testnet)
+			testnetRegistry, err := registry.GetChainRegistry(registry.InitiaL1Testnet)
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
-			if state.Config["l1.chain_id"] == l1Registry.GetChainId() {
+			mainnetRegistry, err := registry.GetChainRegistry(registry.InitiaL1Mainnet)
+			if err != nil {
+				return m, m.HandlePanic(err)
+			}
+			if state.Config["l1.chain_id"] == testnetRegistry.GetChainId() {
 				networkRegistry, err = registry.GetChainRegistry(registry.InitiaL1Testnet)
+				if err != nil {
+					return m, m.HandlePanic(err)
+				}
+				info, err := networkRegistry.GetOpinitBridgeInfo(artifacts.BridgeID)
+				if err != nil {
+					return m, m.HandlePanic(err)
+				}
+				metadata, err = types.DecodeBridgeMetadata(info.BridgeConfig.Metadata)
+				if err != nil {
+					return m, m.HandlePanic(err)
+				}
+			} else if state.Config["l1.chain_id"] == mainnetRegistry.GetChainId() {
+				networkRegistry, err = registry.GetChainRegistry(registry.InitiaL1Mainnet)
 				if err != nil {
 					return m, m.HandlePanic(err)
 				}
