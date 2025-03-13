@@ -184,6 +184,33 @@ func (m *RollupSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				state.Config["l2.gas_price.price"] = DefaultGasPriceAmount
 				state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, "L1 network is auto-detected", []string{}, minitiaConfig.L1Config.ChainID))
 
+			} else if minitiaConfig.L1Config.ChainID == InitiaMainnetChainId {
+				mainnetRegistry, err := registry.GetChainRegistry(registry.InitiaL1Mainnet)
+				if err != nil {
+					return m, m.HandlePanic(err)
+				}
+				state.Config["l1.chain_id"] = mainnetRegistry.GetChainId()
+				if state.Config["l1.rpc_address"], err = mainnetRegistry.GetActiveRpc(); err != nil {
+					return m, m.HandlePanic(err)
+				}
+				if state.Config["l1.grpc_address"], err = mainnetRegistry.GetActiveGrpc(); err != nil {
+					return m, m.HandlePanic(err)
+				}
+				if state.Config["l1.lcd_address"], err = mainnetRegistry.GetActiveLcd(); err != nil {
+					return m, m.HandlePanic(err)
+				}
+				if state.Config["l1.websocket"], err = mainnetRegistry.GetActiveWebSocket(); err != nil {
+					return m, m.HandlePanic(err)
+				}
+				if state.Config["l1.gas_price.price"], err = mainnetRegistry.GetFixedMinGasPriceByDenom(DefaultGasPriceDenom); err != nil {
+					return m, m.HandlePanic(err)
+				}
+				state.Config["l1.gas_price.denom"] = DefaultGasPriceDenom
+
+				state.Config["l2.chain_id"] = minitiaConfig.L2Config.ChainID
+				state.Config["l2.gas_price.denom"] = minitiaConfig.L2Config.Denom
+				state.Config["l2.gas_price.price"] = DefaultGasPriceAmount
+				state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, "L1 network is auto-detected", []string{}, minitiaConfig.L1Config.ChainID))
 			} else {
 				return m, m.HandlePanic(fmt.Errorf("not support L1"))
 			}
