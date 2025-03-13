@@ -262,8 +262,10 @@ func (m *NetworkSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var celestiaType registry.ChainType
 		switch *selected {
 		case Testnet:
+			state.scanLink = InitiaScanTestnetURL
 			celestiaType = registry.CelestiaTestnet
 		case Mainnet:
+			state.scanLink = InitiaScanMainnetURL
 			celestiaType = registry.CelestiaMainnet
 		default:
 			return m, m.HandlePanic(fmt.Errorf("invalid network option: %v", *selected))
@@ -3034,7 +3036,7 @@ func (m *LaunchingNewMinitiaLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.HandlePanic(fmt.Errorf("failed to encode payload: %v", err))
 		}
 
-		state.scanLink = fmt.Sprintf("%s/custom-network/add/link?config=%s", InitiaScanURL, encodedPayload)
+		state.scanLink = fmt.Sprintf("%s/custom-network/add/link?config=%s", state.scanLink, encodedPayload)
 		scanText := fmt.Sprintf(
 			"\n✨ %s 🪄 (We already started the rollup app for you)\n",
 			styles.BoldText("Explore your new rollup here", styles.White),

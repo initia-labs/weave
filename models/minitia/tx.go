@@ -447,8 +447,8 @@ func (lsk *L1SystemKeys) verifyCelestiaBalance(state *LaunchState, daWant *big.I
 
 	gasBalance, ok := celestiaBalances[DefaultCelestiaGasDenom]
 	if !ok {
-		return fmt.Errorf("insufficient DA balance. Required: %s%s, Available: 0%s",
-			daWant.String(), DefaultCelestiaGasDenom, DefaultCelestiaGasDenom)
+		return fmt.Errorf("%w: insufficient DA balance. Required: %s%s, Available: 0%s",
+			ErrInsufficientBalance, daWant.String(), DefaultCelestiaGasDenom, DefaultCelestiaGasDenom)
 	}
 
 	// Verify Celestia balance
@@ -458,8 +458,8 @@ func (lsk *L1SystemKeys) verifyCelestiaBalance(state *LaunchState, daWant *big.I
 	}
 
 	if daAvailableBig.Cmp(daWant) < 0 {
-		return fmt.Errorf("insufficient DA balance. Required: %s%s, Available: %s%s",
-			daWant.String(), DefaultCelestiaGasDenom,
+		return fmt.Errorf("%w: insufficient DA balance. Required: %s%s, Available: %s%s",
+			ErrInsufficientBalance, daWant.String(), DefaultCelestiaGasDenom,
 			daAvailableBig.String(), DefaultCelestiaGasDenom)
 	}
 
