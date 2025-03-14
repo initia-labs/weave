@@ -1631,7 +1631,8 @@ func (m *SelectingL1Network) View() string {
 type SelectingL2Network struct {
 	ui.Selector[string]
 	weavecontext.BaseModel
-	question string
+	question  string
+	chainType registry.ChainType
 }
 
 func NewSelectingL2Network(ctx context.Context, chainType registry.ChainType) (*SelectingL2Network, error) {
@@ -1655,6 +1656,7 @@ func NewSelectingL2Network(ctx context.Context, chainType registry.ChainType) (*
 		},
 		BaseModel: weavecontext.BaseModel{Ctx: ctx},
 		question:  "Specify rollup network",
+		chainType: chainType,
 	}, nil
 }
 
@@ -1669,6 +1671,17 @@ func (m *SelectingL2Network) GetQuestion() string {
 func (m *SelectingL2Network) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
+	}
+
+	if len(m.Options) == 0 {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			switch msg.String() {
+			case "q", "ctrl+c":
+				return nil, tea.Quit
+			}
+			return m, nil
+		}
 	}
 
 	// Handle selection logic
@@ -1740,6 +1753,10 @@ func (m *SelectingL2Network) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *SelectingL2Network) View() string {
 	state := weavecontext.GetCurrentState[State](m.Ctx)
 	m.Selector.ViewTooltip(m.Ctx)
+	if len(m.Options) == 0 {
+		return m.WrapView(state.weave.Render() + styles.RenderPrompt(fmt.Sprintf("No rollups found for chain type %s in initia-registry.", m.chainType), []string{"rollup network"}, styles.Information) +
+			"\n" + styles.RenderFooter("Ctrl+z to go back, Ctrl+c or q to quit."))
+	}
 	return m.WrapView(state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{"rollup network"}, styles.Question) + m.Selector.View())
 }
 
