@@ -377,10 +377,6 @@ func GetAllL2AvailableNetwork(chainType ChainType) ([]L2AvailableNetwork, error)
 		}
 	}
 
-	if len(networks) == 0 {
-		return nil, fmt.Errorf("no rollups found for chain type %s", chainType)
-	}
-
 	return networks, nil
 }
 
