@@ -662,7 +662,7 @@ type L1PrefillOption string
 
 var (
 	L1PrefillOptionTestnet L1PrefillOption = ""
-	L1PrefillOptionCustom  L1PrefillOption = "Custom"
+	L1PrefillOptionMainnet L1PrefillOption = ""
 )
 
 type L1PrefillSelector struct {
@@ -678,11 +678,16 @@ func NewL1PrefillSelector(ctx context.Context) (*L1PrefillSelector, error) {
 		return nil, fmt.Errorf("initia testnet registry: %w", err)
 	}
 	L1PrefillOptionTestnet = L1PrefillOption(fmt.Sprintf("Testnet (%s)", initiaTestnetRegistry.GetChainId()))
+	initiaMainnetRegistry, err := registry.GetChainRegistry(registry.InitiaL1Mainnet)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load initia mainnet registry: %s", err)
+	}
+	L1PrefillOptionMainnet = L1PrefillOption(fmt.Sprintf("Mainnet (%s)", initiaMainnetRegistry.GetChainId()))
 	return &L1PrefillSelector{
 		Selector: ui.Selector[L1PrefillOption]{
 			Options: []L1PrefillOption{
 				L1PrefillOptionTestnet,
-				// L1PrefillOptionCustom,
+				L1PrefillOptionMainnet,
 			},
 		},
 		BaseModel:  weavecontext.BaseModel{Ctx: ctx},
@@ -708,29 +713,30 @@ func (m *L1PrefillSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		state := weavecontext.PushPageAndGetState[OPInitBotsState](m)
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, m.GetQuestion(), m.highlights, string(*selected)))
 
-		var chainId, rpc, minGasPrice string
+		var chainType registry.ChainType
 		switch *selected {
 		case L1PrefillOptionTestnet:
 			analytics.TrackEvent(analytics.L1PrefillSelected, analytics.NewEmptyEvent().Add(analytics.OptionEventKey, "testnet"))
-
-			chainRegistry, err := registry.GetChainRegistry(registry.InitiaL1Testnet)
-			if err != nil {
-				return m, m.HandlePanic(err)
-			}
-			chainId = chainRegistry.GetChainId()
-			rpc, err = chainRegistry.GetActiveRpc()
-			if err != nil {
-				return m, m.HandlePanic(err)
-			}
-			minGasPrice, err = chainRegistry.GetMinGasPriceByDenom(DefaultInitiaGasDenom)
-			if err != nil {
-				return m, m.HandlePanic(err)
-			}
-		case L1PrefillOptionCustom:
-			analytics.TrackEvent(analytics.L1PrefillSelected, analytics.NewEmptyEvent().Add(analytics.OptionEventKey, "custom"))
+			chainType = registry.InitiaL1Testnet
+		case L1PrefillOptionMainnet:
+			analytics.TrackEvent(analytics.L1PrefillSelected, analytics.NewEmptyEvent().Add(analytics.OptionEventKey, "mainnet"))
+			chainType = registry.InitiaL1Mainnet
 		}
 
-		state.botConfig["l1_node.chain_id"] = chainId
+		chainRegistry, err := registry.GetChainRegistry(chainType)
+		if err != nil {
+			return m, m.HandlePanic(err)
+		}
+		rpc, err := chainRegistry.GetActiveRpc()
+		if err != nil {
+			return m, m.HandlePanic(err)
+		}
+		minGasPrice, err := chainRegistry.GetMinGasPriceByDenom(DefaultInitiaGasDenom)
+		if err != nil {
+			return m, m.HandlePanic(err)
+		}
+
+		state.botConfig["l1_node.chain_id"] = chainRegistry.GetChainId()
 		state.botConfig["l1_node.gas_price"] = minGasPrice
 
 		if err := setFieldPrefillValue(defaultExecutorFields, "l1_node.rpc_address", rpc); err != nil {
@@ -742,7 +748,31 @@ func (m *L1PrefillSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m.Ctx = weavecontext.SetCurrentState(m.Ctx, state)
 		if state.InitExecutorBot {
-			return NewFieldInputModel(m.Ctx, defaultExecutorFields, NewSetDALayer), cmd
+			var network registry.ChainType
+			l1ChainRegistry, err := registry.GetChainRegistry(registry.InitiaL1Testnet)
+			if err != nil {
+				return m, m.HandlePanic(fmt.Errorf("initia testnet registry: %w", err))
+			}
+			if l1ChainRegistry.GetChainId() == state.botConfig["l1_node.chain_id"] {
+				network = registry.CelestiaTestnet
+			} else {
+				network = registry.CelestiaMainnet
+			}
+
+			celestiaChainRegistry, err := registry.GetChainRegistry(network)
+			if err != nil {
+				return nil, m.HandlePanic(fmt.Errorf("celestia registry: %w", err))
+			}
+			state.botConfig["da_node.chain_id"] = celestiaChainRegistry.GetChainId()
+			activeRpc, err := celestiaChainRegistry.GetActiveRpc()
+			if err != nil {
+				return m, m.HandlePanic(err)
+			}
+			state.botConfig["da_node.rpc_address"] = activeRpc
+			state.botConfig["da_node.bech32_prefix"] = celestiaChainRegistry.GetBech32Prefix()
+			state.botConfig["da_node.gas_price"] = DefaultCelestiaGasPrices
+			state.daIsCelestia = true
+			return NewFieldInputModel(m.Ctx, defaultExecutorFields, NewFetchL1StartHeightLoading), cmd
 		} else if state.InitChallengerBot {
 			return NewFieldInputModel(m.Ctx, defaultChallengerFields, NewFetchL1StartHeightLoading), cmd
 		}
@@ -762,7 +792,6 @@ type DALayerNetwork string
 const (
 	Initia   DALayerNetwork = "Initia"
 	Celestia DALayerNetwork = "Celestia"
-	// Add other types as needed
 )
 
 type SetDALayer struct {

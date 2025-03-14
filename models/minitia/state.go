@@ -2,7 +2,6 @@ package minitia
 
 import (
 	"fmt"
-
 	"github.com/initia-labs/weave/types"
 )
 
@@ -24,6 +23,8 @@ type LaunchState struct {
 	opBridgeOutputFinalizationPeriod string
 	opBridgeBatchSubmissionTarget    string
 	batchSubmissionIsCelestia        bool
+	daChainId                        string
+	daRPC                            string
 
 	generateKeys                     bool
 	systemKeyOperatorMnemonic        string

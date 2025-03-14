@@ -134,7 +134,7 @@ func TestOPInitBotsInit(t *testing.T) {
 		testutil.PressEnter,    // press enter to confirm using the default rollup rpc endpoint
 		testutil.PressTab,      // press tab to use the default gas denom
 		testutil.PressEnter,    // press enter to confirm using the default gas denom
-		testutil.PressEnter,    // press enter to confirm using the initia as da layer
+		testutil.WaitFetching,  // wait checking for the existing rollup app
 		testutil.WaitFetching,  // wait checking for the existing rollup app
 		testutil.TypeText("1"), // type L1 start height
 		testutil.PressEnter,    // press enter to confirm l1 start height

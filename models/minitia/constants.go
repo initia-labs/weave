@@ -30,7 +30,9 @@ const (
 
 	CelestiaAppName string = "celestia-appd"
 
-	InitiaScanURL           string = "https://scan.testnet.initia.xyz"
+	InitiaScanMainnetURL string = "https://scan.initia.xyz"
+	InitiaScanTestnetURL string = "https://scan.testnet.initia.xyz"
+
 	DefaultMinitiaLCD       string = "http://localhost:1317"
 	DefaultMinitiaRPC       string = "http://localhost:26657"
 	DefaultMinitiaWebsocket string = "ws://localhost:26657/websocket"
