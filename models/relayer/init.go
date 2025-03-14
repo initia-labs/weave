@@ -1755,7 +1755,7 @@ func (m *SelectingL2Network) View() string {
 	m.Selector.ViewTooltip(m.Ctx)
 	if len(m.Options) == 0 {
 		return m.WrapView(state.weave.Render() + styles.RenderPrompt(fmt.Sprintf("No rollups found for chain type %s in initia-registry.", m.chainType), []string{"rollup network"}, styles.Information) +
-			"\n" + "No available rollup networks" + "\n" + styles.RenderFooter("Ctrl+z to go back, Ctrl+c or q to quit."))
+			"\n" + styles.RenderFooter("Ctrl+z to go back, Ctrl+c or q to quit."))
 	}
 	return m.WrapView(state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{"rollup network"}, styles.Question) + m.Selector.View())
 }
