@@ -2,6 +2,8 @@ package minitia
 
 import (
 	"fmt"
+
+	"github.com/initia-labs/weave/registry"
 	"github.com/initia-labs/weave/types"
 )
 
@@ -158,7 +160,7 @@ func (ls *LaunchState) FinalizeGenesisAccounts() {
 func (ls *LaunchState) PrepareLaunchingWithConfig(vm, minitiadVersion, minitiadEndpoint, configPath string, config *types.MinitiaConfig) {
 	vmType, err := ParseVMType(vm)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("failed to parse VM type: %s", err))
 	}
 	ls.vmType = string(vmType)
 	ls.minitiadVersion = minitiadVersion
@@ -167,4 +169,26 @@ func (ls *LaunchState) PrepareLaunchingWithConfig(vm, minitiadVersion, minitiadE
 	ls.existingConfigPath = configPath
 	ls.chainId = config.L2Config.ChainID
 	ls.gasDenom = config.L2Config.Denom
+
+	testnetRegistry, err := registry.GetChainRegistry(registry.InitiaL1Testnet)
+	if err != nil {
+		panic(fmt.Errorf("failed to get testnet registry: %s", err))
+	}
+
+	if testnetRegistry.GetChainId() == config.L1Config.ChainID {
+		ls.scanLink = InitiaScanTestnetURL
+		return
+	}
+
+	mainnetRegistry, err := registry.GetChainRegistry(registry.InitiaL1Mainnet)
+	if err != nil {
+		panic(fmt.Errorf("failed to get mainnet registry: %s", err))
+	}
+
+	if mainnetRegistry.GetChainId() == config.L1Config.ChainID {
+		ls.scanLink = InitiaScanMainnetURL
+		return
+	}
+
+	panic(fmt.Errorf("failed to find l1 network in the registry: %s", err))
 }
