@@ -7,6 +7,7 @@ const (
 
 var (
 	PolkachuChainIdSlugMap = map[string]string{
-		"initiation-2": "testnets/initia",
+		"interwoven-1": "tendermint_snapshots/initia",
+		"initiation-2": "testnets/initia/snapshots",
 	}
 )
