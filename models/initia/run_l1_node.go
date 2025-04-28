@@ -76,15 +76,18 @@ func NewRunL1NodeNetworkSelect(ctx context.Context) (*RunL1NodeNetworkSelect, er
 	if err != nil {
 		return nil, err
 	}
-	//mainnetRegistry := registry.MustGetChainRegistry(registry.InitiaL1Mainnet)
+	mainnetRegistry, err := registry.GetChainRegistry(registry.InitiaL1Mainnet)
+	if err != nil {
+		return nil, err
+	}
 	Testnet = L1NodeNetworkOption(fmt.Sprintf("Testnet (%s)", testnetRegistry.GetChainId()))
-	//Mainnet = L1NodeNetworkOption(fmt.Sprintf("Mainnet (%s)", mainnetRegistry.GetChainId()))
+	Mainnet = L1NodeNetworkOption(fmt.Sprintf("Mainnet (%s)", mainnetRegistry.GetChainId()))
 	tooltips := ui.NewTooltipSlice(tooltip.L1NetworkSelectTooltip, 2)
 
 	return &RunL1NodeNetworkSelect{
 		Selector: ui.Selector[L1NodeNetworkOption]{
 			Options: []L1NodeNetworkOption{
-				// Mainnet,
+				Mainnet,
 				Testnet,
 				// Local,
 			},
