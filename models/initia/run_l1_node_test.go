@@ -42,6 +42,7 @@ func TestRunL1NodeNetworkSelectInitialization(t *testing.T) {
 	model, _ := NewRunL1NodeNetworkSelect(ctx)
 
 	assert.Equal(t, "Which network will your node participate in?", model.GetQuestion())
+	assert.Contains(t, model.Selector.Options, Mainnet)
 	assert.Contains(t, model.Selector.Options, Testnet)
 	// assert.Contains(t, model.Selector.Options, Local)
 }
