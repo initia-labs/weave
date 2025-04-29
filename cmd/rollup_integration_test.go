@@ -43,8 +43,6 @@ func TestMinitiaLaunchWithExisting(t *testing.T) {
 		testutil.PressEnter,                     // press enter to confirm using the default submission interval
 		testutil.PressTab,                       // press tab to use the default output submission period
 		testutil.PressEnter,                     // press enter to confirm using the default output submission period
-		testutil.PressDown,                      // press down once to select Initia L1 as the da layer
-		testutil.PressEnter,                     // press enter to confirm using Initia L1 as the da layer
 		testutil.PressEnter,                     // press enter to confirm enabling the oracle
 		testutil.PressEnter,                     // press enter to generate keys for system keys
 		testutil.WaitFetching,                   // wait for the fetching of gas station
@@ -143,8 +141,6 @@ func TestMinitiaLaunchWithExisting(t *testing.T) {
 		testutil.PressEnter,           // press enter to confirm using the default submission interval
 		testutil.PressTab,             // press tab to use the default output submission period
 		testutil.PressEnter,           // press enter to confirm using the default output submission period
-		testutil.PressDown,            // press down once to select Initia L1 as the da layer
-		testutil.PressEnter,           // press enter to confirm using Initia L1 as the da layer
 		testutil.PressEnter,           // press enter to confirm enabling the oracle
 		testutil.PressDown,            // press down once to select importing existing keys
 		testutil.PressEnter,           // press enter to confirm importing existing keys

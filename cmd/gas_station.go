@@ -242,6 +242,11 @@ func showGasStationBalance() error {
 		return err
 	}
 
+	initiaL1MainnetBalances, err := getBalance(registry.InitiaL1Mainnet, gasStationKey.InitiaAddress)
+	if err != nil {
+		return err
+	}
+
 	celestiaTestnetBalance, err := getBalance(registry.CelestiaTestnet, gasStationKey.CelestiaAddress)
 	if err != nil {
 		return err
@@ -260,8 +265,15 @@ func showGasStationBalance() error {
 		testnetAssetList = nil
 	}
 
+	mainnetAssetList, err := fetchInitiaRegistryAssetList(registry.InitiaL1Mainnet)
+	if err != nil {
+		fmt.Printf("Warning: Failed to fetch asset list: %v. Displaying original denominations.\n", err)
+		mainnetAssetList = nil
+	}
+
 	// Convert balances to display denoms
 	initiaL1TestnetBalances = convertToDisplayDenom(initiaL1TestnetBalances, testnetAssetList)
+	initiaL1MainnetBalances = convertToDisplayDenom(initiaL1MainnetBalances, mainnetAssetList)
 	celestiaTestnetBalance = convertToDisplayDenom(celestiaTestnetBalance, nil) // nil assetList for Celestia
 	celestiaMainnetBalance = convertToDisplayDenom(celestiaMainnetBalance, nil) // nil assetList for Celestia
 
@@ -269,7 +281,7 @@ func showGasStationBalance() error {
 	if maxWidth < len(cosmosutils.NoBalancesText) {
 		maxWidth = len(cosmosutils.NoBalancesText)
 	}
-	fmt.Printf("\n⛽️ Initia Address: %s\n\nTestnet\n%s\n\n", gasStationKey.InitiaAddress, initiaL1TestnetBalances.Render(maxWidth))
+	fmt.Printf("\n⛽️ Initia Address: %s\n\nTestnet\n%s\nMainnet\n%s\n\n", gasStationKey.InitiaAddress, initiaL1TestnetBalances.Render(maxWidth), initiaL1MainnetBalances.Render(maxWidth))
 	fmt.Printf("⛽️ Celestia Address: %s\n\nTestnet\n%s\nMainnet\n%s\n\n", gasStationKey.CelestiaAddress, celestiaTestnetBalance.Render(maxWidth), celestiaMainnetBalance.Render(maxWidth))
 	fmt.Printf("💧 You can get testnet INIT from -> https://faucet.testnet.initia.xyz.\n💧 For testnet TIA, please refer to -> https://docs.celestia.org/how-to-guides/mocha-testnet#mocha-testnet-faucet\n")
 

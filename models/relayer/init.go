@@ -184,6 +184,33 @@ func (m *RollupSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				state.Config["l2.gas_price.price"] = DefaultGasPriceAmount
 				state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, "L1 network is auto-detected", []string{}, minitiaConfig.L1Config.ChainID))
 
+			} else if minitiaConfig.L1Config.ChainID == InitiaMainnetChainId {
+				mainnetRegistry, err := registry.GetChainRegistry(registry.InitiaL1Mainnet)
+				if err != nil {
+					return m, m.HandlePanic(err)
+				}
+				state.Config["l1.chain_id"] = mainnetRegistry.GetChainId()
+				if state.Config["l1.rpc_address"], err = mainnetRegistry.GetActiveRpc(); err != nil {
+					return m, m.HandlePanic(err)
+				}
+				if state.Config["l1.grpc_address"], err = mainnetRegistry.GetActiveGrpc(); err != nil {
+					return m, m.HandlePanic(err)
+				}
+				if state.Config["l1.lcd_address"], err = mainnetRegistry.GetActiveLcd(); err != nil {
+					return m, m.HandlePanic(err)
+				}
+				if state.Config["l1.websocket"], err = mainnetRegistry.GetActiveWebSocket(); err != nil {
+					return m, m.HandlePanic(err)
+				}
+				if state.Config["l1.gas_price.price"], err = mainnetRegistry.GetFixedMinGasPriceByDenom(DefaultGasPriceDenom); err != nil {
+					return m, m.HandlePanic(err)
+				}
+				state.Config["l1.gas_price.denom"] = DefaultGasPriceDenom
+
+				state.Config["l2.chain_id"] = minitiaConfig.L2Config.ChainID
+				state.Config["l2.gas_price.denom"] = minitiaConfig.L2Config.Denom
+				state.Config["l2.gas_price.price"] = DefaultGasPriceAmount
+				state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, "L1 network is auto-detected", []string{}, minitiaConfig.L1Config.ChainID))
 			} else {
 				return m, m.HandlePanic(fmt.Errorf("not support L1"))
 			}
@@ -1604,7 +1631,8 @@ func (m *SelectingL1Network) View() string {
 type SelectingL2Network struct {
 	ui.Selector[string]
 	weavecontext.BaseModel
-	question string
+	question  string
+	chainType registry.ChainType
 }
 
 func NewSelectingL2Network(ctx context.Context, chainType registry.ChainType) (*SelectingL2Network, error) {
@@ -1628,6 +1656,7 @@ func NewSelectingL2Network(ctx context.Context, chainType registry.ChainType) (*
 		},
 		BaseModel: weavecontext.BaseModel{Ctx: ctx},
 		question:  "Specify rollup network",
+		chainType: chainType,
 	}, nil
 }
 
@@ -1642,6 +1671,17 @@ func (m *SelectingL2Network) GetQuestion() string {
 func (m *SelectingL2Network) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if model, cmd, handled := weavecontext.HandleCommonCommands[State](m, msg); handled {
 		return model, cmd
+	}
+
+	if len(m.Options) == 0 {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			switch msg.String() {
+			case "q", "ctrl+c":
+				return nil, tea.Quit
+			}
+			return m, nil
+		}
 	}
 
 	// Handle selection logic
@@ -1713,6 +1753,10 @@ func (m *SelectingL2Network) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *SelectingL2Network) View() string {
 	state := weavecontext.GetCurrentState[State](m.Ctx)
 	m.Selector.ViewTooltip(m.Ctx)
+	if len(m.Options) == 0 {
+		return m.WrapView(state.weave.Render() + styles.RenderPrompt(fmt.Sprintf("No rollups found for chain type %s in initia-registry.", m.chainType), []string{"rollup network"}, styles.Information) +
+			"\n" + styles.RenderFooter("Ctrl+z to go back, Ctrl+c or q to quit."))
+	}
 	return m.WrapView(state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{"rollup network"}, styles.Question) + m.Selector.View())
 }
 
@@ -1751,15 +1795,18 @@ func NewSelectingL1NetworkRegistry(ctx context.Context) (*SelectingL1NetworkRegi
 	if err != nil {
 		return nil, fmt.Errorf("failed to get chain registry: %w", err)
 	}
-	//mainnetRegistry := registry.MustGetChainRegistry(registry.InitiaL1Mainnet)
+	mainnetRegistry, err := registry.GetChainRegistry(registry.InitiaL1Mainnet)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get chain registry: %w", err)
+	}
 	Testnet = NetworkSelectOption(fmt.Sprintf("Testnet (%s)", testnetRegistry.GetChainId()))
-	//Mainnet = NetworkSelectOption(fmt.Sprintf("Mainnet (%s)", mainnetRegistry.GetChainId()))
+	Mainnet = NetworkSelectOption(fmt.Sprintf("Mainnet (%s)", mainnetRegistry.GetChainId()))
 	tooltips := ui.NewTooltipSlice(tooltip.RelayerL1NetworkSelectTooltip, 2)
 	return &SelectingL1NetworkRegistry{
 		Selector: ui.Selector[NetworkSelectOption]{
 			Options: []NetworkSelectOption{
 				Testnet,
-				// Mainnet,
+				Mainnet,
 			},
 			Tooltips: &tooltips,
 		},
@@ -1786,64 +1833,42 @@ func (m *SelectingL1NetworkRegistry) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if selected != nil {
 		state := weavecontext.PushPageAndGetState[State](m)
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, m.GetQuestion(), []string{"Initia L1 network"}, string(*selected)))
+
+		var chainType registry.ChainType
 		switch *selected {
 		case Testnet:
-			testnetRegistry, err := registry.GetChainRegistry(registry.InitiaL1Testnet)
-			if err != nil {
-				return m, m.HandlePanic(err)
-			}
-			state.Config["l1.chain_id"] = testnetRegistry.GetChainId()
-			if state.Config["l1.rpc_address"], err = testnetRegistry.GetActiveRpc(); err != nil {
-				return m, m.HandlePanic(err)
-			}
-			if state.Config["l1.grpc_address"], err = testnetRegistry.GetActiveGrpc(); err != nil {
-				return m, m.HandlePanic(err)
-			}
-			if state.Config["l1.lcd_address"], err = testnetRegistry.GetActiveLcd(); err != nil {
-				return m, m.HandlePanic(err)
-			}
-			if state.Config["l1.websocket"], err = testnetRegistry.GetActiveWebSocket(); err != nil {
-				return m, m.HandlePanic(err)
-			}
-			if state.Config["l1.gas_price.price"], err = testnetRegistry.GetFixedMinGasPriceByDenom(DefaultGasPriceDenom); err != nil {
-				return m, m.HandlePanic(err)
-			}
-			state.Config["l1.gas_price.denom"] = DefaultGasPriceDenom
-
-			model, err := NewSelectingL2Network(weavecontext.SetCurrentState(m.Ctx, state), registry.InitiaL1Testnet)
-			if err != nil {
-				return m, m.HandlePanic(err)
-			}
-			return model, nil
+			chainType = registry.InitiaL1Testnet
 		case Mainnet:
-			mainnetRegistry, err := registry.GetChainRegistry(registry.InitiaL1Mainnet)
-			if err != nil {
-				return m, m.HandlePanic(err)
-			}
-			state.Config["l1.chain_id"] = mainnetRegistry.GetChainId()
-			if state.Config["l1.rpc_address"], err = mainnetRegistry.GetActiveRpc(); err != nil {
-				return m, m.HandlePanic(err)
-			}
-			if state.Config["l1.grpc_address"], err = mainnetRegistry.GetActiveGrpc(); err != nil {
-				return m, m.HandlePanic(err)
-			}
-			if state.Config["l1.lcd_address"], err = mainnetRegistry.GetActiveLcd(); err != nil {
-				return m, m.HandlePanic(err)
-			}
-			if state.Config["l1.websocket"], err = mainnetRegistry.GetActiveWebSocket(); err != nil {
-				return m, m.HandlePanic(err)
-			}
-			if state.Config["l1.gas_price.price"], err = mainnetRegistry.GetMinGasPriceByDenom(DefaultGasPriceDenom); err != nil {
-				return m, m.HandlePanic(err)
-			}
-			state.Config["l1.gas_price.denom"] = DefaultGasPriceDenom
-
-			model, err := NewSelectingL2Network(weavecontext.SetCurrentState(m.Ctx, state), registry.InitiaL1Mainnet)
-			if err != nil {
-				return m, m.HandlePanic(err)
-			}
-			return model, nil
+			chainType = registry.InitiaL1Mainnet
 		}
+
+		chainRegistry, err := registry.GetChainRegistry(chainType)
+		if err != nil {
+			return m, m.HandlePanic(err)
+		}
+		state.Config["l1.chain_id"] = chainRegistry.GetChainId()
+		if state.Config["l1.rpc_address"], err = chainRegistry.GetActiveRpc(); err != nil {
+			return m, m.HandlePanic(err)
+		}
+		if state.Config["l1.grpc_address"], err = chainRegistry.GetActiveGrpc(); err != nil {
+			return m, m.HandlePanic(err)
+		}
+		if state.Config["l1.lcd_address"], err = chainRegistry.GetActiveLcd(); err != nil {
+			return m, m.HandlePanic(err)
+		}
+		if state.Config["l1.websocket"], err = chainRegistry.GetActiveWebSocket(); err != nil {
+			return m, m.HandlePanic(err)
+		}
+		if state.Config["l1.gas_price.price"], err = chainRegistry.GetFixedMinGasPriceByDenom(DefaultGasPriceDenom); err != nil {
+			return m, m.HandlePanic(err)
+		}
+		state.Config["l1.gas_price.denom"] = DefaultGasPriceDenom
+
+		model, err := NewSelectingL2Network(weavecontext.SetCurrentState(m.Ctx, state), chainType)
+		if err != nil {
+			return m, m.HandlePanic(err)
+		}
+		return model, nil
 	}
 
 	return m, cmd
@@ -1934,12 +1959,29 @@ func (m *SelectSettingUpIBCChannelsMethod) Update(msg tea.Msg) (tea.Model, tea.C
 			}
 			var metadata types.Metadata
 			var networkRegistry *registry.ChainRegistry
-			l1Registry, err := registry.GetChainRegistry(registry.InitiaL1Testnet)
+			testnetRegistry, err := registry.GetChainRegistry(registry.InitiaL1Testnet)
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
-			if state.Config["l1.chain_id"] == l1Registry.GetChainId() {
+			mainnetRegistry, err := registry.GetChainRegistry(registry.InitiaL1Mainnet)
+			if err != nil {
+				return m, m.HandlePanic(err)
+			}
+			if state.Config["l1.chain_id"] == testnetRegistry.GetChainId() {
 				networkRegistry, err = registry.GetChainRegistry(registry.InitiaL1Testnet)
+				if err != nil {
+					return m, m.HandlePanic(err)
+				}
+				info, err := networkRegistry.GetOpinitBridgeInfo(artifacts.BridgeID)
+				if err != nil {
+					return m, m.HandlePanic(err)
+				}
+				metadata, err = types.DecodeBridgeMetadata(info.BridgeConfig.Metadata)
+				if err != nil {
+					return m, m.HandlePanic(err)
+				}
+			} else if state.Config["l1.chain_id"] == mainnetRegistry.GetChainId() {
+				networkRegistry, err = registry.GetChainRegistry(registry.InitiaL1Mainnet)
 				if err != nil {
 					return m, m.HandlePanic(err)
 				}

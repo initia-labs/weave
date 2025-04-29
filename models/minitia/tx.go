@@ -14,7 +14,6 @@ import (
 	"github.com/initia-labs/weave/config"
 	"github.com/initia-labs/weave/cosmosutils"
 	"github.com/initia-labs/weave/io"
-	"github.com/initia-labs/weave/registry"
 	"github.com/initia-labs/weave/types"
 )
 
@@ -77,26 +76,9 @@ func (lsk *L1SystemKeys) FundAccountsWithGasStation(state *LaunchState) (*FundAc
 			_ = cosmosutils.DeleteKey(state.celestiaBinaryPath, common.WeaveGasStationKeyName)
 		}()
 
-		// TODO: Choose DA layer based on the chosen L1 network
-		celestiaRegistry, err := registry.GetChainRegistry(registry.CelestiaTestnet)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get celestia registry: %v", err)
-		}
-
-		celestiaRpc, err := celestiaRegistry.GetActiveRpc()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get active rpc for celestia: %v", err)
-		}
-
-		//celestiaMinGasPrice, err := celestiaRegistry.GetMinGasPriceByDenom(DefaultCelestiaGasDenom)
-		//if err != nil {
-		//	return nil, fmt.Errorf("failed to get celestia minimum gas price: %v", err)
-		//}
-
-		celestiaChainId := celestiaRegistry.GetChainId()
 		sendCmd := exec.Command(state.celestiaBinaryPath, "tx", "bank", "send", common.WeaveGasStationKeyName,
-			lsk.BatchSubmitter.Address, fmt.Sprintf("%sutia", lsk.BatchSubmitter.Coins), "--node", celestiaRpc,
-			"--chain-id", celestiaChainId, "--gas", "200000", "--gas-prices", "0.1utia", "--output", "json", "-y",
+			lsk.BatchSubmitter.Address, fmt.Sprintf("%sutia", lsk.BatchSubmitter.Coins), "--node", state.daRPC,
+			"--chain-id", state.daChainId, "--gas", "200000", "--gas-prices", "0.1utia", "--output", "json", "-y",
 		)
 		broadcastRes, err := sendCmd.CombinedOutput()
 		if err != nil {
@@ -111,7 +93,7 @@ func (lsk *L1SystemKeys) FundAccountsWithGasStation(state *LaunchState) (*FundAc
 		if txResponse.Code != 0 {
 			return nil, fmt.Errorf("celestia tx failed with error: %v", txResponse.RawLog)
 		}
-		err = lsk.waitForTransactionInclusion(state.celestiaBinaryPath, celestiaRpc, txResponse.TxHash)
+		err = lsk.waitForTransactionInclusion(state.celestiaBinaryPath, state.daRPC, txResponse.TxHash)
 		if err != nil {
 			return nil, err
 		}
@@ -370,7 +352,7 @@ func (lsk *L1SystemKeys) calculateTotalWantedCoins(state *LaunchState) (l1Want *
 			return nil, nil, fmt.Errorf("failed to parse coin amount '%s'", acc.Coins)
 		}
 
-		if acc == lsk.Challenger && state.batchSubmissionIsCelestia {
+		if acc == lsk.BatchSubmitter && state.batchSubmissionIsCelestia {
 			daWant.Add(daWant, amount)
 		} else {
 			l1Want.Add(l1Want, amount)
@@ -424,10 +406,16 @@ func (lsk *L1SystemKeys) VerifyGasStationBalances(state *LaunchState) error {
 		return fmt.Errorf("failed to calculate wanted coins: %v", err)
 	}
 
+	gasBalance, ok := l1Balances[DefaultL1GasDenom]
+	if !ok {
+		return fmt.Errorf("%w: insufficient initia balance: have 0 uinit, want %s uinit",
+			ErrInsufficientBalance, l1Want.String())
+	}
+
 	// Verify L1 balance
 	l1AvailableBig := new(big.Int)
-	if _, ok := l1AvailableBig.SetString(l1Balances[DefaultL1GasDenom], 10); !ok {
-		return fmt.Errorf("failed to parse L1 available balance: %s", l1Balances[DefaultL1GasDenom])
+	if _, ok := l1AvailableBig.SetString(gasBalance, 10); !ok {
+		return fmt.Errorf("failed to parse L1 available balance: %s", gasBalance)
 	}
 
 	if l1AvailableBig.Cmp(l1Want) < 0 {
@@ -451,32 +439,27 @@ func (lsk *L1SystemKeys) verifyCelestiaBalance(state *LaunchState, daWant *big.I
 		return fmt.Errorf("failed to get gas station key: %v", err)
 	}
 
-	// TODO: Choose DA layer based on the chosen L1 network
-	celestiaRegistry, err := registry.GetChainRegistry(registry.CelestiaTestnet)
-	if err != nil {
-		return fmt.Errorf("failed to get celestia registry: %v", err)
-	}
-
-	celestiaRpc, err := celestiaRegistry.GetActiveRpc()
-	if err != nil {
-		return fmt.Errorf("failed to get active rpc for celestia: %v", err)
-	}
-
 	// Query Celestia balances
-	celestiaBalances, err := queryChainBalance(state.celestiaBinaryPath, celestiaRpc, gasStationKey.CelestiaAddress)
+	celestiaBalances, err := queryChainBalance(state.celestiaBinaryPath, state.daRPC, gasStationKey.CelestiaAddress)
 	if err != nil {
 		return fmt.Errorf("failed to query Celestia balance: %v", err)
 	}
 
+	gasBalance, ok := celestiaBalances[DefaultCelestiaGasDenom]
+	if !ok {
+		return fmt.Errorf("%w: insufficient DA balance. Required: %s%s, Available: 0%s",
+			ErrInsufficientBalance, daWant.String(), DefaultCelestiaGasDenom, DefaultCelestiaGasDenom)
+	}
+
 	// Verify Celestia balance
 	daAvailableBig := new(big.Int)
-	if _, ok := daAvailableBig.SetString(celestiaBalances[DefaultCelestiaGasDenom], 10); !ok {
-		return fmt.Errorf("failed to parse DA available balance: %s", celestiaBalances[DefaultCelestiaGasDenom])
+	if _, ok := daAvailableBig.SetString(gasBalance, 10); !ok {
+		return fmt.Errorf("failed to parse DA available balance: %s", gasBalance)
 	}
 
 	if daAvailableBig.Cmp(daWant) < 0 {
-		return fmt.Errorf("insufficient DA balance. Required: %s%s, Available: %s%s",
-			daWant.String(), DefaultCelestiaGasDenom,
+		return fmt.Errorf("%w: insufficient DA balance. Required: %s%s, Available: %s%s",
+			ErrInsufficientBalance, daWant.String(), DefaultCelestiaGasDenom,
 			daAvailableBig.String(), DefaultCelestiaGasDenom)
 	}
 

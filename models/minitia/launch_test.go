@@ -159,7 +159,7 @@ func TestNewNetworkSelect(t *testing.T) {
 	assert.NotNil(t, model, "Expected NetworkSelect to be created")
 	assert.Equal(t, "Select the Initia L1 network you want to connect your rollup to", model.GetQuestion())
 	assert.Contains(t, model.Selector.Options, Testnet, "Expected Testnet to be available as a network option")
-	assert.NotContains(t, model.Selector.Options, Mainnet, "Mainnet should not be in the options since it's commented out")
+	assert.Contains(t, model.Selector.Options, Mainnet, "Expected Mainnet to be available as a network option")
 }
 
 func TestNetworkSelect_Update_Selection(t *testing.T) {
@@ -188,7 +188,7 @@ func TestNetworkSelect_View(t *testing.T) {
 	view := model.View()
 	assert.Contains(t, view, "Select the Initia L1 network you want to connect your rollup to", "Expected question prompt in the view")
 	assert.Contains(t, view, "Testnet", "Expected Testnet option to be displayed")
-	assert.NotContains(t, view, "Mainnet", "Mainnet should not be in the options since it's commented out")
+	assert.Contains(t, view, "Mainnet", "Expected Mainnet option to be displayed")
 }
 
 func TestNewVMTypeSelect(t *testing.T) {
@@ -496,9 +496,9 @@ func TestOpBridgeOutputFinalizationPeriodInput_Update(t *testing.T) {
 	enterPress := tea.KeyMsg{Type: tea.KeyEnter}
 	finalModel, cmd := updatedModel.Update(enterPress)
 
-	nextModel := finalModel.(*OpBridgeBatchSubmissionTargetSelect)
+	nextModel := finalModel.(*OracleEnableSelect)
 	state := weavecontext.GetCurrentState[LaunchState](nextModel.Ctx)
-	assert.IsType(t, &OpBridgeBatchSubmissionTargetSelect{}, finalModel)
+	assert.IsType(t, &OracleEnableSelect{}, finalModel)
 	assert.Equal(t, "12h", state.opBridgeOutputFinalizationPeriod)
 	assert.Nil(t, cmd)
 }

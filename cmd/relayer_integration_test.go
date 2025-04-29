@@ -88,6 +88,7 @@ func TestRelayerInit(t *testing.T) {
 		testutil.TypeText("continue"), // type to proceed after the mnemonic display page
 		testutil.PressEnter,           // press enter to confirm the typing
 		testutil.WaitFetching,         // wait for account balances fetching
+		testutil.WaitFetching,         // wait for account balances fetching
 		testutil.PressDown,            // press down once to move the selector
 		testutil.PressDown,            // press down again to move the selector to skip the funding
 		testutil.PressEnter,           // press enter to confirm the selection
