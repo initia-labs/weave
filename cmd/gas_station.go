@@ -28,8 +28,8 @@ const (
 	initDenom    = "INIT"
 	initExponent = 6
 
-	testnetRegistryURL = "https://registry.testnet.initia.xyz/initia/assetlist.json"
-	mainnetRegistryURL = "https://registry.initia.xyz/initia/assetlist.json"
+	testnetRegistryURL = "https://registry.testnet.initia.xyz/chains/initia/assetlist.json"
+	mainnetRegistryURL = "https://registry.initia.xyz/chains/initia/assetlist.json"
 )
 
 type DenomUnit struct {
