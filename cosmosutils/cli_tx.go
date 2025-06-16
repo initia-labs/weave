@@ -36,6 +36,15 @@ type MinimalTxResponse struct {
 	RawLog string `json:"raw_log"`
 }
 
+type MinimalRPCTxResponse struct {
+	Result struct {
+		TxResult struct {
+			Code int    `json:"code"`
+			Log  string `json:"log"`
+		} `json:"tx_result"`
+	} `json:"result"`
+}
+
 type InitiadTxExecutor struct {
 	binaryPath string
 }
