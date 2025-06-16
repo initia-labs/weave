@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/initia-labs/weave/client"
 	"github.com/initia-labs/weave/common"
 	"github.com/initia-labs/weave/config"
 	"github.com/initia-labs/weave/cosmosutils"
@@ -168,6 +169,17 @@ func (lsk *L1SystemKeys) waitForTransactionInclusion(binaryPath, rpcURL, txHash 
 	for {
 		select {
 		case <-timeout:
+			// try direct rpc if binary times out
+			httpClient := client.NewHTTPClient()
+			var txResult cosmosutils.MinimalRPCTxResponse
+			if _, err := httpClient.Get(rpcURL, "/tx", map[string]string{"hash": fmt.Sprintf("0x%s", txHash)}, &txResult); err == nil {
+				if txResult.Result.TxResult.Code == 0 {
+					return nil
+				} else {
+					return fmt.Errorf("tx failed with error: %v", txResult.Result.TxResult.Log)
+				}
+			}
+
 			return fmt.Errorf("transaction not included in block within timeout")
 		case <-ticker.C:
 			// Query transaction status
