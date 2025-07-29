@@ -8,7 +8,6 @@ require (
 	github.com/BurntSushi/toml v1.4.0
 	github.com/PuerkitoBio/goquery v1.10.0
 	github.com/amplitude/analytics-go v1.0.2
-	github.com/atotto/clipboard v0.1.4
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4
 	github.com/btcsuite/btcutil v1.0.2
 	github.com/charmbracelet/bubbles v0.20.0
