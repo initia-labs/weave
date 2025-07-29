@@ -214,3 +214,46 @@ func TestGetLatestVersionFromReleases(t *testing.T) {
 		})
 	}
 }
+
+func TestNormalizeVersion(t *testing.T) {
+	tests := []struct {
+		name     string
+		version  string
+		expected string
+	}{
+		{
+			name:     "normal version",
+			version:  "v1.2.3",
+			expected: "v1.2.3",
+		},
+		{
+			name:     "version with prerelease",
+			version:  "v1.2.3-beta",
+			expected: "v1.2.3",
+		},
+		{
+			name:     "version with prerelease and additional text",
+			version:  "v1.2.3-beta-123",
+			expected: "v1.2.3",
+		},
+		{
+			name:     "version with @ format",
+			version:  "refs/tags/v1.2.3",
+			expected: "v1.2.3",
+		},
+		{
+			name:     "version with @ format",
+			version:  "refs/tags/v1.2.355",
+			expected: "v1.2.355",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := normalizeVersion(tt.version)
+			if result != tt.expected {
+				t.Errorf("normalizeVersion(%s) = %s, want %s", tt.version, result, tt.expected)
+			}
+		})
+	}
+}

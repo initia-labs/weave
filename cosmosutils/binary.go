@@ -322,17 +322,11 @@ func GetOPInitVersions() (BinaryVersionWithDownloadURL, string, error) {
 	return versions, currentVersion, nil
 }
 
-func NormalizeVersion(version string) string {
-	// Handle vx.x.x format using regex
-	// This regex matches patterns like "v1.2.3", "v0.1.0", etc.
-	versionRegex := regexp.MustCompile(`^v\d+\.\d+\.\d+.*$`)
-	if versionRegex.MatchString(version) {
-		// Extract just the version part (remove any additional text after the version)
-		// For example: "v1.2.3-beta" -> "v1.2.3"
-		cleanVersionRegex := regexp.MustCompile(`^v\d+\.\d+\.\d+`)
-		if match := cleanVersionRegex.FindString(version); match != "" {
-			return match
-		}
+func normalizeVersion(version string) string {
+	// Extract vx.x.x pattern from anywhere in the string
+	versionRegex := regexp.MustCompile(`v\d+\.\d+\.\d+`)
+	if match := versionRegex.FindString(version); match != "" {
+		return match
 	}
 
 	return version
@@ -351,7 +345,7 @@ func GetInitiaBinaryUrlFromLcd(httpClient *client.HTTPClient, rest string) (stri
 		return "", "", err
 	}
 
-	return NormalizeVersion(version), url, nil
+	return normalizeVersion(version), url, nil
 }
 
 func getBinaryURL(version string) (string, error) {
