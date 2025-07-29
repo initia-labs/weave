@@ -237,12 +237,12 @@ func TestNormalizeVersion(t *testing.T) {
 			expected: "v1.2.3",
 		},
 		{
-			name:     "version with @ format",
+			name:     "version with refs/tags prefix",
 			version:  "refs/tags/v1.2.3",
 			expected: "v1.2.3",
 		},
 		{
-			name:     "version with @ format",
+			name:     "version with refs/tags prefix and additional text",
 			version:  "refs/tags/v1.2.355",
 			expected: "v1.2.355",
 		},
