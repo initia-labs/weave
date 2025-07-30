@@ -172,19 +172,19 @@ func (cr *ChainRegistry) GetOpinitBridgeInfo(id string) (types.Bridge, error) {
 	return bridgeInfo, nil
 }
 
-func (cr *ChainRegistry) GetCounterPartyIBCChannel(port, channel string) (types.Channel, error) {
-	address, err := cr.GetActiveLcd()
-	if err != nil {
-		return types.Channel{}, err
-	}
-	httpClient := client.NewHTTPClient()
+// func (cr *ChainRegistry) GetCounterPartyIBCChannel(port, channel string) (types.Channel, error) {
+// 	address, err := cr.GetActiveLcd()
+// 	if err != nil {
+// 		return types.Channel{}, err
+// 	}
+// 	httpClient := client.NewHTTPClient()
 
-	var response types.MinimalIBCChannelResponse
-	if _, err := httpClient.Get(address, fmt.Sprintf("/ibc/core/channel/v1/channels/%s/ports/%s", channel, port), nil, &response); err != nil {
-		return types.Channel{}, err
-	}
-	return response.Channel.Counterparty, nil
-}
+// 	var response types.MinimalIBCChannelResponse
+// 	if _, err := httpClient.Get(address, fmt.Sprintf("/ibc/core/channel/v1/channels/%s/ports/%s", channel, port), nil, &response); err != nil {
+// 		return types.Channel{}, err
+// 	}
+// 	return response.Channel.Counterparty, nil
+// }
 
 func normalizeGRPCAddress(addr string) (string, error) {
 	if strings.Contains(addr, "://") {
