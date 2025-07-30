@@ -13,6 +13,9 @@ import (
 // LoadedChainRegistry contains a map of chain id to the chain.json
 var LoadedChainRegistry = make(map[ChainType]*ChainRegistry)
 
+const MAX_FALLBACK_RPCS = 3
+const MAX_FALLBACK_LCDS = 3
+
 type ChainRegistry struct {
 	ChainId      string   `json:"chain_id"`
 	PrettyName   string   `json:"pretty_name"`
@@ -140,6 +143,9 @@ func (cr *ChainRegistry) GetActiveRpcs() ([]string, error) {
 		}
 
 		addresses = append(addresses, address)
+		if len(addresses) == MAX_FALLBACK_RPCS {
+			break
+		}
 	}
 
 	if len(addresses) == 0 {
@@ -158,6 +164,9 @@ func (cr *ChainRegistry) GetActiveLcds() ([]string, error) {
 			continue
 		}
 		addresses = append(addresses, lcd.Address)
+		if len(addresses) == MAX_FALLBACK_LCDS {
+			break
+		}
 	}
 	if len(addresses) == 0 {
 		return nil, fmt.Errorf("no active LCD endpoints available")
