@@ -20,7 +20,7 @@ const (
 	TmpTxFilename string = "weave.minitia.tx.json"
 
 	DefaultL1GasDenom       string = "uinit"
-	DefaultL1GasPrices             = "0.15" + DefaultL1GasDenom
+	DefaultL1GasPrices             = "0.015" + DefaultL1GasDenom
 	DefaultCelestiaGasDenom string = "utia"
 
 	MaxMonikerLength int = 70

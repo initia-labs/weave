@@ -5,6 +5,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -321,6 +322,16 @@ func GetOPInitVersions() (BinaryVersionWithDownloadURL, string, error) {
 	return versions, currentVersion, nil
 }
 
+func normalizeVersion(version string) string {
+	// Extract vx.x.x pattern with optional pre-release suffix from anywhere in the string
+	versionRegex := regexp.MustCompile(`v\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?`)
+	if match := versionRegex.FindString(version); match != "" {
+		return match
+	}
+
+	return version
+}
+
 func GetInitiaBinaryUrlFromLcd(httpClient *client.HTTPClient, rest string) (string, string, error) {
 	var result NodeInfoResponse
 	_, err := httpClient.Get(rest, "/cosmos/base/tendermint/v1beta1/node_info", nil, &result)
@@ -328,7 +339,7 @@ func GetInitiaBinaryUrlFromLcd(httpClient *client.HTTPClient, rest string) (stri
 		return "", "", fmt.Errorf("error getting node info from LCD: %w", err)
 	}
 
-	version := result.ApplicationVersion.Version
+	version := normalizeVersion(result.ApplicationVersion.Version)
 	url, err := getBinaryURL(version)
 	if err != nil {
 		return "", "", err
