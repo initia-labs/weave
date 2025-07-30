@@ -100,7 +100,7 @@ func TestInitiaInitTestnetNoSync(t *testing.T) {
 	testutil.CompareTomlValue(t, configTomlPath, "p2p.persistent_peers", "3715cdb41efb45714eb534c3943c5947f4894787@34.143.179.242:26656")
 	testutil.CompareTomlValue(t, configTomlPath, "statesync.enable", false)
 
-	testutil.CompareTomlValue(t, appTomlPath, "minimum-gas-prices", "0.15uinit")
+	testutil.CompareTomlValue(t, appTomlPath, "minimum-gas-prices", "0.015uinit")
 	testutil.CompareTomlValue(t, appTomlPath, "api.enable", "true")
 }
 
@@ -178,7 +178,7 @@ func TestInitiaInitTestnetStatesync(t *testing.T) {
 	testutil.CompareTomlValue(t, configTomlPath, "statesync.enable", "true")
 	testutil.CompareTomlValue(t, configTomlPath, "statesync.rpc_servers", "https://initia-testnet-rpc.polkachu.com:443,https://initia-testnet-rpc.polkachu.com:443")
 
-	testutil.CompareTomlValue(t, appTomlPath, "minimum-gas-prices", "0.15uinit")
+	testutil.CompareTomlValue(t, appTomlPath, "minimum-gas-prices", "0.015uinit")
 	testutil.CompareTomlValue(t, appTomlPath, "api.enable", "true")
 }
 
