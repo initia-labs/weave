@@ -293,7 +293,7 @@ func TestNetworkSelect_SaveToState(t *testing.T) {
 	nextModel := m.(*VMTypeSelect)
 	state := weavecontext.GetCurrentState[LaunchState](nextModel.Ctx)
 	assert.Equal(t, "initiation-2", state.l1ChainId)
-	assert.Equal(t, "https://rpc.testnet.initia.xyz:443/", state.l1RPC)
+	assert.Equal(t, "https://rpc.testnet.initia.xyz:443", state.l1RPC)
 
 	assert.IsType(t, m, &VMTypeSelect{})
 }
