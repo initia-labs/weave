@@ -449,7 +449,7 @@ func NewMinGasPriceInput(ctx context.Context) *MinGasPriceInput {
 		question:   "Specify minimum gas price",
 		highlights: []string{"minimum gas price"},
 	}
-	model.WithPlaceholder("Enter a number with its denom ex. 0.15uinit")
+	model.WithPlaceholder("Enter a number with its denom ex. 0.015uinit")
 	model.WithValidatorFn(common.ValidateDecCoin)
 	model.WithTooltip(&toolTip)
 	return model
