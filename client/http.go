@@ -17,21 +17,14 @@ const (
 	baseDelay  = 1 * time.Second
 
 	downloadBufferSize = 65536
-	requestTimeout     = 5 * time.Second
 )
 
 // HTTPClient defines the logic for making HTTP requests.
-type HTTPClient struct {
-	client *http.Client
-}
+type HTTPClient struct{}
 
 // NewHTTPClient creates and returns a new HTTPClient instance.
 func NewHTTPClient() *HTTPClient {
-	return &HTTPClient{
-		client: &http.Client{
-			Timeout: requestTimeout,
-		},
-	}
+	return &HTTPClient{}
 }
 
 // Get performs an HTTP GET request.
@@ -69,7 +62,7 @@ func (c *HTTPClient) getWithRetry(endpoint string) ([]byte, error) {
 	}
 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
-		resp, err := c.client.Do(req)
+		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			lastErr = fmt.Errorf("attempt %d: request error: %w", attempt, err)
 		} else {
@@ -127,7 +120,7 @@ func (c *HTTPClient) postWithRetry(endpoint string, headers map[string]string, b
 			req.Header.Set(key, value)
 		}
 
-		resp, err := c.client.Do(req)
+		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			lastErr = fmt.Errorf("attempt %d: request error: %w", attempt, err)
 		} else {
@@ -156,12 +149,7 @@ func (c *HTTPClient) postWithRetry(endpoint string, headers map[string]string, b
 // DownloadFile downloads a file from the specified URL
 // and updates the current progress using the provided progress pointer.
 func (c *HTTPClient) DownloadFile(url string, dest string, progress, totalSize *int64) error {
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
-	}
-
-	resp, err := c.client.Do(req)
+	resp, err := http.Get(url)
 	if err != nil {
 		return fmt.Errorf("failed to connect to URL: %w", err)
 	}

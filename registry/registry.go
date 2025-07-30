@@ -5,9 +5,88 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/initia-labs/weave/client"
 	"github.com/initia-labs/weave/types"
+)
+
+// TODO: HOTFIX for un-stable RPCs and LCDs
+var (
+	CELESTIA_MAINNET_RPCS = []Endpoint{
+		{
+			Address: "https://rpc.lunaroasis.net",
+		},
+		{
+			Address: "https://rpc.celestia.nodestake.org",
+		},
+		{
+			Address: "https://rpc.lavenderfive.com:443/celestia",
+		},
+	}
+	CELESTIA_TESTNET_RPCS = []Endpoint{
+		{
+			Address: "https://rpc-mocha.pops.one",
+		},
+		{
+			Address: "https://celestia-testnet-rpc.itrocket.net",
+		},
+		{
+			Address: "https://rpc.celestia.testnet.dteam.tech:443",
+		},
+	}
+	INITIA_MAINNET_RPCS = []Endpoint{
+		{
+			Address: "https://rpc.initia.xyz",
+		},
+		{
+			Address: "https://initia-rpc.cosmosspaces.zone",
+		},
+		{
+			Address: "https://initia-archive.cosmosspaces.zone",
+		},
+	}
+	INITIA_TESTNET_RPCS = []Endpoint{
+		{
+			Address: "https://rpc.testnet.initia.xyz",
+		},
+	}
+
+	CELESTIA_MAINNET_LCDS = []Endpoint{
+		{
+			Address: "https://api.lunaroasis.net",
+		},
+		{
+			Address: "https://api.celestia.nodestake.org",
+		},
+		{
+			Address: "https://rest.lavenderfive.com:443/celestia",
+		},
+	}
+	CELESTIA_TESTNET_LCDS = []Endpoint{
+		{
+			Address: "https://api-mocha.pops.one",
+		},
+		{
+			Address: "https://celestia-testnet-api.itrocket.net",
+		},
+		{
+			Address: "https://api.celestia.testnet.dteam.tech",
+		},
+	}
+	INITIA_MAINNET_LCDS = []Endpoint{
+		{
+			Address: "https://rest.initia.xyz",
+		},
+		{
+			Address: "https://initia-rest.cosmosspaces.zone",
+		},
+	}
+	INITIA_TESTNET_LCDS = []Endpoint{
+		{
+			Address: "https://rest.testnet.initia.xyz",
+		},
+	}
 )
 
 // LoadedChainRegistry contains a map of chain id to the chain.json
@@ -24,6 +103,9 @@ type ChainRegistry struct {
 	Codebase     Codebase `json:"codebase"`
 	Apis         Apis     `json:"apis"`
 	Peers        Peers    `json:"peers"`
+
+	ActiveRpcs []string
+	ActiveLcds []string
 }
 
 type Fees struct {
@@ -129,49 +211,135 @@ func checkAndAddPort(addr string) (string, error) {
 }
 
 func (cr *ChainRegistry) GetActiveRpcs() ([]string, error) {
-	httpClient := client.NewHTTPClient()
-	var addresses []string
-	for _, rpc := range cr.Apis.Rpc {
-		address, err := checkAndAddPort(rpc.Address)
-		if err != nil {
-			continue
-		}
-
-		_, err = httpClient.Get(address, "/health", nil, nil)
-		if err != nil {
-			continue
-		}
-
-		addresses = append(addresses, address)
-		if len(addresses) == MAX_FALLBACK_RPCS {
-			break
-		}
+	if len(cr.ActiveRpcs) > 0 {
+		return cr.ActiveRpcs, nil
 	}
 
-	if len(addresses) == 0 {
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var activeRpcs []string
+	var done bool // Flag to signal early termination
+
+	// Create a channel to limit concurrent requests
+	semaphore := make(chan struct{}, MAX_FALLBACK_RPCS)
+
+	for _, rpc := range cr.Apis.Rpc {
+		wg.Add(1)
+		go func(endpoint Endpoint) {
+			defer wg.Done()
+
+			// Check if we're already done
+			mu.Lock()
+			if done {
+				mu.Unlock()
+				return
+			}
+			mu.Unlock()
+
+			// Acquire semaphore
+			semaphore <- struct{}{}
+			defer func() { <-semaphore }()
+
+			address, err := checkAndAddPort(endpoint.Address)
+			if err != nil {
+				return
+			}
+
+			httpClient := client.NewHTTPClient()
+			_, err = httpClient.Get(address, "/health", nil, nil)
+			if err != nil {
+				return
+			}
+
+			// Thread-safe append and check for early termination
+			mu.Lock()
+			defer mu.Unlock()
+
+			if done {
+				return
+			}
+
+			activeRpcs = append(activeRpcs, address)
+			if len(activeRpcs) >= MAX_FALLBACK_RPCS {
+				done = true
+			}
+		}(rpc)
+	}
+
+	wg.Wait()
+
+	if len(activeRpcs) == 0 {
 		return nil, fmt.Errorf("no active RPC endpoints available")
 	}
 
-	return addresses, nil
+	cr.ActiveRpcs = activeRpcs
+	return cr.ActiveRpcs, nil
 }
 
 func (cr *ChainRegistry) GetActiveLcds() ([]string, error) {
-	httpClient := client.NewHTTPClient()
-	var addresses []string
-	for _, lcd := range cr.Apis.Rest {
-		_, err := httpClient.Get(lcd.Address, "/cosmos/base/tendermint/v1beta1/syncing", nil, nil)
-		if err != nil {
-			continue
-		}
-		addresses = append(addresses, lcd.Address)
-		if len(addresses) == MAX_FALLBACK_LCDS {
-			break
-		}
+	if len(cr.ActiveLcds) > 0 {
+		return cr.ActiveLcds, nil
 	}
-	if len(addresses) == 0 {
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var activeLcds []string
+	var done bool // Flag to signal early termination
+
+	// Create a channel to limit concurrent requests
+	semaphore := make(chan struct{}, MAX_FALLBACK_LCDS)
+
+	for _, lcd := range cr.Apis.Rest {
+		wg.Add(1)
+		go func(endpoint Endpoint) {
+			defer wg.Done()
+
+			// Check if we're already done
+			mu.Lock()
+			if done {
+				mu.Unlock()
+				return
+			}
+			mu.Unlock()
+
+			// Acquire semaphore
+			semaphore <- struct{}{}
+			defer func() { <-semaphore }()
+
+			address, err := checkAndAddPort(endpoint.Address)
+			if err != nil {
+				return
+			}
+
+			httpClient := client.NewHTTPClient()
+			_, err = httpClient.Get(address, "/cosmos/base/tendermint/v1beta1/syncing", nil, nil)
+			if err != nil {
+				return
+			}
+
+			// Thread-safe append and check for early termination
+			mu.Lock()
+			defer mu.Unlock()
+
+			if done {
+				return
+			}
+
+			activeLcds = append(activeLcds, address)
+			if len(activeLcds) >= MAX_FALLBACK_LCDS {
+				done = true
+			}
+		}(lcd)
+	}
+
+	wg.Wait()
+
+	if len(activeLcds) == 0 {
 		return nil, fmt.Errorf("no active LCD endpoints available")
 	}
-	return addresses, nil
+
+	cr.ActiveLcds = activeLcds
+	return cr.ActiveLcds, nil
 }
 
 func (cr *ChainRegistry) GetOpinitBridgeInfo(id string) (types.Bridge, error) {
@@ -317,6 +485,28 @@ func loadChainRegistry(chainType ChainType) error {
 	LoadedChainRegistry[chainType] = &ChainRegistry{}
 	if _, err := httpClient.Get(endpoint, "", nil, LoadedChainRegistry[chainType]); err != nil {
 		return err
+	}
+	if err := replaceRpcsAndLcds(chainType, LoadedChainRegistry[chainType]); err != nil {
+		return fmt.Errorf("failed to replace RPCs and LCDs for %s: %v", chainType, err)
+	}
+
+	return nil
+}
+
+func replaceRpcsAndLcds(chainType ChainType, chainRegistry *ChainRegistry) error {
+	switch chainType {
+	case CelestiaMainnet:
+		chainRegistry.Apis.Rpc = CELESTIA_MAINNET_RPCS
+		chainRegistry.Apis.Rest = CELESTIA_MAINNET_LCDS
+	case CelestiaTestnet:
+		chainRegistry.Apis.Rpc = CELESTIA_TESTNET_RPCS
+		chainRegistry.Apis.Rest = CELESTIA_TESTNET_LCDS
+	case InitiaL1Mainnet:
+		chainRegistry.Apis.Rpc = INITIA_MAINNET_RPCS
+		chainRegistry.Apis.Rest = INITIA_MAINNET_LCDS
+	case InitiaL1Testnet:
+		chainRegistry.Apis.Rpc = INITIA_TESTNET_RPCS
+		chainRegistry.Apis.Rest = INITIA_TESTNET_LCDS
 	}
 
 	return nil
