@@ -162,15 +162,19 @@ func (m *RollupSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, m.HandlePanic(err)
 				}
 				state.Config["l1.chain_id"] = testnetRegistry.GetChainId()
-				if state.Config["l1.rpc_address"], err = testnetRegistry.GetActiveRpc(); err != nil {
+				rpcAddresses, err := testnetRegistry.GetActiveRpcs()
+				if err != nil {
 					return m, m.HandlePanic(err)
 				}
+				state.Config["l1.rpc_address"] = rpcAddresses[0]
 				if state.Config["l1.grpc_address"], err = testnetRegistry.GetActiveGrpc(); err != nil {
 					return m, m.HandlePanic(err)
 				}
-				if state.Config["l1.lcd_address"], err = testnetRegistry.GetActiveLcd(); err != nil {
+				lcdAddresses, err := testnetRegistry.GetActiveLcds()
+				if err != nil {
 					return m, m.HandlePanic(err)
 				}
+				state.Config["l1.lcd_address"] = lcdAddresses[0]
 				if state.Config["l1.websocket"], err = testnetRegistry.GetActiveWebSocket(); err != nil {
 					return m, m.HandlePanic(err)
 				}
@@ -190,15 +194,19 @@ func (m *RollupSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, m.HandlePanic(err)
 				}
 				state.Config["l1.chain_id"] = mainnetRegistry.GetChainId()
-				if state.Config["l1.rpc_address"], err = mainnetRegistry.GetActiveRpc(); err != nil {
+				rpcAddresses, err := mainnetRegistry.GetActiveRpcs()
+				if err != nil {
 					return m, m.HandlePanic(err)
 				}
+				state.Config["l1.rpc_address"] = rpcAddresses[0]
 				if state.Config["l1.grpc_address"], err = mainnetRegistry.GetActiveGrpc(); err != nil {
 					return m, m.HandlePanic(err)
 				}
-				if state.Config["l1.lcd_address"], err = mainnetRegistry.GetActiveLcd(); err != nil {
+				lcdAddresses, err := mainnetRegistry.GetActiveLcds()
+				if err != nil {
 					return m, m.HandlePanic(err)
 				}
+				state.Config["l1.lcd_address"] = lcdAddresses[0]
 				if state.Config["l1.websocket"], err = mainnetRegistry.GetActiveWebSocket(); err != nil {
 					return m, m.HandlePanic(err)
 				}
@@ -1598,18 +1606,24 @@ func (m *SelectingL1Network) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.HandlePanic(err)
 			}
 			state.Config["l1.chain_id"] = testnetRegistry.GetChainId()
-			if state.Config["l1.rpc_address"], err = testnetRegistry.GetActiveRpc(); err != nil {
+			rpcAddresses, err := testnetRegistry.GetActiveRpcs()
+			if err != nil {
 				return m, m.HandlePanic(err)
 			}
+			state.Config["l1.rpc_address"] = rpcAddresses[0]
 			if state.Config["l1.grpc_address"], err = testnetRegistry.GetActiveGrpc(); err != nil {
 				return m, m.HandlePanic(err)
 			}
-			if state.Config["l1.websocket"], err = testnetRegistry.GetActiveWebSocket(); err != nil {
+			websocket, err := testnetRegistry.GetActiveWebSocket()
+			if err != nil {
 				return m, m.HandlePanic(err)
 			}
-			if state.Config["l1.lcd_address"], err = testnetRegistry.GetActiveLcd(); err != nil {
+			state.Config["l1.websocket"] = websocket
+			lcdAddresses, err := testnetRegistry.GetActiveLcds()
+			if err != nil {
 				return m, m.HandlePanic(err)
 			}
+			state.Config["l1.lcd_address"] = lcdAddresses[0]
 			if state.Config["l1.gas_price.price"], err = testnetRegistry.GetFixedMinGasPriceByDenom(DefaultGasPriceDenom); err != nil {
 				return m, m.HandlePanic(err)
 			}
@@ -1697,19 +1711,33 @@ func (m *SelectingL2Network) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
-		lcdAddress, err := l2Registry.GetActiveLcd()
+		lcdAddresses, err := l2Registry.GetActiveLcds()
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
 		httpClient := client.NewHTTPClient()
 		var res types.ChannelsResponse
-		_, err = httpClient.Get(lcdAddress, "/ibc/core/channel/v1/channels", nil, &res)
-		if err != nil {
-			return m, m.HandlePanic(err)
+		ok := false
+		for _, lcdAddress := range lcdAddresses {
+			if _, err = httpClient.Get(lcdAddress, "/ibc/core/channel/v1/channels", nil, &res); err == nil {
+				ok = true
+				break
+			}
+		}
+		if !ok {
+			return m, m.HandlePanic(fmt.Errorf("failed to get channels from any active LCD endpoints"))
 		}
 
-		if params, err := cosmosutils.QueryOPChildParams(lcdAddress); err == nil {
-			state.feeWhitelistAccounts = append(state.feeWhitelistAccounts, params.FeeWhitelist...)
+		ok = false
+		for _, lcdAddress := range lcdAddresses {
+			if params, err := cosmosutils.QueryOPChildParams(lcdAddress); err == nil {
+				state.feeWhitelistAccounts = append(state.feeWhitelistAccounts, params.FeeWhitelist...)
+				ok = true
+				break
+			}
+		}
+		if !ok {
+			return m, m.HandlePanic(fmt.Errorf("failed to get OP child params from any active LCD endpoints"))
 		}
 
 		pairs := make([]types.IBCChannelPair, 0)
@@ -1727,7 +1755,7 @@ func (m *SelectingL2Network) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
-		l2Rpc, err := l2Registry.GetActiveRpc()
+		l2Rpc, err := l2Registry.GetActiveRpcs()
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
@@ -1736,7 +1764,7 @@ func (m *SelectingL2Network) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		state.Config["l2.chain_id"] = chainId
 		state.Config["l2.gas_price.denom"] = l2DefaultFeeToken.Denom
 		state.Config["l2.gas_price.price"] = strconv.FormatFloat(l2DefaultFeeToken.FixedMinGasPrice, 'f', -1, 64)
-		state.Config["l2.rpc_address"] = l2Rpc
+		state.Config["l2.rpc_address"] = l2Rpc[0]
 		if state.Config["l2.grpc_address"], err = l2Registry.GetActiveGrpc(); err != nil {
 			return m, m.HandlePanic(err)
 		}
@@ -1847,15 +1875,19 @@ func (m *SelectingL1NetworkRegistry) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.HandlePanic(err)
 		}
 		state.Config["l1.chain_id"] = chainRegistry.GetChainId()
-		if state.Config["l1.rpc_address"], err = chainRegistry.GetActiveRpc(); err != nil {
+		rpcAddresses, err := chainRegistry.GetActiveRpcs()
+		if err != nil {
 			return m, m.HandlePanic(err)
 		}
+		state.Config["l1.rpc_address"] = rpcAddresses[0]
 		if state.Config["l1.grpc_address"], err = chainRegistry.GetActiveGrpc(); err != nil {
 			return m, m.HandlePanic(err)
 		}
-		if state.Config["l1.lcd_address"], err = chainRegistry.GetActiveLcd(); err != nil {
+		lcdAddresses, err := chainRegistry.GetActiveLcds()
+		if err != nil {
 			return m, m.HandlePanic(err)
 		}
+		state.Config["l1.lcd_address"] = lcdAddresses[0]
 		if state.Config["l1.websocket"], err = chainRegistry.GetActiveWebSocket(); err != nil {
 			return m, m.HandlePanic(err)
 		}

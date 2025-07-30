@@ -1063,13 +1063,21 @@ func initializeApp(ctx context.Context) tea.Cmd {
 			nodeVersion = state.initiadVersion
 			url = state.initiadEndpoint
 		case string(Mainnet), string(Testnet):
-			baseUrl, err := state.chainRegistry.GetActiveLcd()
+			activeLcds, err := state.chainRegistry.GetActiveLcds()
 			if err != nil {
-				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get active lcd: %v", err)}
+				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get active lcds: %v", err)}
 			}
-			nodeVersion, url, err = cosmosutils.GetInitiaBinaryUrlFromLcd(httpClient, baseUrl)
-			if err != nil {
-				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get initia binary url: %v", err)}
+			ok := false
+			nodeVersion := ""
+			for _, activeLcd := range activeLcds {
+				nodeVersion, url, err = cosmosutils.GetInitiaBinaryUrlFromLcd(httpClient, activeLcd)
+				if err == nil {
+					ok = true
+					break
+				}
+			}
+			if !ok {
+				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get initia binary url from any active lcds")}
 			}
 			state.initiadVersion = nodeVersion
 		default:

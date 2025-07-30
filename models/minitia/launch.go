@@ -253,11 +253,11 @@ func (m *NetworkSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.HandlePanic(err)
 		}
 		state.l1ChainId = chainRegistry.GetChainId()
-		activeRpc, err := chainRegistry.GetActiveRpc()
+		rpcAddresses, err := chainRegistry.GetActiveRpcs()
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
-		state.l1RPC = activeRpc
+		state.l1RPC = rpcAddresses[0]
 
 		var celestiaType registry.ChainType
 		switch *selected {
@@ -275,10 +275,11 @@ func (m *NetworkSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
-		state.daRPC, err = celestiaRegistry.GetActiveRpc()
+		rpcAddresses, err = celestiaRegistry.GetActiveRpcs()
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
+		state.daRPC = rpcAddresses[0]
 		state.daChainId = celestiaRegistry.GetChainId()
 
 		return NewVMTypeSelect(weavecontext.SetCurrentState(m.Ctx, state)), nil
@@ -2234,19 +2235,25 @@ func NewDownloadCelestiaBinaryLoading(ctx context.Context) (*DownloadCelestiaBin
 	}
 	httpClient := client.NewHTTPClient()
 
-	activeLcd, err := celestiaMainnetRegistry.GetActiveLcd()
+	activeLcds, err := celestiaMainnetRegistry.GetActiveLcds()
 	if err != nil {
 		return nil, err
 	}
 	var result map[string]interface{}
-	_, err = httpClient.Get(
-		activeLcd,
-		"/cosmos/base/tendermint/v1beta1/node_info",
-		nil,
-		&result,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch node info: %v", err)
+	ok := false
+	for _, activeLcd := range activeLcds {
+		if _, err := httpClient.Get(
+			activeLcd,
+			"/cosmos/base/tendermint/v1beta1/node_info",
+			nil,
+			&result,
+		); err == nil {
+			ok = true
+			break
+		}
+	}
+	if !ok {
+		return nil, fmt.Errorf("failed to fetch node info from any active LCD endpoints: %v", err)
 	}
 
 	applicationVersion, ok := result["application_version"].(map[string]interface{})

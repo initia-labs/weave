@@ -125,8 +125,9 @@ func checkAndAddPort(addr string) (string, error) {
 	return u.String(), nil
 }
 
-func (cr *ChainRegistry) GetActiveRpc() (string, error) {
+func (cr *ChainRegistry) GetActiveRpcs() ([]string, error) {
 	httpClient := client.NewHTTPClient()
+	var addresses []string
 	for _, rpc := range cr.Apis.Rpc {
 		address, err := checkAndAddPort(rpc.Address)
 		if err != nil {
@@ -138,52 +139,66 @@ func (cr *ChainRegistry) GetActiveRpc() (string, error) {
 			continue
 		}
 
-		return address, nil
+		addresses = append(addresses, address)
 	}
 
-	return "", fmt.Errorf("no active RPC endpoints available")
+	if len(addresses) == 0 {
+		return nil, fmt.Errorf("no active RPC endpoints available")
+	}
+
+	return addresses, nil
 }
 
-func (cr *ChainRegistry) GetActiveLcd() (string, error) {
+func (cr *ChainRegistry) GetActiveLcds() ([]string, error) {
 	httpClient := client.NewHTTPClient()
+	var addresses []string
 	for _, lcd := range cr.Apis.Rest {
 		_, err := httpClient.Get(lcd.Address, "/cosmos/base/tendermint/v1beta1/syncing", nil, nil)
 		if err != nil {
 			continue
 		}
-
-		return lcd.Address, nil
+		addresses = append(addresses, lcd.Address)
 	}
-
-	return "", fmt.Errorf("no active LCD endpoints available")
+	if len(addresses) == 0 {
+		return nil, fmt.Errorf("no active LCD endpoints available")
+	}
+	return addresses, nil
 }
 
 func (cr *ChainRegistry) GetOpinitBridgeInfo(id string) (types.Bridge, error) {
-	address, err := cr.GetActiveLcd()
+	addresses, err := cr.GetActiveLcds()
 	if err != nil {
 		return types.Bridge{}, err
 	}
 	httpClient := client.NewHTTPClient()
 
-	var bridgeInfo types.Bridge
-	if _, err := httpClient.Get(address, fmt.Sprintf("/opinit/ophost/v1/bridges/%s", id), nil, &bridgeInfo); err != nil {
-		return types.Bridge{}, err
+	for _, address := range addresses {
+		var bridgeInfo types.Bridge
+		if _, err := httpClient.Get(address, fmt.Sprintf("/opinit/ophost/v1/bridges/%s", id), nil, &bridgeInfo); err != nil {
+			continue
+		}
+		return bridgeInfo, nil
 	}
-	return bridgeInfo, nil
+
+	return types.Bridge{}, fmt.Errorf("no active LCD endpoints available")
 }
 
 func (cr *ChainRegistry) GetCounterPartyIBCChannel(port, channel string) (types.Channel, error) {
-	address, err := cr.GetActiveLcd()
+	addresses, err := cr.GetActiveLcds()
 	if err != nil {
 		return types.Channel{}, err
 	}
 	httpClient := client.NewHTTPClient()
 
-	var response types.MinimalIBCChannelResponse
-	if _, err := httpClient.Get(address, fmt.Sprintf("/ibc/core/channel/v1/channels/%s/ports/%s", channel, port), nil, &response); err != nil {
-		return types.Channel{}, err
+	for _, address := range addresses {
+		var response types.MinimalIBCChannelResponse
+		if _, err := httpClient.Get(address, fmt.Sprintf("/ibc/core/channel/v1/channels/%s/ports/%s", channel, port), nil, &response); err != nil {
+			continue
+		}
+		return response.Channel.Counterparty, nil
 	}
-	return response.Channel.Counterparty, nil
+
+	return types.Channel{}, fmt.Errorf("no active LCD endpoints available")
 }
 
 func normalizeGRPCAddress(addr string) (string, error) {
@@ -237,15 +252,18 @@ func normalizeRPCToWebSocket(rpcEndpoint string) (string, error) {
 }
 
 func (cr *ChainRegistry) GetActiveWebSocket() (string, error) {
-	rpc, err := cr.GetActiveRpc()
+	rpc, err := cr.GetActiveRpcs()
 	if err != nil {
 		return "", fmt.Errorf("failed to get RPC endpoint: %v", err)
 	}
-	websocket, err := normalizeRPCToWebSocket(rpc)
-	if err != nil {
-		return "", fmt.Errorf("failed to normalize RPC endpoint: %v", err)
+	for _, rpc := range rpc {
+		websocket, err := normalizeRPCToWebSocket(rpc)
+		if err != nil {
+			continue
+		}
+		return websocket, nil
 	}
-	return websocket, nil
+	return "", fmt.Errorf("no active WebSocket endpoints available")
 }
 
 func (cr *ChainRegistry) GetSeeds() string {
@@ -406,23 +424,26 @@ func GetOPInitBotsSpecVersion(chainId string) (int, error) {
 }
 
 func (cr *ChainRegistry) GetCounterpartyClientId(portID, channelID string) (Connection, error) {
-	address, err := cr.GetActiveLcd()
+	addresses, err := cr.GetActiveLcds()
 	if err != nil {
 		return Connection{}, err
 	}
 	httpClient := client.NewHTTPClient()
+	for _, address := range addresses {
+		var channel Channel
+		if _, err := httpClient.Get(address, fmt.Sprintf("/ibc/core/channel/v1/channels/%s/ports/%s", channelID, portID), nil, &channel); err != nil {
+			continue
+		}
 
-	var channel Channel
-	if _, err := httpClient.Get(address, fmt.Sprintf("/ibc/core/channel/v1/channels/%s/ports/%s", channelID, portID), nil, &channel); err != nil {
-		return Connection{}, err
+		var connection Connection
+		if _, err := httpClient.Get(address, fmt.Sprintf("/ibc/core/connection/v1/connections/%s", channel.Channel.ConnectionHops[0]), nil, &connection); err != nil {
+			continue
+		}
+
+		return connection, nil
 	}
 
-	var connection Connection
-	if _, err := httpClient.Get(address, fmt.Sprintf("/ibc/core/connection/v1/connections/%s", channel.Channel.ConnectionHops[0]), nil, &connection); err != nil {
-		return Connection{}, err
-	}
-
-	return connection, nil
+	return Connection{}, fmt.Errorf("no active LCD endpoints available")
 }
 
 func GetInitiaGraphQLFromType(chainType ChainType) (string, error) {

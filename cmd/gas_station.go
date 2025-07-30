@@ -204,12 +204,17 @@ func getBalance(chainType registry.ChainType, address string) (*cosmosutils.Coin
 		return nil, fmt.Errorf("failed to load chainRegistry: %v", err)
 	}
 
-	baseUrl, err := chainRegistry.GetActiveLcd()
+	activeLcds, err := chainRegistry.GetActiveLcds()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get active lcd for %s: %v", chainType, err)
 	}
-
-	return cosmosutils.QueryBankBalances(baseUrl, address)
+	for _, activeLcd := range activeLcds {
+		balances, err := cosmosutils.QueryBankBalances(activeLcd, address)
+		if err == nil {
+			return balances, nil
+		}
+	}
+	return nil, fmt.Errorf("failed to get balances from any active lcds")
 }
 
 func getMaxWidth(coinGroups ...*cosmosutils.Coins) int {
