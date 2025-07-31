@@ -84,7 +84,7 @@ func setFieldPrefillValue(fields []*Field, name, value string) error {
 func setFieldPlaceholder(fields []*Field, name, placeholder string) error {
 	field, err := getField(fields, name)
 	if err != nil {
-		return fmt.Errorf("error setting placeholder for %s: %v\n", name, err)
+		return fmt.Errorf("error setting placeholder for %s: %v", name, err)
 	}
 	field.Placeholder = placeholder
 	return nil
@@ -614,11 +614,11 @@ func (m *PrefillMinitiaConfig) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 
 				state.botConfig["da_node.chain_id"] = chainRegistry.GetChainId()
-				activeRpc, err := chainRegistry.GetActiveRpc()
+				rpcAddress, err := chainRegistry.GetFirstActiveRpc()
 				if err != nil {
 					return m, m.HandlePanic(err)
 				}
-				state.botConfig["da_node.rpc_address"] = activeRpc
+				state.botConfig["da_node.rpc_address"] = rpcAddress
 				state.botConfig["da_node.bech32_prefix"] = chainRegistry.GetBech32Prefix()
 				state.botConfig["da_node.gas_price"] = DefaultCelestiaGasPrices
 				state.daIsCelestia = true
@@ -727,7 +727,7 @@ func (m *L1PrefillSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
-		rpc, err := chainRegistry.GetActiveRpc()
+		rpcAddress, err := chainRegistry.GetFirstActiveRpc()
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
@@ -739,10 +739,10 @@ func (m *L1PrefillSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		state.botConfig["l1_node.chain_id"] = chainRegistry.GetChainId()
 		state.botConfig["l1_node.gas_price"] = minGasPrice
 
-		if err := setFieldPrefillValue(defaultExecutorFields, "l1_node.rpc_address", rpc); err != nil {
+		if err := setFieldPrefillValue(defaultExecutorFields, "l1_node.rpc_address", rpcAddress); err != nil {
 			return m, m.HandlePanic(err)
 		}
-		if err := setFieldPrefillValue(defaultChallengerFields, "l1_node.rpc_address", rpc); err != nil {
+		if err := setFieldPrefillValue(defaultChallengerFields, "l1_node.rpc_address", rpcAddress); err != nil {
 			return m, m.HandlePanic(err)
 		}
 
@@ -764,11 +764,11 @@ func (m *L1PrefillSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return nil, m.HandlePanic(fmt.Errorf("celestia registry: %w", err))
 			}
 			state.botConfig["da_node.chain_id"] = celestiaChainRegistry.GetChainId()
-			activeRpc, err := celestiaChainRegistry.GetActiveRpc()
+			rpcAddress, err := celestiaChainRegistry.GetFirstActiveRpc()
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
-			state.botConfig["da_node.rpc_address"] = activeRpc
+			state.botConfig["da_node.rpc_address"] = rpcAddress
 			state.botConfig["da_node.bech32_prefix"] = celestiaChainRegistry.GetBech32Prefix()
 			state.botConfig["da_node.gas_price"] = DefaultCelestiaGasPrices
 			state.daIsCelestia = true
@@ -867,11 +867,11 @@ func (m *SetDALayer) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			state.botConfig["da_node.gas_price"] = state.botConfig["l1_node.gas_price"]
 		case Celestia:
 			state.botConfig["da_node.chain_id"] = m.chainRegistry.GetChainId()
-			activeRpc, err := m.chainRegistry.GetActiveRpc()
+			rpcAddress, err := m.chainRegistry.GetFirstActiveRpc()
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
-			state.botConfig["da_node.rpc_address"] = activeRpc
+			state.botConfig["da_node.rpc_address"] = rpcAddress
 			state.botConfig["da_node.bech32_prefix"] = m.chainRegistry.GetBech32Prefix()
 			state.botConfig["da_node.gas_price"] = DefaultCelestiaGasPrices
 			state.daIsCelestia = true
