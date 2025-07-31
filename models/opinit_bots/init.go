@@ -727,7 +727,7 @@ func (m *L1PrefillSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
-		rpcAddresses, err := chainRegistry.GetActiveRpcs()
+		rpcAddress, err := chainRegistry.GetFirstActiveRpc()
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
@@ -739,10 +739,10 @@ func (m *L1PrefillSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		state.botConfig["l1_node.chain_id"] = chainRegistry.GetChainId()
 		state.botConfig["l1_node.gas_price"] = minGasPrice
 
-		if err := setFieldPrefillValue(defaultExecutorFields, "l1_node.rpc_address", rpcAddresses[0]); err != nil {
+		if err := setFieldPrefillValue(defaultExecutorFields, "l1_node.rpc_address", rpcAddress); err != nil {
 			return m, m.HandlePanic(err)
 		}
-		if err := setFieldPrefillValue(defaultChallengerFields, "l1_node.rpc_address", rpcAddresses[0]); err != nil {
+		if err := setFieldPrefillValue(defaultChallengerFields, "l1_node.rpc_address", rpcAddress); err != nil {
 			return m, m.HandlePanic(err)
 		}
 
