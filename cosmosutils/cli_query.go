@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 
 	"github.com/initia-labs/weave/client"
 	"github.com/initia-labs/weave/common"
@@ -81,16 +80,7 @@ func NewMinitiadQuerier() (*MinitiadQuerier, error) {
 	weaveDataPath := filepath.Join(userHome, common.WeaveDataDirectory)
 	tarballPath := filepath.Join(weaveDataPath, "minitia.tar.gz")
 	extractedPath := filepath.Join(weaveDataPath, fmt.Sprintf("mini%s@%s", DefaultMinitiadQuerierVM, version))
-
-	var binaryPath string
-	switch runtime.GOOS {
-	case "linux":
-		binaryPath = filepath.Join(extractedPath, fmt.Sprintf("mini%s_%s", DefaultMinitiadQuerierVM, version), DefaultMinitiadQuerierAppName)
-	case "darwin":
-		binaryPath = filepath.Join(extractedPath, DefaultMinitiadQuerierAppName)
-	default:
-		return nil, fmt.Errorf("unsupported platform: %s", runtime.GOOS)
-	}
+	binaryPath := filepath.Join(extractedPath, DefaultMinitiadQuerierAppName)
 
 	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
 		if _, err := os.Stat(extractedPath); os.IsNotExist(err) {
