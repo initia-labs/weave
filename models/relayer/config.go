@@ -95,7 +95,7 @@ func createRapidRelayerConfig(state State) error {
       "chainId": "{{.ID}}",
       "gasPrice": "{{.GasPrice.Amount}}{{.GasPrice.Denom}}",
       "restUri": ["{{.RESTAddr}}"],
-      "rpcUri": ["{{.RPCAddr}}],
+      "rpcUri": ["{{.RPCAddr}}"],
       "wallets": [
         {
           "key": {
@@ -117,7 +117,7 @@ func createRapidRelayerConfig(state State) error {
       "chainId": "{{.ID2}}",
       "gasPrice": "{{.GasPrice2.Amount}}{{.GasPrice2.Denom}}",
       "restUri": ["{{.RESTAddr2}}"],
-      "rpcUri": ["{{.RPCAddr2}}],
+      "rpcUri": ["{{.RPCAddr2}}"],
       "wallets": [
         {
           "key": {
@@ -157,7 +157,7 @@ func createRapidRelayerConfig(state State) error {
 			Amount: state.Config["l2.gas_price.price"],
 			Denom:  state.Config["l2.gas_price.denom"],
 		},
-		Mnemonic2:     state.l1RelayerMnemonic,
+		Mnemonic2:     state.l2RelayerMnemonic,
 		PacketFilter2: transformToPacketFilter(state.IBCChannels, false),
 	}
 
