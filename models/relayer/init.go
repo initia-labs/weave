@@ -1607,11 +1607,11 @@ func (m *SelectingL1Network) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.HandlePanic(err)
 			}
 			state.Config["l1.chain_id"] = testnetRegistry.GetChainId()
-			rpcAddresses, err := testnetRegistry.GetActiveRpcs()
+			rpcAddress, err := testnetRegistry.GetFirstActiveRpc()
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
-			state.Config["l1.rpc_address"] = rpcAddresses[0]
+			state.Config["l1.rpc_address"] = rpcAddress
 			if state.Config["l1.grpc_address"], err = testnetRegistry.GetActiveGrpc(); err != nil {
 				return m, m.HandlePanic(err)
 			}
@@ -1620,11 +1620,11 @@ func (m *SelectingL1Network) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.HandlePanic(err)
 			}
 			state.Config["l1.websocket"] = websocket
-			lcdAddresses, err := testnetRegistry.GetActiveLcds()
+			lcdAddress, err := testnetRegistry.GetFirstActiveLcd()
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
-			state.Config["l1.lcd_address"] = lcdAddresses[0]
+			state.Config["l1.lcd_address"] = lcdAddress
 			if state.Config["l1.gas_price.price"], err = testnetRegistry.GetFixedMinGasPriceByDenom(DefaultGasPriceDenom); err != nil {
 				return m, m.HandlePanic(err)
 			}
@@ -1742,7 +1742,7 @@ func (m *SelectingL2Network) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
-		l2Rpc, err := l2Registry.GetActiveRpcs()
+		l2Rpc, err := l2Registry.GetFirstActiveRpc()
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
@@ -1751,7 +1751,7 @@ func (m *SelectingL2Network) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		state.Config["l2.chain_id"] = chainId
 		state.Config["l2.gas_price.denom"] = l2DefaultFeeToken.Denom
 		state.Config["l2.gas_price.price"] = strconv.FormatFloat(l2DefaultFeeToken.FixedMinGasPrice, 'f', -1, 64)
-		state.Config["l2.rpc_address"] = l2Rpc[0]
+		state.Config["l2.rpc_address"] = l2Rpc
 		if state.Config["l2.grpc_address"], err = l2Registry.GetActiveGrpc(); err != nil {
 			return m, m.HandlePanic(err)
 		}
@@ -1862,19 +1862,19 @@ func (m *SelectingL1NetworkRegistry) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.HandlePanic(err)
 		}
 		state.Config["l1.chain_id"] = chainRegistry.GetChainId()
-		rpcAddresses, err := chainRegistry.GetActiveRpcs()
+		rpcAddress, err := chainRegistry.GetFirstActiveRpc()
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
-		state.Config["l1.rpc_address"] = rpcAddresses[0]
+		state.Config["l1.rpc_address"] = rpcAddress
 		if state.Config["l1.grpc_address"], err = chainRegistry.GetActiveGrpc(); err != nil {
 			return m, m.HandlePanic(err)
 		}
-		lcdAddresses, err := chainRegistry.GetActiveLcds()
+		lcdAddress, err := chainRegistry.GetFirstActiveLcd()
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
-		state.Config["l1.lcd_address"] = lcdAddresses[0]
+		state.Config["l1.lcd_address"] = lcdAddress
 		if state.Config["l1.websocket"], err = chainRegistry.GetActiveWebSocket(); err != nil {
 			return m, m.HandlePanic(err)
 		}

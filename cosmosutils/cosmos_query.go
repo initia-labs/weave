@@ -90,3 +90,15 @@ func QueryOPChildParams(addresses []string) (params OPChildParams, err error) {
 	}
 	return response.Params, nil
 }
+
+func QueryNodeInfo(addresses []string) (response NodeInfoResponse, err error) {
+	return tryEndpoints(
+		addresses,
+		"/cosmos/base/tendermint/v1beta1/node_info",
+		func(data []byte) (NodeInfoResponse, error) {
+			var response NodeInfoResponse
+			err := json.Unmarshal(data, &response)
+			return response, err
+		},
+	)
+}

@@ -614,11 +614,11 @@ func (m *PrefillMinitiaConfig) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 
 				state.botConfig["da_node.chain_id"] = chainRegistry.GetChainId()
-				rpcAddresses, err := chainRegistry.GetActiveRpcs()
+				rpcAddress, err := chainRegistry.GetFirstActiveRpc()
 				if err != nil {
 					return m, m.HandlePanic(err)
 				}
-				state.botConfig["da_node.rpc_address"] = rpcAddresses[0]
+				state.botConfig["da_node.rpc_address"] = rpcAddress
 				state.botConfig["da_node.bech32_prefix"] = chainRegistry.GetBech32Prefix()
 				state.botConfig["da_node.gas_price"] = DefaultCelestiaGasPrices
 				state.daIsCelestia = true
@@ -764,11 +764,11 @@ func (m *L1PrefillSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return nil, m.HandlePanic(fmt.Errorf("celestia registry: %w", err))
 			}
 			state.botConfig["da_node.chain_id"] = celestiaChainRegistry.GetChainId()
-			rpcAddresses, err := celestiaChainRegistry.GetActiveRpcs()
+			rpcAddress, err := celestiaChainRegistry.GetFirstActiveRpc()
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
-			state.botConfig["da_node.rpc_address"] = rpcAddresses[0]
+			state.botConfig["da_node.rpc_address"] = rpcAddress
 			state.botConfig["da_node.bech32_prefix"] = celestiaChainRegistry.GetBech32Prefix()
 			state.botConfig["da_node.gas_price"] = DefaultCelestiaGasPrices
 			state.daIsCelestia = true
@@ -867,11 +867,11 @@ func (m *SetDALayer) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			state.botConfig["da_node.gas_price"] = state.botConfig["l1_node.gas_price"]
 		case Celestia:
 			state.botConfig["da_node.chain_id"] = m.chainRegistry.GetChainId()
-			rpcAddresses, err := m.chainRegistry.GetActiveRpcs()
+			rpcAddress, err := m.chainRegistry.GetFirstActiveRpc()
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
-			state.botConfig["da_node.rpc_address"] = rpcAddresses[0]
+			state.botConfig["da_node.rpc_address"] = rpcAddress
 			state.botConfig["da_node.bech32_prefix"] = m.chainRegistry.GetBech32Prefix()
 			state.botConfig["da_node.gas_price"] = DefaultCelestiaGasPrices
 			state.daIsCelestia = true

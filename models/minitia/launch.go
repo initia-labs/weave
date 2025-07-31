@@ -18,7 +18,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/initia-labs/weave/analytics"
-	"github.com/initia-labs/weave/client"
 	"github.com/initia-labs/weave/common"
 	"github.com/initia-labs/weave/config"
 	weavecontext "github.com/initia-labs/weave/context"
@@ -2233,34 +2232,18 @@ func NewDownloadCelestiaBinaryLoading(ctx context.Context) (*DownloadCelestiaBin
 	if err != nil {
 		return nil, err
 	}
-	httpClient := client.NewHTTPClient()
 
 	activeLcds, err := celestiaMainnetRegistry.GetActiveLcds()
 	if err != nil {
 		return nil, err
 	}
-	var result map[string]interface{}
-	ok := false
-	for _, activeLcd := range activeLcds {
-		if _, err := httpClient.Get(
-			activeLcd,
-			"/cosmos/base/tendermint/v1beta1/node_info",
-			nil,
-			&result,
-		); err == nil {
-			ok = true
-			break
-		}
-	}
-	if !ok {
-		return nil, fmt.Errorf("failed to fetch node info from any active LCD endpoints: %v", err)
-	}
 
-	applicationVersion, ok := result["application_version"].(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("failed to get node version")
+	response, err := cosmosutils.QueryNodeInfo(activeLcds)
+	if err != nil {
+		return nil, err
 	}
-	version := applicationVersion["version"].(string)
+	version := response.ApplicationVersion.Version
+
 	goos := runtime.GOOS
 	goarch := runtime.GOARCH
 	binaryUrl, err := getCelestiaBinaryURL(version, goos, goarch)
