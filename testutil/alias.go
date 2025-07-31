@@ -14,7 +14,7 @@ var (
 	PressDown  = InputStep{Msg: tea.KeyMsg{Type: tea.KeyDown}}
 
 	WaitFetching = WaitStep{Check: func() bool {
-		time.Sleep(5 * time.Second)
+		time.Sleep(8 * time.Second)
 		return true
 	}}
 )
