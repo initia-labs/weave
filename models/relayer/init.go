@@ -171,11 +171,11 @@ func (m *RollupSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if state.Config["l1.grpc_address"], err = testnetRegistry.GetActiveGrpc(); err != nil {
 					return m, m.HandlePanic(err)
 				}
-				lcdAddresses, err := testnetRegistry.GetActiveLcds()
+				lcdAddress, err := testnetRegistry.GetFirstActiveLcd()
 				if err != nil {
 					return m, m.HandlePanic(err)
 				}
-				state.Config["l1.lcd_address"] = lcdAddresses[0]
+				state.Config["l1.lcd_address"] = lcdAddress
 				if state.Config["l1.websocket"], err = testnetRegistry.GetActiveWebSocket(); err != nil {
 					return m, m.HandlePanic(err)
 				}
@@ -203,11 +203,11 @@ func (m *RollupSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if state.Config["l1.grpc_address"], err = mainnetRegistry.GetActiveGrpc(); err != nil {
 					return m, m.HandlePanic(err)
 				}
-				lcdAddresses, err := mainnetRegistry.GetActiveLcds()
+				lcdAddress, err := mainnetRegistry.GetFirstActiveLcd()
 				if err != nil {
 					return m, m.HandlePanic(err)
 				}
-				state.Config["l1.lcd_address"] = lcdAddresses[0]
+				state.Config["l1.lcd_address"] = lcdAddress
 				if state.Config["l1.websocket"], err = mainnetRegistry.GetActiveWebSocket(); err != nil {
 					return m, m.HandlePanic(err)
 				}
