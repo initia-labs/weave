@@ -276,6 +276,17 @@ func (cr *ChainRegistry) GetActiveRpcs() ([]string, error) {
 	return cr.ActiveRpcs, nil
 }
 
+func (cr *ChainRegistry) GetFirstActiveRpc() (string, error) {
+	rpcs, err := cr.GetActiveRpcs()
+	if err != nil {
+		return "", err
+	}
+	if len(rpcs) == 0 {
+		return "", fmt.Errorf("no active RPC endpoints available")
+	}
+	return rpcs[0], nil
+}
+
 func (cr *ChainRegistry) GetActiveLcds() ([]string, error) {
 	if len(cr.ActiveLcds) > 0 {
 		return cr.ActiveLcds, nil
@@ -342,40 +353,56 @@ func (cr *ChainRegistry) GetActiveLcds() ([]string, error) {
 	return cr.ActiveLcds, nil
 }
 
-func (cr *ChainRegistry) GetOpinitBridgeInfo(id string) (types.Bridge, error) {
+func (cr *ChainRegistry) GetFirstActiveLcd() (string, error) {
+	lcds, err := cr.GetActiveLcds()
+	if err != nil {
+		return "", err
+	}
+	if len(lcds) == 0 {
+		return "", fmt.Errorf("no active LCD endpoints available")
+	}
+	return lcds[0], nil
+}
+
+// queryActiveEndpoints is a helper function that queries active LCD endpoints
+// and returns the first successful response
+func (cr *ChainRegistry) queryActiveEndpoints(path string, result interface{}) error {
 	addresses, err := cr.GetActiveLcds()
 	if err != nil {
-		return types.Bridge{}, err
+		return err
 	}
 	httpClient := client.NewHTTPClient()
 
 	for _, address := range addresses {
-		var bridgeInfo types.Bridge
-		if _, err := httpClient.Get(address, fmt.Sprintf("/opinit/ophost/v1/bridges/%s", id), nil, &bridgeInfo); err != nil {
+		if _, err := httpClient.Get(address, path, nil, result); err != nil {
 			continue
 		}
-		return bridgeInfo, nil
+		return nil
 	}
 
-	return types.Bridge{}, fmt.Errorf("no active LCD endpoints available")
+	return fmt.Errorf("failed to query %s from any active LCD endpoint", path)
+}
+
+func (cr *ChainRegistry) GetOpinitBridgeInfo(id string) (types.Bridge, error) {
+	var bridgeInfo types.Bridge
+	path := fmt.Sprintf("/opinit/ophost/v1/bridges/%s", id)
+
+	if err := cr.queryActiveEndpoints(path, &bridgeInfo); err != nil {
+		return types.Bridge{}, fmt.Errorf("failed to get opinit bridge info: %w", err)
+	}
+
+	return bridgeInfo, nil
 }
 
 func (cr *ChainRegistry) GetCounterPartyIBCChannel(port, channel string) (types.Channel, error) {
-	addresses, err := cr.GetActiveLcds()
-	if err != nil {
-		return types.Channel{}, err
-	}
-	httpClient := client.NewHTTPClient()
+	var response types.MinimalIBCChannelResponse
+	path := fmt.Sprintf("/ibc/core/channel/v1/channels/%s/ports/%s", channel, port)
 
-	for _, address := range addresses {
-		var response types.MinimalIBCChannelResponse
-		if _, err := httpClient.Get(address, fmt.Sprintf("/ibc/core/channel/v1/channels/%s/ports/%s", channel, port), nil, &response); err != nil {
-			continue
-		}
-		return response.Channel.Counterparty, nil
+	if err := cr.queryActiveEndpoints(path, &response); err != nil {
+		return types.Channel{}, fmt.Errorf("failed to get counterparty IBC channel: %w", err)
 	}
 
-	return types.Channel{}, fmt.Errorf("no active LCD endpoints available")
+	return response.Channel.Counterparty, nil
 }
 
 func normalizeGRPCAddress(addr string) (string, error) {
@@ -623,26 +650,26 @@ func GetOPInitBotsSpecVersion(chainId string) (int, error) {
 }
 
 func (cr *ChainRegistry) GetCounterpartyClientId(portID, channelID string) (Connection, error) {
-	addresses, err := cr.GetActiveLcds()
-	if err != nil {
-		return Connection{}, err
-	}
-	httpClient := client.NewHTTPClient()
-	for _, address := range addresses {
-		var channel Channel
-		if _, err := httpClient.Get(address, fmt.Sprintf("/ibc/core/channel/v1/channels/%s/ports/%s", channelID, portID), nil, &channel); err != nil {
-			continue
-		}
-
-		var connection Connection
-		if _, err := httpClient.Get(address, fmt.Sprintf("/ibc/core/connection/v1/connections/%s", channel.Channel.ConnectionHops[0]), nil, &connection); err != nil {
-			continue
-		}
-
-		return connection, nil
+	// First, get the channel information
+	var channel Channel
+	channelPath := fmt.Sprintf("/ibc/core/channel/v1/channels/%s/ports/%s", channelID, portID)
+	if err := cr.queryActiveEndpoints(channelPath, &channel); err != nil {
+		return Connection{}, fmt.Errorf("failed to get channel info: %w", err)
 	}
 
-	return Connection{}, fmt.Errorf("no active LCD endpoints available")
+	// Validate connection hops
+	if len(channel.Channel.ConnectionHops) == 0 {
+		return Connection{}, fmt.Errorf("no connection hops found for channel %s", channelID)
+	}
+
+	// Get the connection information using the first connection hop
+	var connection Connection
+	connectionPath := fmt.Sprintf("/ibc/core/connection/v1/connections/%s", channel.Channel.ConnectionHops[0])
+	if err := cr.queryActiveEndpoints(connectionPath, &connection); err != nil {
+		return Connection{}, fmt.Errorf("failed to get connection info: %w", err)
+	}
+
+	return connection, nil
 }
 
 func GetInitiaGraphQLFromType(chainType ChainType) (string, error) {

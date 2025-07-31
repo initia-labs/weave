@@ -253,11 +253,11 @@ func (m *NetworkSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.HandlePanic(err)
 		}
 		state.l1ChainId = chainRegistry.GetChainId()
-		rpcAddresses, err := chainRegistry.GetActiveRpcs()
+		rpcAddress, err := chainRegistry.GetFirstActiveRpc()
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
-		state.l1RPC = rpcAddresses[0]
+		state.l1RPC = rpcAddress
 
 		var celestiaType registry.ChainType
 		switch *selected {
@@ -275,11 +275,11 @@ func (m *NetworkSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
-		rpcAddresses, err = celestiaRegistry.GetActiveRpcs()
+		rpcAddress, err = celestiaRegistry.GetFirstActiveRpc()
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
-		state.daRPC = rpcAddresses[0]
+		state.daRPC = rpcAddress
 		state.daChainId = celestiaRegistry.GetChainId()
 
 		return NewVMTypeSelect(weavecontext.SetCurrentState(m.Ctx, state)), nil

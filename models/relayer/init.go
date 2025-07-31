@@ -156,17 +156,18 @@ func (m *RollupSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			state.feeWhitelistAccounts = append(state.feeWhitelistAccounts, minitiaConfig.SystemKeys.Challenger.L2Address)
 
 			state.minitiaConfig = &minitiaConfig
-			if minitiaConfig.L1Config.ChainID == InitiaTestnetChainId {
+			switch minitiaConfig.L1Config.ChainID {
+			case InitiaTestnetChainId:
 				testnetRegistry, err := registry.GetChainRegistry(registry.InitiaL1Testnet)
 				if err != nil {
 					return m, m.HandlePanic(err)
 				}
 				state.Config["l1.chain_id"] = testnetRegistry.GetChainId()
-				rpcAddresses, err := testnetRegistry.GetActiveRpcs()
+				rpcAddress, err := testnetRegistry.GetFirstActiveRpc()
 				if err != nil {
 					return m, m.HandlePanic(err)
 				}
-				state.Config["l1.rpc_address"] = rpcAddresses[0]
+				state.Config["l1.rpc_address"] = rpcAddress
 				if state.Config["l1.grpc_address"], err = testnetRegistry.GetActiveGrpc(); err != nil {
 					return m, m.HandlePanic(err)
 				}
@@ -188,17 +189,17 @@ func (m *RollupSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				state.Config["l2.gas_price.price"] = DefaultGasPriceAmount
 				state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, "L1 network is auto-detected", []string{}, minitiaConfig.L1Config.ChainID))
 
-			} else if minitiaConfig.L1Config.ChainID == InitiaMainnetChainId {
+			case InitiaMainnetChainId:
 				mainnetRegistry, err := registry.GetChainRegistry(registry.InitiaL1Mainnet)
 				if err != nil {
 					return m, m.HandlePanic(err)
 				}
 				state.Config["l1.chain_id"] = mainnetRegistry.GetChainId()
-				rpcAddresses, err := mainnetRegistry.GetActiveRpcs()
+				rpcAddress, err := mainnetRegistry.GetFirstActiveRpc()
 				if err != nil {
 					return m, m.HandlePanic(err)
 				}
-				state.Config["l1.rpc_address"] = rpcAddresses[0]
+				state.Config["l1.rpc_address"] = rpcAddress
 				if state.Config["l1.grpc_address"], err = mainnetRegistry.GetActiveGrpc(); err != nil {
 					return m, m.HandlePanic(err)
 				}
@@ -219,7 +220,7 @@ func (m *RollupSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				state.Config["l2.gas_price.denom"] = minitiaConfig.L2Config.Denom
 				state.Config["l2.gas_price.price"] = DefaultGasPriceAmount
 				state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, "L1 network is auto-detected", []string{}, minitiaConfig.L1Config.ChainID))
-			} else {
+			default:
 				return m, m.HandlePanic(fmt.Errorf("not support L1"))
 			}
 
