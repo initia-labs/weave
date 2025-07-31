@@ -1907,11 +1907,6 @@ func (m *SelectSettingUpIBCChannelsMethod) Update(msg tea.Msg) (tea.Model, tea.C
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
-			l2NetworkRegistry, err := registry.GetL2Registry(state.chainType, state.Config["l2.chain_id"])
-			if err != nil {
-				return m, m.HandlePanic(err)
-			}
-
 			info, err := l1NetworkRegistry.GetOpinitBridgeInfo(artifacts.BridgeID)
 			if err != nil {
 				return m, m.HandlePanic(err)
@@ -1927,7 +1922,7 @@ func (m *SelectSettingUpIBCChannelsMethod) Update(msg tea.Msg) (tea.Model, tea.C
 				if err != nil {
 					return m, m.HandlePanic(err)
 				}
-				l2Response, err := l2NetworkRegistry.GetIBCChannelInfo(l1Response.Channel.Counterparty.PortID, l1Response.Channel.Counterparty.ChannelID)
+				l2Response, err := GetL2IBCChannelInfo(m.Ctx, l1Response.Channel.Counterparty.PortID, l1Response.Channel.Counterparty.ChannelID)
 				if err != nil {
 					return m, m.HandlePanic(err)
 				}
@@ -2049,6 +2044,26 @@ func GetL2GasPrices(ctx context.Context) (string, error) {
 	}
 
 	return fmt.Sprintf("%s%s", amount, denom), nil
+}
+
+func GetL2IBCChannelInfo(ctx context.Context, port, channel string) (types.ChannelResponse, error) {
+	rest, err := GetL2ActiveLcd(ctx)
+	if err != nil {
+		return types.ChannelResponse{}, err
+	}
+
+	httpClient := client.NewHTTPClient()
+
+	var response types.ChannelResponse
+	if _, err := httpClient.Get(rest, fmt.Sprintf("/ibc/core/channel/v1/channels/%s/ports/%s", channel, port), nil, &response); err != nil {
+		return types.ChannelResponse{}, err
+	}
+
+	if len(response.Channel.ConnectionHops) == 0 {
+		return types.ChannelResponse{}, fmt.Errorf("no connection ID found")
+	}
+
+	return response, nil
 }
 
 type FillPortOnL1 struct {
