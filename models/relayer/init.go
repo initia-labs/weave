@@ -2669,9 +2669,13 @@ func (m *AddChallengerKeyToRelayer) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func getRelayerSetSuccessMessage() string {
 	userHome, _ := os.UserHomeDir()
-	hermesHome := filepath.Join(userHome, common.RelayerHome)
-	s := styles.RenderPrompt(fmt.Sprintf("Relayer setup successfully. Config file is saved at %s/config.toml. Feel free to modify it as needed.", hermesHome), []string{}, styles.Completed)
-	s += "\n" + styles.RenderPrompt("You can start the relayer by running `weave relayer start`", []string{}, styles.Completed) + "\n"
+	relayerHome := filepath.Join(userHome, common.RelayerHome)
+	s := styles.RenderPrompt(fmt.Sprintf("Relayer setup successfully! Config file is saved at %s/config.json", relayerHome), []string{}, styles.Completed)
+	s += "\n" + styles.RenderPrompt("This config is designed for Rapid Relayer (https://github.com/initia-labs/rapid-relayer)", []string{}, styles.Completed)
+	s += "\n\n" + styles.RenderPrompt("To start relaying:", []string{}, styles.Information)
+	s += "\n" + styles.RenderPrompt("1. Clone and install Rapid Relayer: git clone https://github.com/initia-labs/rapid-relayer && cd rapid-relayer && npm install", []string{}, styles.Information)
+	s += "\n" + styles.RenderPrompt("2. Start the relayer: npm start", []string{}, styles.Information)
+	s += "\n\n" + styles.RenderPrompt("Note: The config file is in JSON format. Feel free to modify it as needed.", []string{}, styles.Question)
 	return s
 }
 
