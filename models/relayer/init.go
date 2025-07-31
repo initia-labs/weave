@@ -890,7 +890,7 @@ func waitFetchingBalancesLoading(ctx context.Context) tea.Cmd {
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("cannot load l1 active lcd: %w", err)}
 		}
-		l1Balances, err := cosmosutils.QueryBankBalances(l1Rest, state.l1RelayerAddress)
+		l1Balances, err := cosmosutils.QueryBankBalances([]string{l1Rest}, state.l1RelayerAddress)
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("cannot fetch balance for l1: %v", err)}
 		}
@@ -1716,30 +1716,16 @@ func (m *SelectingL2Network) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
-		httpClient := client.NewHTTPClient()
-		var res types.ChannelsResponse
-		ok := false
-		for _, lcdAddress := range lcdAddresses {
-			if _, err = httpClient.Get(lcdAddress, "/ibc/core/channel/v1/channels", nil, &res); err == nil {
-				ok = true
-				break
-			}
-		}
-		if !ok {
+		res, err := cosmosutils.QueryChannels(lcdAddresses)
+		if err != nil {
 			return m, m.HandlePanic(fmt.Errorf("failed to get channels from any active LCD endpoints"))
 		}
 
-		ok = false
-		for _, lcdAddress := range lcdAddresses {
-			if params, err := cosmosutils.QueryOPChildParams(lcdAddress); err == nil {
-				state.feeWhitelistAccounts = append(state.feeWhitelistAccounts, params.FeeWhitelist...)
-				ok = true
-				break
-			}
-		}
-		if !ok {
+		params, err := cosmosutils.QueryOPChildParams(lcdAddresses)
+		if err != nil {
 			return m, m.HandlePanic(fmt.Errorf("failed to get OP child params from any active LCD endpoints"))
 		}
+		state.feeWhitelistAccounts = append(state.feeWhitelistAccounts, params.FeeWhitelist...)
 
 		pairs := make([]types.IBCChannelPair, 0)
 		for _, channel := range res.Channels {
@@ -2568,7 +2554,7 @@ func (m *FillL2LCD) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 
-		if params, err := cosmosutils.QueryOPChildParams(input.Text); err == nil {
+		if params, err := cosmosutils.QueryOPChildParams([]string{input.Text}); err == nil {
 			state.feeWhitelistAccounts = append(state.feeWhitelistAccounts, params.FeeWhitelist...)
 		}
 

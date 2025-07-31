@@ -208,11 +208,9 @@ func getBalance(chainType registry.ChainType, address string) (*cosmosutils.Coin
 	if err != nil {
 		return nil, fmt.Errorf("failed to get active lcd for %s: %v", chainType, err)
 	}
-	for _, activeLcd := range activeLcds {
-		balances, err := cosmosutils.QueryBankBalances(activeLcd, address)
-		if err == nil {
-			return balances, nil
-		}
+	balances, err := cosmosutils.QueryBankBalances(activeLcds, address)
+	if err == nil {
+		return balances, nil
 	}
 	return nil, fmt.Errorf("failed to get balances from any active lcds")
 }

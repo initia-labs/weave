@@ -3074,7 +3074,7 @@ func (m *LaunchingNewMinitiaLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			messageJsonPath := filepath.Join(userHome, common.WeaveDataDirectory, "messages.json")
 
-			params, err := cosmosutils.QueryOPChildParams(DefaultMinitiaLCD)
+			params, err := cosmosutils.QueryOPChildParams([]string{DefaultMinitiaLCD})
 			if err != nil {
 				return m, m.HandlePanic(fmt.Errorf("failed to query params: %v", err))
 			}
