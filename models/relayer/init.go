@@ -587,12 +587,12 @@ type KeysMnemonicDisplayInput struct {
 
 func NewKeysMnemonicDisplayInput(ctx context.Context) *KeysMnemonicDisplayInput {
 	userHome, _ := os.UserHomeDir()
-	hermesKeyFile := filepath.Join(userHome, common.RelayerKeyFileJson)
+	relayerKeyFile := filepath.Join(userHome, common.RelayerKeyFileJson)
 
 	model := &KeysMnemonicDisplayInput{
 		TextInput:   ui.NewTextInput(true),
 		BaseModel:   weavecontext.BaseModel{Ctx: ctx, CannotBack: true},
-		keyFilePath: hermesKeyFile,
+		keyFilePath: relayerKeyFile,
 		question:    "Please type `continue` to proceed.",
 	}
 	model.WithPlaceholder("Type `continue` to continue, Ctrl+C to quit.")
@@ -624,6 +624,12 @@ func (m *KeysMnemonicDisplayInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		l2RelayerKey, err := weaveio.RecoverKey("init", state.l2RelayerMnemonic)
 		if err != nil {
 			return m, m.HandlePanic(fmt.Errorf("cannot recover l2 relayer key: %w", err))
+		}
+
+		// Ensure the directory exists
+		err = os.MkdirAll(filepath.Dir(m.keyFilePath), 0o755) // Creates ~/.relayer if it doesn't exist
+		if err != nil {
+			return m, m.HandlePanic(fmt.Errorf("failed to create relayer home: %w", err))
 		}
 
 		keyFile := weaveio.NewKeyFile()
@@ -2656,12 +2662,17 @@ func (m *AddChallengerKeyToRelayer) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			userHome, _ := os.UserHomeDir()
 			relayerKeyFile := filepath.Join(userHome, common.RelayerKeyFileJson)
+			// Ensure the directory exists
+			err := os.MkdirAll(filepath.Dir(relayerKeyFile), 0o755) // Creates ~/.relayer if it doesn't exist
+			if err != nil {
+				return m, m.HandlePanic(fmt.Errorf("failed to create relayer home: %w", err))
+			}
 
 			keyFile := weaveio.NewKeyFile()
 			keyFile.AddKey(DefaultL1RelayerKeyName, weaveio.NewKey(state.l1RelayerAddress, state.l1RelayerMnemonic))
 			keyFile.AddKey(DefaultL2RelayerKeyName, weaveio.NewKey(state.l2RelayerAddress, state.l2RelayerMnemonic))
 
-			err := keyFile.Write(relayerKeyFile)
+			err = keyFile.Write(relayerKeyFile)
 			if err != nil {
 				return m, m.HandlePanic(fmt.Errorf("failed to write key file: %w", err))
 			}
