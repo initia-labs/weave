@@ -10,12 +10,8 @@ func RPCEndpointDescription(networkType string) string {
 	return fmt.Sprintf("The network address and port that the %s RPC node will listen to. This endpoint is used by the rollup bots to communicate with the %s network and for users to submit transactions.", networkType, networkType)
 }
 
-func GRPCEndpointDescription(networkType string) string {
-	return fmt.Sprintf("The network address and port that an %s GRPC node will listen to. This allows the rollup bots to query additional data from the %s network.", networkType, networkType)
-}
-
-func WebSocketEndpointDescription(networkType string) string {
-	return fmt.Sprintf("The network address and port that an %s WebSocket node will listen to. This allows the rollup bots to listen to events from the %s network.", networkType, networkType)
+func RESTEndpointDescription(networkType string) string {
+	return fmt.Sprintf("The network address and port that an %s REST node will listen to. This allows the rollup bots to query additional data from the %s network.", networkType, networkType)
 }
 
 func GasDenomDescription(networkType string) string {

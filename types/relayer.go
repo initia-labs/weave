@@ -1,28 +1,30 @@
 package types
 
-// type Channel struct {
-// 	PortID    string `json:"port_id"`
-// 	ChannelID string `json:"channel_id"`
-// }
+type Channel struct {
+	PortID    string `json:"port_id"`
+	ChannelID string `json:"channel_id"`
+}
 
-// type IBCChannelPair struct {
-// 	L1 Channel
-// 	L2 Channel
-// }
+type IBCChannelPair struct {
+	L1ConnectionID string
+	L1             Channel
+	L2ConnectionID string
+	L2             Channel
+}
 
-// // MinimalIBCChannelResponse define a minimal struct to parse just the counterparty field
-// type MinimalIBCChannelResponse struct {
-// 	Channel struct {
-// 		Counterparty Channel `json:"counterparty"`
-// 	} `json:"channel"`
-// }
+// ChannelResponse define a minimal struct to parse just the counterparty field
+type ChannelResponse struct {
+	Channel struct {
+		ConnectionHops []string `json:"connection_hops"`
+		Counterparty   Channel  `json:"counterparty"`
+	} `json:"channel"`
+}
 
-// type ChannelInfo struct {
-// 	PortID       string  `json:"port_id"`
-// 	ChannelID    string  `json:"channel_id"`
-// 	Counterparty Channel `json:"counterparty"`
-// }
-
-// type ChannelsResponse struct {
-// 	Channels []ChannelInfo `json:"channels"`
-// }
+type ChannelsResponse struct {
+	Channels []struct {
+		PortID         string   `json:"port_id"`
+		ChannelID      string   `json:"channel_id"`
+		ConnectionHops []string `json:"connection_hops"`
+		Counterparty   Channel  `json:"counterparty"`
+	} `json:"channels"`
+}
