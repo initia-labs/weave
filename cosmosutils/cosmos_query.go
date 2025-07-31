@@ -17,28 +17,13 @@ func QueryBankBalances(addresses []string, address string) (*Coins, error) {
 		addresses,
 		fmt.Sprintf("/cosmos/bank/v1beta1/balances/%s", address),
 		func(data []byte) (*Coins, error) {
-			var result map[string]interface{}
-			if err := json.Unmarshal(data, &result); err != nil {
+			var response struct {
+				Balances Coins `json:"balances"`
+			}
+			if err := json.Unmarshal(data, &response); err != nil {
 				return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 			}
-
-			rawBalances, ok := result["balances"].([]interface{})
-			if !ok {
-				return nil, fmt.Errorf("failed to parse balances field")
-			}
-
-			balancesJSON, err := json.Marshal(rawBalances)
-			if err != nil {
-				return nil, fmt.Errorf("failed to marshal balances: %w", err)
-			}
-
-			var balances Coins
-			err = json.Unmarshal(balancesJSON, &balances)
-			if err != nil {
-				return nil, fmt.Errorf("failed to unmarshal balances into Coins: %w", err)
-			}
-
-			return &balances, nil
+			return &response.Balances, nil
 		},
 	)
 }
