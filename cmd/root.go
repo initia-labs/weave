@@ -53,7 +53,7 @@ func Execute() error {
 		UpgradeCommand(),
 		MinitiaCommand(),
 		OPInitBotsCommand(),
-		// RelayerCommand(),
+		RelayerCommand(),
 		AnalyticsCommand(),
 	)
 

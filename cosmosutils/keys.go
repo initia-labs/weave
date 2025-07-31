@@ -8,12 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
-
-	"github.com/initia-labs/weave/common"
-	"github.com/initia-labs/weave/crypto"
-	"github.com/initia-labs/weave/io"
 )
 
 type KeyInfo struct {
@@ -251,7 +246,6 @@ func OPInitAddOrReplace(appName, keyname string, isCelestia bool, opInitHome str
 		cmd = exec.Command(appName, "keys", "add", "weave-dummy", keyname, "--coin-type", "118", "--key-type", "secp256k1", "--bech32", "celestia", "--home", opInitHome)
 	} else {
 		cmd = exec.Command(appName, "keys", "add", "weave-dummy", keyname, "--coin-type", "118", "--key-type", "secp256k1", "--home", opInitHome)
-
 	}
 	// Simulate pressing 'y' for confirmation
 	cmd.Stdin = bytes.NewBufferString("y\n")
@@ -328,108 +322,4 @@ func SetSymlink(targetPath string) error {
 	}
 
 	return nil
-}
-
-func GetHermesRelayerAddress(appName, chainId string) (string, bool) {
-	cmd := exec.Command(appName, "keys", "list", "--chain", chainId)
-
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &out
-
-	err := cmd.Run()
-	if err != nil {
-		return "", false
-	}
-
-	output := out.String()
-	lines := strings.Split(output, "\n")
-	if len(lines) < 2 {
-		return "", false
-	}
-
-	secondLine := strings.TrimSpace(lines[1])
-	re := regexp.MustCompile(`weave-relayer' \(([^)]+)\)`)
-	match := re.FindStringSubmatch(secondLine)
-	if len(match) != 2 {
-		return "", false
-	}
-	keyName := match[1]
-	if keyName != "weave-relayer" {
-		return "", false
-	}
-	relayerAddress := match[2]
-	return relayerAddress, true
-}
-
-func DeleteWeaveKeyFromHermes(appName, chainId string) error {
-	cmd := exec.Command(appName, "keys", "delete", "--chain", chainId, "--key-name", "weave-relayer")
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to delete key from hermes for network: %s: %v (output: %s)", chainId, err, string(output))
-	}
-
-	return nil
-}
-
-func addNewKeyToHermes(appName, chainId, mnemonic string) (*KeyInfo, error) {
-	userHome, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user home: %v", err)
-	}
-	tempMnemonicPath := filepath.Join(userHome, common.WeaveDataDirectory, common.HermesTempMnemonicFilename)
-	if err = io.WriteFile(tempMnemonicPath, mnemonic); err != nil {
-		return nil, fmt.Errorf("failed to write raw tx file: %v", err)
-	}
-
-	defer func() {
-		if err := io.DeleteFile(tempMnemonicPath); err != nil {
-			fmt.Printf("failed to delete temp mnemonic file: %v", err)
-		}
-	}()
-
-	cmd := exec.Command(appName, "keys", "add", "--chain", chainId, "--mnemonic-file", tempMnemonicPath)
-
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &out
-
-	if err = cmd.Run(); err != nil {
-		return nil, fmt.Errorf("failed to run hermes keys add: %v (output: %s)", err, out.String())
-	}
-
-	output := out.String()
-	re := regexp.MustCompile(`weave-relayer' \(([^)]+)\)`)
-	match := re.FindStringSubmatch(output)
-
-	if len(match) < 2 {
-		return nil, fmt.Errorf("failed to parse address from command output: %s", output)
-	}
-
-	return &KeyInfo{
-		Address:  match[1],
-		Mnemonic: mnemonic,
-	}, nil
-}
-
-func GenerateAndAddNewHermesKey(appName, chainId string) (*KeyInfo, error) {
-	mnemonic, err := crypto.GenerateMnemonic()
-	if err != nil {
-		return nil, err
-	}
-
-	return addNewKeyToHermes(appName, chainId, mnemonic)
-}
-
-func RecoverNewHermesKey(appName, chainId, mnemonic string) (*KeyInfo, error) {
-	return addNewKeyToHermes(appName, chainId, mnemonic)
-}
-
-func GenerateAndReplaceHermesKey(appName, chainId string) (*KeyInfo, error) {
-	_ = DeleteWeaveKeyFromHermes(appName, chainId)
-	return GenerateAndAddNewHermesKey(appName, chainId)
-}
-
-func RecoverAndReplaceHermesKey(appName, chainId, mnemonic string) (*KeyInfo, error) {
-	_ = DeleteWeaveKeyFromHermes(appName, chainId)
-	return RecoverNewHermesKey(appName, chainId, mnemonic)
 }

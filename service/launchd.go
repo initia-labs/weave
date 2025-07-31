@@ -189,7 +189,7 @@ func (j *Launchd) Start(optionalArgs ...string) error {
 			newContent := strings.Replace(string(content), oldContent, "\n"+newArgsXML.String(), 1)
 
 			// Write back to file
-			if err := os.WriteFile(plistPath, []byte(newContent), 0644); err != nil {
+			if err := os.WriteFile(plistPath, []byte(newContent), 0o644); err != nil {
 				return fmt.Errorf("failed to write plist file: %w", err)
 			}
 		}
@@ -313,7 +313,7 @@ func (j *Launchd) tailLogFile(filePath string, output io.Writer, maxLogLines int
 	}
 
 	for {
-		var line = make([]byte, 4096)
+		line := make([]byte, 4096)
 		n, err := file.Read(line)
 		if err != nil && err != io.EOF {
 			fmt.Printf("error reading log file %s: %v\n", filePath, err)
@@ -373,7 +373,7 @@ func (j *Launchd) GetServiceBinaryAndHome() (string, string, error) {
 			return "", "", fmt.Errorf("failed to get user home directory: %v", err)
 		}
 
-		return plist.ProgramArguments[0], filepath.Join(userHome, common.HermesHome), nil
+		return plist.ProgramArguments[0], filepath.Join(userHome, common.RelayerHome), nil
 	}
 
 	var home string

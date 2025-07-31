@@ -172,19 +172,24 @@ func (cr *ChainRegistry) GetOpinitBridgeInfo(id string) (types.Bridge, error) {
 	return bridgeInfo, nil
 }
 
-// func (cr *ChainRegistry) GetCounterPartyIBCChannel(port, channel string) (types.Channel, error) {
-// 	address, err := cr.GetActiveLcd()
-// 	if err != nil {
-// 		return types.Channel{}, err
-// 	}
-// 	httpClient := client.NewHTTPClient()
+func (cr *ChainRegistry) GetIBCChannelInfo(port, channel string) (types.ChannelResponse, error) {
+	address, err := cr.GetActiveLcd()
+	if err != nil {
+		return types.ChannelResponse{}, err
+	}
+	httpClient := client.NewHTTPClient()
 
-// 	var response types.MinimalIBCChannelResponse
-// 	if _, err := httpClient.Get(address, fmt.Sprintf("/ibc/core/channel/v1/channels/%s/ports/%s", channel, port), nil, &response); err != nil {
-// 		return types.Channel{}, err
-// 	}
-// 	return response.Channel.Counterparty, nil
-// }
+	var response types.ChannelResponse
+	if _, err := httpClient.Get(address, fmt.Sprintf("/ibc/core/channel/v1/channels/%s/ports/%s", channel, port), nil, &response); err != nil {
+		return types.ChannelResponse{}, err
+	}
+
+	if len(response.Channel.ConnectionHops) == 0 {
+		return types.ChannelResponse{}, fmt.Errorf("no connection ID found")
+	}
+
+	return response, nil
+}
 
 func normalizeGRPCAddress(addr string) (string, error) {
 	if strings.Contains(addr, "://") {
