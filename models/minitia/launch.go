@@ -18,7 +18,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/initia-labs/weave/analytics"
-	"github.com/initia-labs/weave/client"
 	"github.com/initia-labs/weave/common"
 	"github.com/initia-labs/weave/config"
 	weavecontext "github.com/initia-labs/weave/context"
@@ -253,11 +252,11 @@ func (m *NetworkSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.HandlePanic(err)
 		}
 		state.l1ChainId = chainRegistry.GetChainId()
-		activeRpc, err := chainRegistry.GetActiveRpc()
+		rpcAddress, err := chainRegistry.GetFirstActiveRpc()
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
-		state.l1RPC = activeRpc
+		state.l1RPC = rpcAddress
 
 		var celestiaType registry.ChainType
 		switch *selected {
@@ -275,10 +274,11 @@ func (m *NetworkSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
-		state.daRPC, err = celestiaRegistry.GetActiveRpc()
+		rpcAddress, err = celestiaRegistry.GetFirstActiveRpc()
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
+		state.daRPC = rpcAddress
 		state.daChainId = celestiaRegistry.GetChainId()
 
 		return NewVMTypeSelect(weavecontext.SetCurrentState(m.Ctx, state)), nil
@@ -2232,28 +2232,18 @@ func NewDownloadCelestiaBinaryLoading(ctx context.Context) (*DownloadCelestiaBin
 	if err != nil {
 		return nil, err
 	}
-	httpClient := client.NewHTTPClient()
 
-	activeLcd, err := celestiaMainnetRegistry.GetActiveLcd()
+	activeLcds, err := celestiaMainnetRegistry.GetActiveLcds()
 	if err != nil {
 		return nil, err
 	}
-	var result map[string]interface{}
-	_, err = httpClient.Get(
-		activeLcd,
-		"/cosmos/base/tendermint/v1beta1/node_info",
-		nil,
-		&result,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch node info: %v", err)
-	}
 
-	applicationVersion, ok := result["application_version"].(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("failed to get node version")
+	response, err := cosmosutils.QueryNodeInfo(activeLcds)
+	if err != nil {
+		return nil, err
 	}
-	version := applicationVersion["version"].(string)
+	version := response.ApplicationVersion.Version
+
 	goos := runtime.GOOS
 	goarch := runtime.GOARCH
 	binaryUrl, err := getCelestiaBinaryURL(version, goos, goarch)
@@ -3067,7 +3057,7 @@ func (m *LaunchingNewMinitiaLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			messageJsonPath := filepath.Join(userHome, common.WeaveDataDirectory, "messages.json")
 
-			params, err := cosmosutils.QueryOPChildParams(DefaultMinitiaLCD)
+			params, err := cosmosutils.QueryOPChildParams([]string{DefaultMinitiaLCD})
 			if err != nil {
 				return m, m.HandlePanic(fmt.Errorf("failed to query params: %v", err))
 			}

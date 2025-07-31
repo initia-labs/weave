@@ -150,12 +150,12 @@ func TestGetActiveRpc(t *testing.T) {
 		},
 	}
 
-	result, err := cr.GetActiveRpc()
+	result, err := cr.GetActiveRpcs()
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
-	if result != server.URL {
-		t.Errorf("expected: %s, got: %s", server.URL, result)
+	if len(result) != 1 {
+		t.Errorf("expected: %d, got: %d", 1, len(result))
 	}
 }
 
@@ -180,12 +180,12 @@ func TestGetActiveLcd(t *testing.T) {
 		},
 	}
 
-	result, err := cr.GetActiveLcd()
+	result, err := cr.GetActiveLcds()
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
-	if result != server.URL {
-		t.Errorf("expected: %s, got: %s", server.URL, result)
+	if len(result) != 1 {
+		t.Errorf("expected: %d, got: %d", 1, len(result))
 	}
 }
 

@@ -152,17 +152,18 @@ func (m *RollupSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			state.feeWhitelistAccounts = append(state.feeWhitelistAccounts, minitiaConfig.SystemKeys.Challenger.L2Address)
 
 			state.minitiaConfig = &minitiaConfig
-			if minitiaConfig.L1Config.ChainID == InitiaTestnetChainId {
+			switch minitiaConfig.L1Config.ChainID {
+			case InitiaTestnetChainId:
 				state.chainType = registry.InitiaL1Testnet
 				testnetRegistry, err := registry.GetChainRegistry(registry.InitiaL1Testnet)
 				if err != nil {
 					return m, m.HandlePanic(err)
 				}
 				state.Config["l1.chain_id"] = testnetRegistry.GetChainId()
-				if state.Config["l1.rpc_address"], err = testnetRegistry.GetActiveRpc(); err != nil {
+				if state.Config["l1.rpc_address"], err = testnetRegistry.GetFirstActiveRpc(); err != nil {
 					return m, m.HandlePanic(err)
 				}
-				if state.Config["l1.lcd_address"], err = testnetRegistry.GetActiveLcd(); err != nil {
+				if state.Config["l1.lcd_address"], err = testnetRegistry.GetFirstActiveLcd(); err != nil {
 					return m, m.HandlePanic(err)
 				}
 				if state.Config["l1.gas_price.price"], err = testnetRegistry.GetFixedMinGasPriceByDenom(DefaultGasPriceDenom); err != nil {
@@ -175,17 +176,17 @@ func (m *RollupSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				state.Config["l2.gas_price.price"] = DefaultGasPriceAmount
 				state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, "L1 network is auto-detected", []string{}, minitiaConfig.L1Config.ChainID))
 
-			} else if minitiaConfig.L1Config.ChainID == InitiaMainnetChainId {
+			case InitiaMainnetChainId:
 				state.chainType = registry.InitiaL1Mainnet
 				mainnetRegistry, err := registry.GetChainRegistry(registry.InitiaL1Mainnet)
 				if err != nil {
 					return m, m.HandlePanic(err)
 				}
 				state.Config["l1.chain_id"] = mainnetRegistry.GetChainId()
-				if state.Config["l1.rpc_address"], err = mainnetRegistry.GetActiveRpc(); err != nil {
+				if state.Config["l1.rpc_address"], err = mainnetRegistry.GetFirstActiveRpc(); err != nil {
 					return m, m.HandlePanic(err)
 				}
-				if state.Config["l1.lcd_address"], err = mainnetRegistry.GetActiveLcd(); err != nil {
+				if state.Config["l1.lcd_address"], err = mainnetRegistry.GetFirstActiveLcd(); err != nil {
 					return m, m.HandlePanic(err)
 				}
 				if state.Config["l1.gas_price.price"], err = mainnetRegistry.GetFixedMinGasPriceByDenom(DefaultGasPriceDenom); err != nil {
@@ -197,7 +198,7 @@ func (m *RollupSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				state.Config["l2.gas_price.denom"] = minitiaConfig.L2Config.Denom
 				state.Config["l2.gas_price.price"] = DefaultGasPriceAmount
 				state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, "L1 network is auto-detected", []string{}, minitiaConfig.L1Config.ChainID))
-			} else {
+			default:
 				return m, m.HandlePanic(fmt.Errorf("not support L1"))
 			}
 
@@ -838,7 +839,7 @@ func waitFetchingBalancesLoading(ctx context.Context) tea.Cmd {
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("cannot load l1 active lcd: %w", err)}
 		}
-		l1Balances, err := cosmosutils.QueryBankBalances(l1Rest, state.l1RelayerAddress)
+		l1Balances, err := cosmosutils.QueryBankBalances([]string{l1Rest}, state.l1RelayerAddress)
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("cannot fetch balance for l1: %v", err)}
 		}
@@ -848,7 +849,7 @@ func waitFetchingBalancesLoading(ctx context.Context) tea.Cmd {
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("cannot load l2 active lcd: %w", err)}
 		}
-		l2Balances, err := cosmosutils.QueryBankBalances(l2Rest, state.l2RelayerAddress)
+		l2Balances, err := cosmosutils.QueryBankBalances([]string{l2Rest}, state.l2RelayerAddress)
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("cannot fetch balance for l1: %v", err)}
 		}
@@ -1098,7 +1099,7 @@ func (m *FundDefaultPresetConfirmationInput) Update(msg tea.Msg) (tea.Model, tea
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
-			l1Balances, err := cosmosutils.QueryBankBalances(l1Rest, gasStationKey.InitiaAddress)
+			l1Balances, err := cosmosutils.QueryBankBalances([]string{l1Rest}, gasStationKey.InitiaAddress)
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
@@ -1134,7 +1135,7 @@ func (m *FundDefaultPresetConfirmationInput) Update(msg tea.Msg) (tea.Model, tea
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
-			l2Balances, err := cosmosutils.QueryBankBalances(l2Rest, gasStationKey.InitiaAddress)
+			l2Balances, err := cosmosutils.QueryBankBalances([]string{l2Rest}, gasStationKey.InitiaAddress)
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
@@ -1540,10 +1541,10 @@ func (m *SelectingL1Network) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.HandlePanic(err)
 			}
 			state.Config["l1.chain_id"] = testnetRegistry.GetChainId()
-			if state.Config["l1.rpc_address"], err = testnetRegistry.GetActiveRpc(); err != nil {
+			if state.Config["l1.rpc_address"], err = testnetRegistry.GetFirstActiveRpc(); err != nil {
 				return m, m.HandlePanic(err)
 			}
-			if state.Config["l1.lcd_address"], err = testnetRegistry.GetActiveLcd(); err != nil {
+			if state.Config["l1.lcd_address"], err = testnetRegistry.GetFirstActiveLcd(); err != nil {
 				return m, m.HandlePanic(err)
 			}
 			if state.Config["l1.gas_price.price"], err = testnetRegistry.GetFixedMinGasPriceByDenom(DefaultGasPriceDenom); err != nil {
@@ -1638,20 +1639,20 @@ func (m *SelectingL2Network) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
-		lcdAddress, err := l2NetworkRegistry.GetActiveLcd()
+		lcdAddresses, err := l2NetworkRegistry.GetActiveLcds()
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
-		httpClient := client.NewHTTPClient()
-		var res types.ChannelsResponse
-		_, err = httpClient.Get(lcdAddress, "/ibc/core/channel/v1/channels", nil, &res)
+		res, err := cosmosutils.QueryChannels(lcdAddresses)
 		if err != nil {
-			return m, m.HandlePanic(err)
+			return m, m.HandlePanic(fmt.Errorf("failed to get channels from any active LCD endpoints"))
 		}
 
-		if params, err := cosmosutils.QueryOPChildParams(lcdAddress); err == nil {
-			state.feeWhitelistAccounts = append(state.feeWhitelistAccounts, params.FeeWhitelist...)
+		params, err := cosmosutils.QueryOPChildParams(lcdAddresses)
+		if err != nil {
+			return m, m.HandlePanic(fmt.Errorf("failed to get OP child params from any active LCD endpoints"))
 		}
+		state.feeWhitelistAccounts = append(state.feeWhitelistAccounts, params.FeeWhitelist...)
 
 		pairs := make([]types.IBCChannelPair, 0)
 		for _, channel := range res.Channels {
@@ -1678,11 +1679,11 @@ func (m *SelectingL2Network) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
-		l2Rpc, err := l2NetworkRegistry.GetActiveRpc()
+		l2Rpc, err := l2NetworkRegistry.GetFirstActiveRpc()
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
-		l2Rest, err := l2NetworkRegistry.GetActiveLcd()
+		l2Rest, err := l2NetworkRegistry.GetFirstActiveLcd()
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
@@ -1796,10 +1797,10 @@ func (m *SelectingL1NetworkRegistry) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.HandlePanic(err)
 		}
 		state.Config["l1.chain_id"] = chainRegistry.GetChainId()
-		if state.Config["l1.rpc_address"], err = chainRegistry.GetActiveRpc(); err != nil {
+		if state.Config["l1.rpc_address"], err = chainRegistry.GetFirstActiveRpc(); err != nil {
 			return m, m.HandlePanic(err)
 		}
-		if state.Config["l1.lcd_address"], err = chainRegistry.GetActiveLcd(); err != nil {
+		if state.Config["l1.lcd_address"], err = chainRegistry.GetFirstActiveLcd(); err != nil {
 			return m, m.HandlePanic(err)
 		}
 		if state.Config["l1.gas_price.price"], err = chainRegistry.GetFixedMinGasPriceByDenom(DefaultGasPriceDenom); err != nil {
@@ -2481,7 +2482,7 @@ func (m *FillL2LCD) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 
-		if params, err := cosmosutils.QueryOPChildParams(input.Text); err == nil {
+		if params, err := cosmosutils.QueryOPChildParams([]string{input.Text}); err == nil {
 			state.feeWhitelistAccounts = append(state.feeWhitelistAccounts, params.FeeWhitelist...)
 		}
 

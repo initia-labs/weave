@@ -5,13 +5,97 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/initia-labs/weave/client"
 	"github.com/initia-labs/weave/types"
 )
 
+// TODO: HOTFIX for un-stable RPCs and LCDs
+var (
+	CELESTIA_MAINNET_RPCS = []Endpoint{
+		{
+			Address: "https://rpc.lunaroasis.net",
+		},
+		{
+			Address: "https://rpc.celestia.nodestake.org",
+		},
+		{
+			Address: "https://rpc.lavenderfive.com:443/celestia",
+		},
+	}
+	CELESTIA_TESTNET_RPCS = []Endpoint{
+		{
+			Address: "https://rpc-mocha.pops.one",
+		},
+		{
+			Address: "https://celestia-testnet-rpc.itrocket.net",
+		},
+		{
+			Address: "https://rpc.celestia.testnet.dteam.tech:443",
+		},
+	}
+	INITIA_MAINNET_RPCS = []Endpoint{
+		{
+			Address: "https://rpc.initia.xyz",
+		},
+		{
+			Address: "https://initia-rpc.cosmosspaces.zone",
+		},
+		{
+			Address: "https://initia-archive.cosmosspaces.zone",
+		},
+	}
+	INITIA_TESTNET_RPCS = []Endpoint{
+		{
+			Address: "https://rpc.testnet.initia.xyz",
+		},
+	}
+
+	CELESTIA_MAINNET_LCDS = []Endpoint{
+		{
+			Address: "https://api.lunaroasis.net",
+		},
+		{
+			Address: "https://api.celestia.nodestake.org",
+		},
+		{
+			Address: "https://rest.lavenderfive.com:443/celestia",
+		},
+	}
+	CELESTIA_TESTNET_LCDS = []Endpoint{
+		{
+			Address: "https://api-mocha.pops.one",
+		},
+		{
+			Address: "https://celestia-testnet-api.itrocket.net",
+		},
+		{
+			Address: "https://api.celestia.testnet.dteam.tech",
+		},
+	}
+	INITIA_MAINNET_LCDS = []Endpoint{
+		{
+			Address: "https://rest.initia.xyz",
+		},
+		{
+			Address: "https://initia-rest.cosmosspaces.zone",
+		},
+	}
+	INITIA_TESTNET_LCDS = []Endpoint{
+		{
+			Address: "https://rest.testnet.initia.xyz",
+		},
+	}
+)
+
 // LoadedChainRegistry contains a map of chain id to the chain.json
 var LoadedChainRegistry = make(map[ChainType]*ChainRegistry)
+
+const (
+	MAX_FALLBACK_RPCS = 3
+	MAX_FALLBACK_LCDS = 3
+)
 
 type ChainRegistry struct {
 	ChainId      string   `json:"chain_id"`
@@ -21,6 +105,9 @@ type ChainRegistry struct {
 	Codebase     Codebase `json:"codebase"`
 	Apis         Apis     `json:"apis"`
 	Peers        Peers    `json:"peers"`
+
+	ActiveRpcs []string
+	ActiveLcds []string
 }
 
 type Fees struct {
@@ -125,63 +212,196 @@ func checkAndAddPort(addr string) (string, error) {
 	return u.String(), nil
 }
 
-func (cr *ChainRegistry) GetActiveRpc() (string, error) {
-	httpClient := client.NewHTTPClient()
-	for _, rpc := range cr.Apis.Rpc {
-		address, err := checkAndAddPort(rpc.Address)
-		if err != nil {
-			continue
-		}
-
-		_, err = httpClient.Get(address, "/health", nil, nil)
-		if err != nil {
-			continue
-		}
-
-		return address, nil
+func (cr *ChainRegistry) GetActiveRpcs() ([]string, error) {
+	if len(cr.ActiveRpcs) > 0 {
+		return cr.ActiveRpcs, nil
 	}
 
-	return "", fmt.Errorf("no active RPC endpoints available")
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var activeRpcs []string
+	var done bool // Flag to signal early termination
+
+	// Create a channel to limit concurrent requests
+	semaphore := make(chan struct{}, MAX_FALLBACK_RPCS)
+
+	for _, rpc := range cr.Apis.Rpc {
+		wg.Add(1)
+		go func(endpoint Endpoint) {
+			defer wg.Done()
+
+			// Check if we're already done
+			mu.Lock()
+			if done {
+				mu.Unlock()
+				return
+			}
+			mu.Unlock()
+
+			// Acquire semaphore
+			semaphore <- struct{}{}
+			defer func() { <-semaphore }()
+
+			address, err := checkAndAddPort(endpoint.Address)
+			if err != nil {
+				return
+			}
+
+			httpClient := client.NewHTTPClient()
+			_, err = httpClient.Get(address, "/health", nil, nil)
+			if err != nil {
+				return
+			}
+
+			// Thread-safe append and check for early termination
+			mu.Lock()
+			defer mu.Unlock()
+
+			if done {
+				return
+			}
+
+			activeRpcs = append(activeRpcs, address)
+			if len(activeRpcs) >= MAX_FALLBACK_RPCS {
+				done = true
+			}
+		}(rpc)
+	}
+
+	wg.Wait()
+
+	if len(activeRpcs) == 0 {
+		return nil, fmt.Errorf("no active RPC endpoints available")
+	}
+
+	cr.ActiveRpcs = activeRpcs
+	return cr.ActiveRpcs, nil
 }
 
-func (cr *ChainRegistry) GetActiveLcd() (string, error) {
-	httpClient := client.NewHTTPClient()
-	for _, lcd := range cr.Apis.Rest {
-		_, err := httpClient.Get(lcd.Address, "/cosmos/base/tendermint/v1beta1/syncing", nil, nil)
-		if err != nil {
-			continue
-		}
+func (cr *ChainRegistry) GetFirstActiveRpc() (string, error) {
+	rpcs, err := cr.GetActiveRpcs()
+	if err != nil {
+		return "", err
+	}
+	if len(rpcs) == 0 {
+		return "", fmt.Errorf("no active RPC endpoints available")
+	}
+	return rpcs[0], nil
+}
 
-		return lcd.Address, nil
+func (cr *ChainRegistry) GetActiveLcds() ([]string, error) {
+	if len(cr.ActiveLcds) > 0 {
+		return cr.ActiveLcds, nil
 	}
 
-	return "", fmt.Errorf("no active LCD endpoints available")
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var activeLcds []string
+	var done bool // Flag to signal early termination
+
+	// Create a channel to limit concurrent requests
+	semaphore := make(chan struct{}, MAX_FALLBACK_LCDS)
+
+	for _, lcd := range cr.Apis.Rest {
+		wg.Add(1)
+		go func(endpoint Endpoint) {
+			defer wg.Done()
+
+			// Check if we're already done
+			mu.Lock()
+			if done {
+				mu.Unlock()
+				return
+			}
+			mu.Unlock()
+
+			// Acquire semaphore
+			semaphore <- struct{}{}
+			defer func() { <-semaphore }()
+
+			address, err := checkAndAddPort(endpoint.Address)
+			if err != nil {
+				return
+			}
+
+			httpClient := client.NewHTTPClient()
+			_, err = httpClient.Get(address, "/cosmos/base/tendermint/v1beta1/syncing", nil, nil)
+			if err != nil {
+				return
+			}
+
+			// Thread-safe append and check for early termination
+			mu.Lock()
+			defer mu.Unlock()
+
+			if done {
+				return
+			}
+
+			activeLcds = append(activeLcds, address)
+			if len(activeLcds) >= MAX_FALLBACK_LCDS {
+				done = true
+			}
+		}(lcd)
+	}
+
+	wg.Wait()
+
+	if len(activeLcds) == 0 {
+		return nil, fmt.Errorf("no active LCD endpoints available")
+	}
+
+	cr.ActiveLcds = activeLcds
+	return cr.ActiveLcds, nil
+}
+
+func (cr *ChainRegistry) GetFirstActiveLcd() (string, error) {
+	lcds, err := cr.GetActiveLcds()
+	if err != nil {
+		return "", err
+	}
+	if len(lcds) == 0 {
+		return "", fmt.Errorf("no active LCD endpoints available")
+	}
+	return lcds[0], nil
+}
+
+// queryActiveEndpoints is a helper function that queries active LCD endpoints
+// and returns the first successful response
+func (cr *ChainRegistry) queryActiveEndpoints(path string, result interface{}) error {
+	addresses, err := cr.GetActiveLcds()
+	if err != nil {
+		return err
+	}
+	httpClient := client.NewHTTPClient()
+
+	for _, address := range addresses {
+		if _, err := httpClient.Get(address, path, nil, result); err != nil {
+			continue
+		}
+		return nil
+	}
+
+	return fmt.Errorf("failed to query %s from any active LCD endpoint", path)
 }
 
 func (cr *ChainRegistry) GetOpinitBridgeInfo(id string) (types.Bridge, error) {
-	address, err := cr.GetActiveLcd()
-	if err != nil {
-		return types.Bridge{}, err
-	}
-	httpClient := client.NewHTTPClient()
-
 	var bridgeInfo types.Bridge
-	if _, err := httpClient.Get(address, fmt.Sprintf("/opinit/ophost/v1/bridges/%s", id), nil, &bridgeInfo); err != nil {
-		return types.Bridge{}, err
+	path := fmt.Sprintf("/opinit/ophost/v1/bridges/%s", id)
+
+	if err := cr.queryActiveEndpoints(path, &bridgeInfo); err != nil {
+		return types.Bridge{}, fmt.Errorf("failed to get opinit bridge info: %w", err)
 	}
+
 	return bridgeInfo, nil
 }
 
 func (cr *ChainRegistry) GetIBCChannelInfo(port, channel string) (types.ChannelResponse, error) {
-	address, err := cr.GetActiveLcd()
-	if err != nil {
-		return types.ChannelResponse{}, err
-	}
-	httpClient := client.NewHTTPClient()
-
 	var response types.ChannelResponse
-	if _, err := httpClient.Get(address, fmt.Sprintf("/ibc/core/channel/v1/channels/%s/ports/%s", channel, port), nil, &response); err != nil {
-		return types.ChannelResponse{}, err
+	path := fmt.Sprintf("/ibc/core/channel/v1/channels/%s/ports/%s", channel, port)
+
+	if err := cr.queryActiveEndpoints(path, &response); err != nil {
+		return types.ChannelResponse{}, fmt.Errorf("failed to get counterparty IBC channel: %w", err)
 	}
 
 	if len(response.Channel.ConnectionHops) == 0 {
@@ -242,15 +462,18 @@ func normalizeRPCToWebSocket(rpcEndpoint string) (string, error) {
 }
 
 func (cr *ChainRegistry) GetActiveWebSocket() (string, error) {
-	rpc, err := cr.GetActiveRpc()
+	rpc, err := cr.GetActiveRpcs()
 	if err != nil {
 		return "", fmt.Errorf("failed to get RPC endpoint: %v", err)
 	}
-	websocket, err := normalizeRPCToWebSocket(rpc)
-	if err != nil {
-		return "", fmt.Errorf("failed to normalize RPC endpoint: %v", err)
+	for _, rpc := range rpc {
+		websocket, err := normalizeRPCToWebSocket(rpc)
+		if err != nil {
+			continue
+		}
+		return websocket, nil
 	}
-	return websocket, nil
+	return "", fmt.Errorf("no active WebSocket endpoints available")
 }
 
 func (cr *ChainRegistry) GetSeeds() string {
@@ -295,6 +518,28 @@ func loadChainRegistry(chainType ChainType) error {
 	LoadedChainRegistry[chainType] = &ChainRegistry{}
 	if _, err := httpClient.Get(endpoint, "", nil, LoadedChainRegistry[chainType]); err != nil {
 		return err
+	}
+	if err := replaceRpcsAndLcds(chainType, LoadedChainRegistry[chainType]); err != nil {
+		return fmt.Errorf("failed to replace RPCs and LCDs for %s: %v", chainType, err)
+	}
+
+	return nil
+}
+
+func replaceRpcsAndLcds(chainType ChainType, chainRegistry *ChainRegistry) error {
+	switch chainType {
+	case CelestiaMainnet:
+		chainRegistry.Apis.Rpc = CELESTIA_MAINNET_RPCS
+		chainRegistry.Apis.Rest = CELESTIA_MAINNET_LCDS
+	case CelestiaTestnet:
+		chainRegistry.Apis.Rpc = CELESTIA_TESTNET_RPCS
+		chainRegistry.Apis.Rest = CELESTIA_TESTNET_LCDS
+	case InitiaL1Mainnet:
+		chainRegistry.Apis.Rpc = INITIA_MAINNET_RPCS
+		chainRegistry.Apis.Rest = INITIA_MAINNET_LCDS
+	case InitiaL1Testnet:
+		chainRegistry.Apis.Rpc = INITIA_TESTNET_RPCS
+		chainRegistry.Apis.Rest = INITIA_TESTNET_LCDS
 	}
 
 	return nil
@@ -411,20 +656,23 @@ func GetOPInitBotsSpecVersion(chainId string) (int, error) {
 }
 
 func (cr *ChainRegistry) GetCounterpartyClientId(portID, channelID string) (Connection, error) {
-	address, err := cr.GetActiveLcd()
-	if err != nil {
-		return Connection{}, err
-	}
-	httpClient := client.NewHTTPClient()
-
+	// First, get the channel information
 	var channel Channel
-	if _, err := httpClient.Get(address, fmt.Sprintf("/ibc/core/channel/v1/channels/%s/ports/%s", channelID, portID), nil, &channel); err != nil {
-		return Connection{}, err
+	channelPath := fmt.Sprintf("/ibc/core/channel/v1/channels/%s/ports/%s", channelID, portID)
+	if err := cr.queryActiveEndpoints(channelPath, &channel); err != nil {
+		return Connection{}, fmt.Errorf("failed to get channel info: %w", err)
 	}
 
+	// Validate connection hops
+	if len(channel.Channel.ConnectionHops) == 0 {
+		return Connection{}, fmt.Errorf("no connection hops found for channel %s", channelID)
+	}
+
+	// Get the connection information using the first connection hop
 	var connection Connection
-	if _, err := httpClient.Get(address, fmt.Sprintf("/ibc/core/connection/v1/connections/%s", channel.Channel.ConnectionHops[0]), nil, &connection); err != nil {
-		return Connection{}, err
+	connectionPath := fmt.Sprintf("/ibc/core/connection/v1/connections/%s", channel.Channel.ConnectionHops[0])
+	if err := cr.queryActiveEndpoints(connectionPath, &connection); err != nil {
+		return Connection{}, fmt.Errorf("failed to get connection info: %w", err)
 	}
 
 	return connection, nil
