@@ -2630,12 +2630,11 @@ func (m *AddChallengerKeyToRelayer) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func getRelayerSetSuccessMessage() string {
 	userHome, _ := os.UserHomeDir()
 	relayerHome := filepath.Join(userHome, common.RelayerDirectory)
-	s := styles.RenderPrompt(fmt.Sprintf("Relayer setup successfully! Config file is saved at %s/config.json", relayerHome), []string{}, styles.Completed)
-	s += "\n" + styles.RenderPrompt("This config is designed for Rapid Relayer (https://github.com/initia-labs/rapid-relayer)", []string{}, styles.Completed)
-	s += "\n\n" + styles.RenderPrompt("To start relaying:", []string{}, styles.Information)
-	s += "\n" + styles.RenderPrompt("1. Clone and install Rapid Relayer: git clone https://github.com/initia-labs/rapid-relayer && cd rapid-relayer && npm install", []string{}, styles.Information)
-	s += "\n" + styles.RenderPrompt("2. Start the relayer: npm start", []string{}, styles.Information)
-	s += "\n\n" + styles.RenderPrompt("Note: The config file is in JSON format. Feel free to modify it as needed.", []string{}, styles.Question)
+	s := styles.RenderPrompt("\nRapid relayer config is generated successfully!", []string{}, styles.Completed)
+	s += "\n" + styles.RenderPrompt(fmt.Sprintf("Config file is saved at %s/config.json. You can modify it as needed. To start relaying:", relayerHome), []string{}, styles.Information)
+	s += "\n" + styles.RenderPrompt("1. Clone and install Rapid relayer: [git clone https://github.com/initia-labs/rapid-relayer && cd rapid-relayer && npm install]", []string{}, styles.Information)
+	s += "\n" + styles.RenderPrompt(fmt.Sprintf("2. Move %s/config.json into your rapid-relayer root", relayerHome), []string{}, styles.Information)
+	s += "\n" + styles.RenderPrompt("3. Start the relayer [npm start]", []string{}, styles.Information) + "\n"
 	return s
 }
 
