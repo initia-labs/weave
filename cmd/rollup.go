@@ -112,6 +112,10 @@ func minitiaLaunchCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			opinitHome, err := cmd.Flags().GetString(FlagOPInitHome)
+			if err != nil {
+				return err
+			}
 			configPath, _ := cmd.Flags().GetString(FlagWithConfig)
 			vm, _ := cmd.Flags().GetString(FlagVm)
 			force, _ := cmd.Flags().GetBool(FlagForce)
@@ -148,10 +152,11 @@ func minitiaLaunchCommand() *cobra.Command {
 
 			ctx := weavecontext.NewAppContext(*state)
 			ctx = weavecontext.SetMinitiaHome(ctx, minitiaHome)
-
+			ctx = weavecontext.SetOPInitHome(ctx, opinitHome)
 			if config.IsFirstTimeSetup() {
 				checkerCtx := weavecontext.NewAppContext(models.NewExistingCheckerState())
 				checkerCtx = weavecontext.SetMinitiaHome(checkerCtx, minitiaHome)
+				checkerCtx = weavecontext.SetOPInitHome(checkerCtx, opinitHome)
 				if finalModel, err := tea.NewProgram(models.NewGasStationMethodSelect(checkerCtx), tea.WithAltScreen()).Run(); err != nil {
 					return err
 				} else {
@@ -177,6 +182,7 @@ func minitiaLaunchCommand() *cobra.Command {
 	}
 
 	launchCmd.Flags().String(FlagMinitiaHome, filepath.Join(homeDir, common.MinitiaDirectory), "The rollup application home directory")
+	launchCmd.Flags().String(FlagOPInitHome, filepath.Join(homeDir, common.OPinitDirectory), "The OPinit application home directory")
 	launchCmd.Flags().String(FlagWithConfig, "", "Launch using an existing rollup config file. The argument should be the path to the config file")
 	launchCmd.Flags().String(FlagVm, "", fmt.Sprintf("VM to be used. Required when using --with-config. Valid options are: %s", strings.Join(validVMOptions, ", ")))
 	launchCmd.Flags().BoolP(FlagForce, "f", false, "Force the launch by deleting the existing .minitia directory if it exists")

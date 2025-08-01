@@ -125,7 +125,7 @@ func TestMinitiaLaunchWithExisting(t *testing.T) {
 
 	steps = testutil.Steps{
 		testutil.WaitFetching,         // wait checking for the existing rollup app
-		testutil.TypeText("delete"),   // type in delete to confirm removing the existing rollup app
+		testutil.TypeText("confirm"),  // type in confirm to confirm removing the existing rollup app
 		testutil.PressEnter,           // press enter to confirm removing the rollup app
 		testutil.PressEnter,           // press enter to select Testnet
 		testutil.PressDown,            // press down once to select the Wasm rollup
