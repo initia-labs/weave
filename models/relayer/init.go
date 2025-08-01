@@ -2631,9 +2631,9 @@ func getRelayerSetSuccessMessage() string {
 	relayerHome := filepath.Join(userHome, common.RelayerDirectory)
 	s := styles.RenderPrompt("\nRapid relayer config is generated successfully!", []string{}, styles.Completed)
 	s += "\n" + styles.RenderPrompt(fmt.Sprintf("Config file is saved at %s/config.json. You can modify it as needed. To start relaying:", relayerHome), []string{}, styles.Information)
-	s += "\n" + styles.RenderPrompt("1. Clone and install Rapid relayer: [git clone https://github.com/initia-labs/rapid-relayer && cd rapid-relayer && npm install]", []string{}, styles.Information)
-	s += "\n" + styles.RenderPrompt(fmt.Sprintf("2. Move %s/config.json into your rapid-relayer root", relayerHome), []string{}, styles.Information)
-	s += "\n" + styles.RenderPrompt("3. Start the relayer [npm start]", []string{}, styles.Information) + "\n"
+	s += "\n" + styles.RenderPrompt("1. git clone https://github.com/initia-labs/rapid-relayer && cd rapid-relayer && npm install]", []string{}, styles.Empty)
+	s += "\n" + styles.RenderPrompt(fmt.Sprintf("2. cp %s/config.json ./config.json", relayerHome), []string{}, styles.Empty)
+	s += "\n" + styles.RenderPrompt("3. npm start", []string{}, styles.Empty) + "\n"
 	return s
 }
 
