@@ -3,7 +3,6 @@ package types
 import (
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 )
 
 type BatchInfo struct {
@@ -45,7 +44,6 @@ func DecodeBridgeMetadata(base64Str string) (Metadata, error) {
 	// Unmarshal the JSON into the struct
 	err = json.Unmarshal(jsonData, &metadata)
 	if err != nil {
-		fmt.Printf("Error decoding JSON: %v %s\n", err, base64Str)
 		return Metadata{}, err
 	}
 

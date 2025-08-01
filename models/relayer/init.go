@@ -685,7 +685,7 @@ func (m *ImportL1RelayerKeyInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if done {
 		state := weavecontext.PushPageAndGetState[State](m)
 
-		relayerKey, err := weaveio.GenerateKey("init")
+		relayerKey, err := weaveio.RecoverKey("init", input.Text)
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
@@ -698,10 +698,6 @@ func (m *ImportL1RelayerKeyInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			model := NewSettingUpRelayer(weavecontext.SetCurrentState(m.Ctx, state))
 			return model, model.Init()
 		case L2SameKey:
-			relayerKey, err := weaveio.GenerateKey("init")
-			if err != nil {
-				return m, m.HandlePanic(err)
-			}
 			state.l2RelayerAddress = relayerKey.Address
 			state.l2RelayerMnemonic = relayerKey.Mnemonic
 			model := NewSettingUpRelayer(weavecontext.SetCurrentState(m.Ctx, state))
@@ -756,7 +752,7 @@ func (m *ImportL2RelayerKeyInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if done {
 		state := weavecontext.PushPageAndGetState[State](m)
 
-		relayerKey, err := weaveio.GenerateKey("init")
+		relayerKey, err := weaveio.RecoverKey("init", input.Text)
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
@@ -812,7 +808,7 @@ func waitFetchingBalancesLoading(ctx context.Context) tea.Cmd {
 		}
 		l2Balances, err := cosmosutils.QueryBankBalances([]string{l2Rest}, state.l2RelayerAddress)
 		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("cannot fetch balance for l1: %v", err)}
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("cannot fetch balance for l2: %v", err)}
 		}
 		state.l2NeedsFunding = l2Balances.IsZero()
 		if slices.Contains(state.feeWhitelistAccounts, state.l2RelayerAddress) {

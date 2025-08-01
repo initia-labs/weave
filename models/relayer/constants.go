@@ -2,7 +2,7 @@ package relayer
 
 const (
 	DefaultGasPriceDenom  = "uinit"
-	DefaultGasPriceAmount = "0.15"
+	DefaultGasPriceAmount = "0.015"
 	InitiaTestnetChainId  = "initiation-2"
 	InitiaMainnetChainId  = "interwoven-1"
 
