@@ -32,13 +32,13 @@ import (
 
 var defaultL2ConfigLocal = []*Field{
 	{Name: "l2.rpc_address", Type: StringField, Question: "Specify rollup RPC endpoint", Highlights: []string{"rollup RPC endpoint"}, Placeholder: `Press tab to use "http://localhost:26657"`, DefaultValue: "http://localhost:26657", ValidateFn: common.ValidateURL, Tooltip: &tooltip.RollupRPCEndpointTooltip},
-	{Name: "l2.rest_address", Type: StringField, Question: "Specify rollup REST endpoint", Highlights: []string{"rollup REST endpoint"}, Placeholder: `Press tab to use "http://localhost:1317"`, DefaultValue: "http://localhost:1317", ValidateFn: common.ValidateURLWithPort, Tooltip: &tooltip.RollupRESTEndpointTooltip},
+	{Name: "l2.lcd_address", Type: StringField, Question: "Specify rollup REST endpoint", Highlights: []string{"rollup REST endpoint"}, Placeholder: `Press tab to use "http://localhost:1317"`, DefaultValue: "http://localhost:1317", ValidateFn: common.ValidateURLWithPort, Tooltip: &tooltip.RollupRESTEndpointTooltip},
 }
 
 var defaultL2ConfigManual = []*Field{
 	{Name: "l2.chain_id", Type: StringField, Question: "Specify rollup chain ID", Highlights: []string{"rollup chain ID"}, Placeholder: "ex. rollup-1", ValidateFn: common.ValidateEmptyString, Tooltip: &tooltip.RollupChainIdTooltip},
 	{Name: "l2.rpc_address", Type: StringField, Question: "Specify rollup RPC endpoint", Highlights: []string{"rollup RPC endpoint"}, Placeholder: "ex. http://localhost:26657", ValidateFn: common.ValidateURL, Tooltip: &tooltip.RollupRPCEndpointTooltip},
-	{Name: "l2.rest_address", Type: StringField, Question: "Specify rollup REST endpoint", Highlights: []string{"rollup REST endpoint"}, Placeholder: "ex. http://localhost:1317", ValidateFn: common.ValidateURLWithPort, Tooltip: &tooltip.RollupRESTEndpointTooltip},
+	{Name: "l2.lcd_address", Type: StringField, Question: "Specify rollup REST endpoint", Highlights: []string{"rollup REST endpoint"}, Placeholder: "ex. http://localhost:1317", ValidateFn: common.ValidateURLWithPort, Tooltip: &tooltip.RollupRESTEndpointTooltip},
 	{Name: "l2.gas_price.denom", Type: StringField, Question: "Specify rollup gas denom", Highlights: []string{"rollup gas denom"}, Placeholder: "ex. umin", ValidateFn: common.ValidateDenom, Tooltip: &tooltip.RollupGasDenomTooltip},
 	{Name: "l2.gas_price.price", Type: StringField, Question: "Specify rollup gas price", Highlights: []string{"rollup gas price"}, Placeholder: "ex. 0.15", ValidateFn: common.ValidateDecFromStr, Tooltip: &tooltip.RollupGasPriceTooltip},
 }
@@ -395,24 +395,7 @@ func (m *L2KeySelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return model, model.Init()
 			case L2SameKey:
 				state.l2RelayerAddress = state.l1RelayerAddress
-				userHome, err := os.UserHomeDir()
-				if err != nil {
-					return m, m.HandlePanic(fmt.Errorf("could not get user home directory: %s", err))
-				}
-				l1ChainId, err := GetL1ChainId(m.Ctx)
-				if err != nil {
-					return m, m.HandlePanic(err)
-				}
-				l1ExistingKeyPath := filepath.Join(userHome, common.RelayerKeyFileJson, l1ChainId)
-				l2ChainId, err := GetL2ChainId(m.Ctx)
-				if err != nil {
-					return m, m.HandlePanic(err)
-				}
-				l2KeyPath := filepath.Join(userHome, common.RelayerKeysDirectory, l2ChainId)
-				if err = weaveio.CopyDirectory(l1ExistingKeyPath, l2KeyPath); err != nil {
-					return m, m.HandlePanic(fmt.Errorf("could not copy L1 existing key: %s", err))
-				}
-
+				state.l2RelayerMnemonic = state.l1RelayerMnemonic
 				model := NewSettingUpRelayer(weavecontext.SetCurrentState(m.Ctx, state))
 				return model, model.Init()
 			case L2GenerateKey:
@@ -581,19 +564,14 @@ func (m *GenerateL2RelayerKeyLoading) View() string {
 type KeysMnemonicDisplayInput struct {
 	ui.TextInput
 	weavecontext.BaseModel
-	keyFilePath string
-	question    string
+	question string
 }
 
 func NewKeysMnemonicDisplayInput(ctx context.Context) *KeysMnemonicDisplayInput {
-	userHome, _ := os.UserHomeDir()
-	relayerKeyFile := filepath.Join(userHome, common.RelayerKeyFileJson)
-
 	model := &KeysMnemonicDisplayInput{
-		TextInput:   ui.NewTextInput(true),
-		BaseModel:   weavecontext.BaseModel{Ctx: ctx, CannotBack: true},
-		keyFilePath: relayerKeyFile,
-		question:    "Please type `continue` to proceed.",
+		TextInput: ui.NewTextInput(true),
+		BaseModel: weavecontext.BaseModel{Ctx: ctx, CannotBack: true},
+		question:  "Please type `continue` to proceed.",
 	}
 	model.WithPlaceholder("Type `continue` to continue, Ctrl+C to quit.")
 	model.WithValidatorFn(common.ValidateExactString("continue"))
@@ -616,29 +594,6 @@ func (m *KeysMnemonicDisplayInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	input, cmd, done := m.TextInput.Update(msg)
 	if done {
 		state := weavecontext.PushPageAndGetState[State](m)
-
-		l1RelayerKey, err := weaveio.RecoverKey("init", state.l1RelayerMnemonic)
-		if err != nil {
-			return m, m.HandlePanic(fmt.Errorf("cannot recover l1 relayer key: %w", err))
-		}
-		l2RelayerKey, err := weaveio.RecoverKey("init", state.l2RelayerMnemonic)
-		if err != nil {
-			return m, m.HandlePanic(fmt.Errorf("cannot recover l2 relayer key: %w", err))
-		}
-
-		// Ensure the directory exists
-		err = os.MkdirAll(filepath.Dir(m.keyFilePath), 0o755) // Creates ~/.relayer if it doesn't exist
-		if err != nil {
-			return m, m.HandlePanic(fmt.Errorf("failed to create relayer home: %w", err))
-		}
-
-		keyFile := weaveio.NewKeyFile()
-		keyFile.AddKey(DefaultL1RelayerKeyName, l1RelayerKey)
-		keyFile.AddKey(DefaultL2RelayerKeyName, l2RelayerKey)
-		err = keyFile.Write(m.keyFilePath)
-		if err != nil {
-			return m, m.HandlePanic(fmt.Errorf("failed to write key file: %w", err))
-		}
 
 		extraText := " has"
 		if state.l1KeyMethod == string(L1GenerateKey) && state.l2KeyMethod == string(L2GenerateKey) {
@@ -685,7 +640,7 @@ func (m *KeysMnemonicDisplayInput) View() string {
 
 	return m.WrapView(state.weave.Render() + "\n" +
 		styles.BoldUnderlineText("Important", styles.Yellow) + "\n" +
-		styles.Text(fmt.Sprintf("Note that the mnemonic phrases for Relayer will be stored in %s. You can revisit them anytime.", m.keyFilePath), styles.Yellow) + "\n\n" +
+		styles.Text(fmt.Sprintf("Note that the mnemonic phrases for Relayer will be stored in %s. You can revisit them anytime.", common.RelayerConfigPath), styles.Yellow) + "\n\n" +
 		mnemonicText + styles.RenderPrompt(m.GetQuestion(), []string{"`continue`"}, styles.Question) + m.TextInput.View())
 }
 
@@ -1834,7 +1789,7 @@ type SettingUpIBCChannelOption string
 
 var (
 	Basic       SettingUpIBCChannelOption = "Subscribe to only `transfer` and `nft-transfer` IBC Channels (minimal setup)"
-	FillFromLCD SettingUpIBCChannelOption = "Fill in rollup LCD endpoint to detect all available IBC Channels"
+	FillFromLCD SettingUpIBCChannelOption = "Fill in rollup REST endpoint to detect all available IBC Channels"
 	Manually    SettingUpIBCChannelOption = "Setup IBC Channels manually"
 )
 
@@ -2660,23 +2615,6 @@ func (m *AddChallengerKeyToRelayer) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			state.l2RelayerAddress = state.minitiaConfig.SystemKeys.Challenger.L2Address
 			state.l2RelayerMnemonic = state.minitiaConfig.SystemKeys.Challenger.Mnemonic
 
-			userHome, _ := os.UserHomeDir()
-			relayerKeyFile := filepath.Join(userHome, common.RelayerKeyFileJson)
-			// Ensure the directory exists
-			err := os.MkdirAll(filepath.Dir(relayerKeyFile), 0o755) // Creates ~/.relayer if it doesn't exist
-			if err != nil {
-				return m, m.HandlePanic(fmt.Errorf("failed to create relayer home: %w", err))
-			}
-
-			keyFile := weaveio.NewKeyFile()
-			keyFile.AddKey(DefaultL1RelayerKeyName, weaveio.NewKey(state.l1RelayerAddress, state.l1RelayerMnemonic))
-			keyFile.AddKey(DefaultL2RelayerKeyName, weaveio.NewKey(state.l2RelayerAddress, state.l2RelayerMnemonic))
-
-			err = keyFile.Write(relayerKeyFile)
-			if err != nil {
-				return m, m.HandlePanic(fmt.Errorf("failed to write key file: %w", err))
-			}
-
 			state.weave.PushPreviousResponse(getRelayerSetSuccessMessage())
 			model := NewSettingUpRelayer(weavecontext.SetCurrentState(m.Ctx, state))
 			return model, model.Init()
@@ -2695,7 +2633,7 @@ func (m *AddChallengerKeyToRelayer) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func getRelayerSetSuccessMessage() string {
 	userHome, _ := os.UserHomeDir()
-	relayerHome := filepath.Join(userHome, common.RelayerHome)
+	relayerHome := filepath.Join(userHome, common.RelayerDirectory)
 	s := styles.RenderPrompt(fmt.Sprintf("Relayer setup successfully! Config file is saved at %s/config.json", relayerHome), []string{}, styles.Completed)
 	s += "\n" + styles.RenderPrompt("This config is designed for Rapid Relayer (https://github.com/initia-labs/rapid-relayer)", []string{}, styles.Completed)
 	s += "\n\n" + styles.RenderPrompt("To start relaying:", []string{}, styles.Information)

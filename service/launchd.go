@@ -373,7 +373,7 @@ func (j *Launchd) GetServiceBinaryAndHome() (string, string, error) {
 			return "", "", fmt.Errorf("failed to get user home directory: %v", err)
 		}
 
-		return plist.ProgramArguments[0], filepath.Join(userHome, common.RelayerHome), nil
+		return plist.ProgramArguments[0], filepath.Join(userHome, common.RelayerDirectory), nil
 	}
 
 	var home string

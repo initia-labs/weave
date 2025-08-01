@@ -24,8 +24,6 @@ const (
 	OPinitKeyFileJson          = "/weave.keyfile.json"
 	OpinitGeneratedKeyFilename = "weave.opinit.generated"
 
-	RelayerHome                 = ".relayer"
-	RelayerKeysDirectory        = RelayerHome + "/keys"
-	RelayerKeyFileJson          = RelayerHome + "/weave.keyfile.json"
-	RelayerTempMnemonicFilename = "weave.mnemonic"
+	RelayerDirectory  = ".relayer"
+	RelayerConfigPath = ".relayer/config.json"
 )

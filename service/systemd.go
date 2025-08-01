@@ -380,7 +380,7 @@ func (j *Systemd) GetServiceBinaryAndHome() (string, string, error) {
 			return "", "", fmt.Errorf("failed to get user home directory: %v", err)
 		}
 
-		return binary, filepath.Join(userHome, common.RelayerHome), nil
+		return binary, filepath.Join(userHome, common.RelayerDirectory), nil
 	}
 
 	if home == "" {

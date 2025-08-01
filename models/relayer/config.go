@@ -168,7 +168,7 @@ func createRapidRelayerConfig(state State) error {
 	}
 
 	homeDir, _ := os.UserHomeDir()
-	outputPath := filepath.Join(homeDir, common.RelayerHome, "config.toml")
+	outputPath := filepath.Join(homeDir, common.RelayerConfigPath)
 
 	// Ensure the directory exists
 	err = os.MkdirAll(filepath.Dir(outputPath), 0o755) // Creates ~/.relayer if it doesn't exist
