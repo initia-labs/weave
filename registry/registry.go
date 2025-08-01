@@ -92,8 +92,10 @@ var (
 // LoadedChainRegistry contains a map of chain id to the chain.json
 var LoadedChainRegistry = make(map[ChainType]*ChainRegistry)
 
-const MAX_FALLBACK_RPCS = 3
-const MAX_FALLBACK_LCDS = 3
+const (
+	MAX_FALLBACK_RPCS = 3
+	MAX_FALLBACK_LCDS = 3
+)
 
 type ChainRegistry struct {
 	ChainId      string   `json:"chain_id"`
@@ -394,15 +396,19 @@ func (cr *ChainRegistry) GetOpinitBridgeInfo(id string) (types.Bridge, error) {
 	return bridgeInfo, nil
 }
 
-func (cr *ChainRegistry) GetCounterPartyIBCChannel(port, channel string) (types.Channel, error) {
-	var response types.MinimalIBCChannelResponse
+func (cr *ChainRegistry) GetIBCChannelInfo(port, channel string) (types.ChannelResponse, error) {
+	var response types.ChannelResponse
 	path := fmt.Sprintf("/ibc/core/channel/v1/channels/%s/ports/%s", channel, port)
 
 	if err := cr.queryActiveEndpoints(path, &response); err != nil {
-		return types.Channel{}, fmt.Errorf("failed to get counterparty IBC channel: %w", err)
+		return types.ChannelResponse{}, fmt.Errorf("failed to get counterparty IBC channel: %w", err)
 	}
 
-	return response.Channel.Counterparty, nil
+	if len(response.Channel.ConnectionHops) == 0 {
+		return types.ChannelResponse{}, fmt.Errorf("no connection ID found")
+	}
+
+	return response, nil
 }
 
 func normalizeGRPCAddress(addr string) (string, error) {

@@ -113,14 +113,14 @@ func (j *Systemd) Create(binaryVersion, appHome string) error {
 	if j.userMode {
 		// Create user systemd directory if it doesn't exist
 		serviceDir := j.getServiceDirPath()
-		if err := os.MkdirAll(serviceDir, 0755); err != nil {
+		if err := os.MkdirAll(serviceDir, 0o755); err != nil {
 			return fmt.Errorf("failed to create systemd user directory: %v", err)
 		}
 		// Remove sudo and write directly to user's directory
 		serviceFile := filepath.Join(serviceDir, serviceName)
 		template := LinuxTemplateMap[j.commandName]
 		err = os.WriteFile(serviceFile, []byte(fmt.Sprintf(string(template),
-			binaryName, binaryPath, string(j.commandName), appHome, userField)), 0644)
+			binaryName, binaryPath, string(j.commandName), appHome, userField)), 0o644)
 		if err != nil {
 			return fmt.Errorf("failed to create service file: %v", err)
 		}
@@ -128,7 +128,7 @@ func (j *Systemd) Create(binaryVersion, appHome string) error {
 		serviceFile := filepath.Join(j.getServiceDirPath(), serviceName)
 		template := LinuxTemplateMap[j.commandName]
 		err = os.WriteFile(serviceFile, []byte(fmt.Sprintf(string(template),
-			binaryName, binaryPath, string(j.commandName), appHome, userField)), 0644)
+			binaryName, binaryPath, string(j.commandName), appHome, userField)), 0o644)
 		if err != nil {
 			return fmt.Errorf("failed to create service file: %v", err)
 		}
@@ -271,7 +271,7 @@ func (j *Systemd) Start(optionalArgs ...string) error {
 
 		// Write the modified content back to the file
 		newContent := strings.Join(lines, "\n")
-		if err := os.WriteFile(serviceFile, []byte(newContent), 0644); err != nil {
+		if err := os.WriteFile(serviceFile, []byte(newContent), 0o644); err != nil {
 			return fmt.Errorf("failed to write service file: %w", err)
 		}
 
@@ -380,7 +380,7 @@ func (j *Systemd) GetServiceBinaryAndHome() (string, string, error) {
 			return "", "", fmt.Errorf("failed to get user home directory: %v", err)
 		}
 
-		return binary, filepath.Join(userHome, common.HermesHome), nil
+		return binary, filepath.Join(userHome, common.RelayerDirectory), nil
 	}
 
 	if home == "" {

@@ -5,12 +5,11 @@ import (
 )
 
 var (
-	RollupChainIdTooltip           = ui.NewTooltip("Rollup chain ID", ChainIDDescription("rollup"), "", []string{}, []string{}, []string{})
-	RollupRPCEndpointTooltip       = ui.NewTooltip("Rollup RPC endpoint", RPCEndpointDescription("rollup"), "", []string{}, []string{}, []string{})
-	RollupGRPCEndpointTooltip      = ui.NewTooltip("Rollup GRPC endpoint", GRPCEndpointDescription("rollup"), "", []string{}, []string{}, []string{})
-	RollupWebSocketEndpointTooltip = ui.NewTooltip("Rollup WebSocket endpoint", WebSocketEndpointDescription("rollup"), "", []string{}, []string{}, []string{})
-	RollupGasDenomTooltip          = ui.NewTooltip("Rollup gas denom", GasDenomDescription("rollup"), "", []string{}, []string{}, []string{})
-	RollupGasPriceTooltip          = ui.NewTooltip("Rollup gas price", GasPriceDescription("rollup"), "", []string{}, []string{}, []string{})
+	RollupChainIdTooltip      = ui.NewTooltip("Rollup chain ID", ChainIDDescription("rollup"), "", []string{}, []string{}, []string{})
+	RollupRPCEndpointTooltip  = ui.NewTooltip("Rollup RPC endpoint", RPCEndpointDescription("rollup"), "", []string{}, []string{}, []string{})
+	RollupRESTEndpointTooltip = ui.NewTooltip("Rollup REST endpoint", RESTEndpointDescription("rollup"), "", []string{}, []string{}, []string{})
+	RollupGasDenomTooltip     = ui.NewTooltip("Rollup gas denom", GasDenomDescription("rollup"), "", []string{}, []string{}, []string{})
+	RollupGasPriceTooltip     = ui.NewTooltip("Rollup gas price", GasPriceDescription("rollup"), "", []string{}, []string{}, []string{})
 
 	// OP Bridge Tooltips
 	OpBridgeSubmissionIntervalTooltip       = ui.NewTooltip("Submission Interval", "The interval at which to submit the rollup output root to Initia L1.", "", []string{}, []string{}, []string{})

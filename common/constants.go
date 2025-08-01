@@ -24,8 +24,6 @@ const (
 	OPinitKeyFileJson          = "/weave.keyfile.json"
 	OpinitGeneratedKeyFilename = "weave.opinit.generated"
 
-	HermesHome                 = ".hermes"
-	HermesKeysDirectory        = HermesHome + "/keys"
-	HermesKeyFileJson          = HermesHome + "/weave.keyfile.json"
-	HermesTempMnemonicFilename = "weave.mnemonic"
+	RelayerDirectory  = ".relayer"
+	RelayerConfigPath = ".relayer/config.json"
 )

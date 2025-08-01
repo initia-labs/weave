@@ -14,7 +14,6 @@ import (
 	"github.com/initia-labs/weave/models/initia"
 	"github.com/initia-labs/weave/models/minitia"
 	"github.com/initia-labs/weave/models/opinit_bots"
-	"github.com/initia-labs/weave/models/relayer"
 	"github.com/initia-labs/weave/styles"
 	"github.com/initia-labs/weave/types"
 	"github.com/initia-labs/weave/ui"
@@ -148,22 +147,22 @@ func (m *WeaveInit) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				},
 			)
 			return model, model.Init()
-		case RunRelayerOption:
-			ctx := weavecontext.NewAppContext(relayer.NewRelayerState())
-			ctx = weavecontext.SetMinitiaHome(ctx, filepath.Join(homeDir, common.MinitiaDirectory))
-			ctx = weavecontext.SetWindowWidth(ctx, windowWidth)
+			// case RunRelayerOption:
+			// 	ctx := weavecontext.NewAppContext(relayer.NewRelayerState())
+			// 	ctx = weavecontext.SetMinitiaHome(ctx, filepath.Join(homeDir, common.MinitiaDirectory))
+			// 	ctx = weavecontext.SetWindowWidth(ctx, windowWidth)
 
-			analytics.AppendGlobalEventProperties(map[string]interface{}{
-				analytics.ComponentEventKey: analytics.RelayerComponent,
-				analytics.FeatureEventKey:   analytics.SetupRelayerFeature.Name,
-			})
-			analytics.TrackEvent(analytics.InitActionSelected, analytics.NewEmptyEvent().Add(analytics.OptionEventKey, analytics.SetupRelayerFeature.Name))
+			// 	analytics.AppendGlobalEventProperties(map[string]interface{}{
+			// 		analytics.ComponentEventKey: analytics.RelayerComponent,
+			// 		analytics.FeatureEventKey:   analytics.SetupRelayerFeature.Name,
+			// 	})
+			// 	analytics.TrackEvent(analytics.InitActionSelected, analytics.NewEmptyEvent().Add(analytics.OptionEventKey, analytics.SetupRelayerFeature.Name))
 
-			model, err := relayer.NewRollupSelect(ctx)
-			if err != nil {
-				return m, m.HandlePanic(err)
-			}
-			return model, nil
+			// 	model, err := relayer.NewRollupSelect(ctx)
+			// 	if err != nil {
+			// 		return m, m.HandlePanic(err)
+			// 	}
+			// 	return model, nil
 		}
 	}
 
