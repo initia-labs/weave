@@ -86,7 +86,7 @@ func createRapidRelayerConfig(state State) error {
 {
   "$schema": "./config.schema.json",
   "port": 7010,
-  "metricPort": 70001,
+  "metricPort": 7011,
   "logLevel": "info",
   "rpcRequestTimeout": 5000,
   "chains": [
