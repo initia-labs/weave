@@ -317,8 +317,7 @@ func (m *NetworkSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *NetworkSelect) View() string {
 	state := weavecontext.GetCurrentState[LaunchState](m.Ctx)
-	return m.WrapView(styles.Text("🪢 When launching a rollup, after all configurations are set,\nthe rollup process will run for a few blocks to establish the necessary components.\nThis process may take some time.\n\n", styles.Ivory) +
-		state.weave.Render() + styles.RenderPrompt(
+	return m.WrapView(state.weave.Render() + styles.RenderPrompt(
 		m.GetQuestion(),
 		m.highlights,
 		styles.Question,
