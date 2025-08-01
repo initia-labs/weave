@@ -2159,7 +2159,7 @@ func downloadMinitiaApp(ctx context.Context) tea.Cmd {
 				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to download and extract binary: %v", err)}
 			}
 
-			err = os.Chmod(binaryPath, 0755)
+			err = os.Chmod(binaryPath, 0o755)
 			if err != nil {
 				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to set permissions for binary: %v", err)}
 			}
@@ -2305,7 +2305,7 @@ func downloadCelestiaApp(ctx context.Context, version, binaryUrl string) tea.Cmd
 				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to download and extract binary: %v", err)}
 			}
 
-			err = os.Chmod(binaryPath, 0755)
+			err = os.Chmod(binaryPath, 0o755)
 			if err != nil {
 				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to set permissions for binary: %v", err)}
 			}
@@ -2494,7 +2494,7 @@ func (m *GenerateOrRecoverSystemKeysLoading) View() string {
 
 type SystemKeysMnemonicDisplayInput struct {
 	ui.TextInput
-	//ui.Clickable
+	// ui.Clickable
 	weavecontext.BaseModel
 	question string
 }
@@ -2515,7 +2515,7 @@ func (m *SystemKeysMnemonicDisplayInput) GetQuestion() string {
 }
 
 func (m *SystemKeysMnemonicDisplayInput) Init() tea.Cmd {
-	//return m.Clickable.Init()
+	// return m.Clickable.Init()
 	return nil
 }
 
@@ -2808,8 +2808,10 @@ func (m *LaunchingNewMinitiaLoading) Init() tea.Cmd {
 	return m.Loading.Init()
 }
 
-var timestampRegex = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z`)
-var initPrefixRegex = regexp.MustCompile(`^init1`)
+var (
+	timestampRegex  = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z`)
+	initPrefixRegex = regexp.MustCompile(`^init1`)
+)
 
 func isJSONLog(line string) bool {
 	return timestampRegex.MatchString(line) || initPrefixRegex.MatchString(line)
@@ -2875,7 +2877,7 @@ func launchingMinitia(ctx context.Context, streamingLogs *[]string) tea.Cmd {
 			}
 
 			configFilePath = filepath.Join(userHome, common.WeaveDataDirectory, LaunchConfigFilename)
-			if err = os.WriteFile(configFilePath, configBz, 0600); err != nil {
+			if err = os.WriteFile(configFilePath, configBz, 0o600); err != nil {
 				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to write config file: %v", err)}
 			}
 		}

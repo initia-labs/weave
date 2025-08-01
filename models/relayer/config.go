@@ -3,22 +3,21 @@ package relayer
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"text/template"
 
 	"github.com/initia-labs/weave/common"
 	"github.com/initia-labs/weave/types"
 )
 
-// EventSource holds event source details
-type EventSource struct {
-	Mode       string
-	URL        string
-	BatchDelay string
+type Connection struct {
+	ConnectionID string
+	Channels     []string
 }
 
 // PacketFilter holds the packet filter configuration
 type PacketFilter struct {
-	List [][]string `toml:"list"`
+	Connections []Connection
 }
 
 type GasPrice struct {
@@ -30,15 +29,16 @@ type GasPrice struct {
 type Data struct {
 	ID            string `toml:"id"`
 	RPCAddr       string
-	GRPCAddr      string
-	EventSource   EventSource
+	RESTAddr      string
+	GasPrice      GasPrice
+	Mnemonic      string
 	PacketFilter  PacketFilter `toml:"packet_filter"`
 	ID2           string
 	RPCAddr2      string
-	GRPCAddr2     string
-	EventSource2  EventSource
-	PacketFilter2 PacketFilter
+	RESTAddr2     string
 	GasPrice2     GasPrice
+	Mnemonic2     string
+	PacketFilter2 PacketFilter
 }
 
 // Config defines a structure for the top-level TOML
@@ -47,187 +47,117 @@ type Config struct {
 }
 
 func transformToPacketFilter(pairs []types.IBCChannelPair, isL1 bool) PacketFilter {
-	// Initialize the PacketFilter
-	packetFilter := PacketFilter{}
-
+	connectionMap := make(map[string][]string)
 	// Transform each IBCChannelPair into a slice of strings
 	for _, pair := range pairs {
+		var connectionID string
 		var channel types.Channel
 		if isL1 {
+			connectionID = pair.L1ConnectionID
 			channel = pair.L1
 		} else {
+			connectionID = pair.L2ConnectionID
 			channel = pair.L2
 		}
-		packetFilter.List = append(packetFilter.List, []string{channel.PortID, channel.ChannelID})
+
+		if connection, ok := connectionMap[connectionID]; !ok {
+			connectionMap[connectionID] = []string{channel.ChannelID}
+		} else {
+			connectionMap[connectionID] = append(connection, channel.ChannelID)
+		}
+	}
+
+	// Initialize the PacketFilter
+	packetFilter := PacketFilter{}
+	for connectionID, channels := range connectionMap {
+		slices.Sort(channels)
+		packetFilter.Connections = append(packetFilter.Connections, Connection{
+			ConnectionID: connectionID,
+			Channels:     channels,
+		})
 	}
 
 	return packetFilter
 }
 
-func createHermesConfig(state State) error {
+func createRapidRelayerConfig(state State) error {
 	// Define the template directly in a variable
 	const configTemplate = `
-# The global section has parameters that apply globally to the relayer operation.
-[global]
-
-# Specify the verbosity for the relayer logging output. Default: 'info'
-# Valid options are 'error', 'warn', 'info', 'debug', 'trace'.
-log_level = 'info'
-
-
-# Specify the mode to be used by the relayer. [Required]
-[mode]
-
-# Specify the client mode.
-[mode.clients]
-
-# Whether or not to enable the client workers. [Required]
-enabled = true
-
-# Whether or not to enable periodic refresh of clients. [Default: true]
-# Note: Even if this is disabled, clients will be refreshed automatically if
-#      there is activity on a connection or channel they are involved with.
-refresh = true
-
-# Whether or not to enable misbehaviour detection for clients. [Default: false]
-misbehaviour = true
-
-# Specify the connections mode.
-[mode.connections]
-
-# Whether or not to enable the connection workers for handshake completion. [Required]
-enabled = true
-
-# Specify the channels mode.
-[mode.channels]
-
-# Whether or not to enable the channel workers for handshake completion. [Required]
-enabled = true
-
-# Specify the packets mode.
-[mode.packets]
-
-# Whether or not to enable the packet workers. [Required]
-enabled = true
-
-# Parametrize the periodic packet clearing feature.
-# Interval (in number of blocks) at which pending packets
-# should be eagerly cleared. A value of '0' will disable
-# periodic packet clearing. [Default: 100]
-clear_interval = 10
-
-# Whether or not to clear packets on start. [Default: false]
-clear_on_start = true
-
-tx_confirmation = true
-
-# The REST section defines parameters for Hermes' built-in RESTful API.
-# https://hermes.informal.systems/rest.html
-[rest]
-
-# Whether or not to enable the REST service. Default: false
-enabled = true
-
-# Specify the IPv4/6 host over which the built-in HTTP server will serve the RESTful
-# API requests. Default: 127.0.0.1
-host = '127.0.0.1'
-
-# Specify the port over which the built-in HTTP server will serve the restful API
-# requests. Default: 3000
-port = 7010
-
-
-# The telemetry section defines parameters for Hermes' built-in telemetry capabilities.
-# https://hermes.informal.systems/telemetry.html
-[telemetry]
-
-# Whether or not to enable the telemetry service. Default: false
-enabled = true
-
-# Specify the IPv4/6 host over which the built-in HTTP server will serve the metrics
-# gathered by the telemetry service. Default: 127.0.0.1
-host = '127.0.0.1'
-
-# Specify the port over which the built-in HTTP server will serve the metrics gathered
-# by the telemetry service. Default: 3001
-port = 7011
-
-[[chains]]
-id = '{{.ID}}'
-type = 'CosmosSdk'
-rpc_addr = '{{.RPCAddr}}'
-grpc_addr = '{{.GRPCAddr}}'
-event_source = { mode = '{{.EventSource.Mode}}', url = '{{.EventSource.URL}}', batch_delay = '{{.EventSource.BatchDelay}}' }
-rpc_timeout = '10s'
-account_prefix = 'init'
-key_name = 'weave-relayer'
-store_prefix = 'ibc'
-default_gas = 100000
-max_gas = 10000000
-gas_price = { price = 0.15, denom = 'uinit' }
-gas_multiplier = 1.5
-max_msg_num = 30
-max_tx_size = 2097152
-clock_drift = '5s'
-max_block_time = '590s'
-
-[chains.packet_filter]
-policy = 'allow'
-list = [
-{{range .PacketFilter.List}}  ['{{index . 0}}', '{{index . 1}}'],
-{{end}}
-]
-
-[[chains]]
-id = '{{.ID2}}'
-type = 'CosmosSdk'
-rpc_addr = '{{.RPCAddr2}}'
-grpc_addr = '{{.GRPCAddr2}}'
-event_source = { mode = '{{.EventSource2.Mode}}', url = '{{.EventSource2.URL}}', batch_delay = '{{.EventSource2.BatchDelay}}' }
-rpc_timeout = '10s'
-account_prefix = 'init'
-key_name = 'weave-relayer'
-store_prefix = 'ibc'
-default_gas = 100000
-max_gas = 10000000
-gas_price = { price = 0, denom = '{{.GasPrice2.Denom}}' }
-gas_multiplier = 1.5
-max_msg_num = 30
-max_tx_size = 2097152
-clock_drift = '5s'
-max_block_time = '120s'
-
-[chains.packet_filter]
-policy = 'allow'
-list = [
-{{range .PacketFilter2.List}}  ['{{index . 0}}', '{{index . 1}}'],
-{{end}}
-]
+{
+  "$schema": "./config.schema.json",
+  "port": 7010,
+  "metricPort": 70001,
+  "logLevel": "info",
+  "rpcRequestTimeout": 5000,
+  "chains": [
+    {
+      "bech32Prefix": "init",
+      "chainId": "{{.ID}}",
+      "gasPrice": "{{.GasPrice.Amount}}{{.GasPrice.Denom}}",
+      "restUri": ["{{.RESTAddr}}"],
+      "rpcUri": ["{{.RPCAddr}}"],
+      "wallets": [
+        {
+          "key": {
+            "type": "mnemonic",
+            "privateKey": "{{.Mnemonic}}"
+          },
+          "maxHandlePacket": 10,
+          "packetFilter": {
+            "connections": [{{range $i, $conn := .PacketFilter.Connections}}{{if $i}}, {{end}}{
+              "connectionId": "{{$conn.ConnectionID}}",
+              "channels": [{{range $j, $channel := $conn.Channels}}{{if $j}}, {{end}}"{{$channel}}"{{end}}]
+            }{{end}}]
+          }
+        }
+      ]
+    },
+    {
+      "bech32Prefix": "init",
+      "chainId": "{{.ID2}}",
+      "gasPrice": "{{.GasPrice2.Amount}}{{.GasPrice2.Denom}}",
+      "restUri": ["{{.RESTAddr2}}"],
+      "rpcUri": ["{{.RPCAddr2}}"],
+      "wallets": [
+        {
+          "key": {
+            "type": "mnemonic",
+            "privateKey": "{{.Mnemonic2}}"
+          },
+          "maxHandlePacket": 10,
+          "packetFilter": {
+            "connections": [{{range $i, $conn := .PacketFilter2.Connections}}{{if $i}}, {{end}}{
+              "connectionId": "{{$conn.ConnectionID}}",
+              "channels": [{{range $j, $channel := $conn.Channels}}{{if $j}}, {{end}}"{{$channel}}"{{end}}]
+            }{{end}}]
+          }
+        }
+      ]
+    }
+  ]
+}
 `
 
 	// Populate data for placeholders
 	data := Data{
 		ID:       state.Config["l1.chain_id"],
 		RPCAddr:  state.Config["l1.rpc_address"],
-		GRPCAddr: state.Config["l1.grpc_address"],
-		EventSource: EventSource{
-			Mode:       "push",
-			URL:        state.Config["l1.websocket"],
-			BatchDelay: "500ms",
+		RESTAddr: state.Config["l1.lcd_address"],
+		GasPrice: GasPrice{
+			Amount: state.Config["l1.gas_price.price"],
+			Denom:  state.Config["l1.gas_price.denom"],
 		},
+		Mnemonic:     state.l1RelayerMnemonic,
 		PacketFilter: transformToPacketFilter(state.IBCChannels, true),
-		ID2:          state.Config["l2.chain_id"],
-		RPCAddr2:     state.Config["l2.rpc_address"],
-		GRPCAddr2:    state.Config["l2.grpc_address"],
-		EventSource2: EventSource{
-			Mode:       "push",
-			URL:        state.Config["l2.websocket"],
-			BatchDelay: "500ms",
-		},
+
+		ID2:       state.Config["l2.chain_id"],
+		RPCAddr2:  state.Config["l2.rpc_address"],
+		RESTAddr2: state.Config["l2.lcd_address"],
 		GasPrice2: GasPrice{
 			Amount: state.Config["l2.gas_price.price"],
 			Denom:  state.Config["l2.gas_price.denom"],
 		},
+		Mnemonic2:     state.l2RelayerMnemonic,
 		PacketFilter2: transformToPacketFilter(state.IBCChannels, false),
 	}
 
@@ -238,10 +168,10 @@ list = [
 	}
 
 	homeDir, _ := os.UserHomeDir()
-	outputPath := filepath.Join(homeDir, common.HermesHome, "config.toml")
+	outputPath := filepath.Join(homeDir, common.RelayerConfigPath)
 
 	// Ensure the directory exists
-	err = os.MkdirAll(filepath.Dir(outputPath), 0755) // Creates ~/.hermes if it doesn't exist
+	err = os.MkdirAll(filepath.Dir(outputPath), 0o755) // Creates ~/.relayer if it doesn't exist
 	if err != nil {
 		return err
 	}

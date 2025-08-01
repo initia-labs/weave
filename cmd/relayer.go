@@ -14,7 +14,6 @@ import (
 	weavecontext "github.com/initia-labs/weave/context"
 	"github.com/initia-labs/weave/models"
 	"github.com/initia-labs/weave/models/relayer"
-	"github.com/initia-labs/weave/service"
 )
 
 func RelayerCommand() *cobra.Command {
@@ -29,10 +28,10 @@ func RelayerCommand() *cobra.Command {
 
 	cmd.AddCommand(
 		relayerInitCommand(),
-		relayerStartCommand(),
-		relayerStopCommand(),
-		relayerRestartCommand(),
-		relayerLogCommand(),
+		// relayerStartCommand(),
+		// relayerStopCommand(),
+		// relayerRestartCommand(),
+		// relayerLogCommand(),
 	)
 
 	return cmd
@@ -85,128 +84,138 @@ func relayerInitCommand() *cobra.Command {
 	return initCmd
 }
 
-func relayerStartCommand() *cobra.Command {
-	shortDescription := "Start the relayer service"
-	startCmd := &cobra.Command{
-		Use:     "start",
-		Short:   shortDescription,
-		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, RelayerHelperText),
-		PreRunE: isInitiated(service.Relayer),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			detach, err := cmd.Flags().GetBool(FlagDetach)
-			if err != nil {
-				return err
-			}
+// 	homeDir, err := os.UserHomeDir()
+// 	if err != nil {
+// 		panic(fmt.Errorf("cannot get user home directory: %v", err))
+// 	}
 
-			updateClient, err := cmd.Flags().GetString(FlagUpdateClient)
-			if err != nil {
-				return err
-			}
+// 	initCmd.Flags().String(FlagMinitiaHome, filepath.Join(homeDir, common.MinitiaDirectory), "Rollup application directory to fetch artifacts from if existed")
 
-			switch updateClient {
-			case "true":
-				err = relayer.UpdateClientFromConfig()
-				if err != nil {
-					return err
-				}
-			case "false":
-			default:
-				return fmt.Errorf("invalid update-client flag value: %q, expected 'true' or 'false'", updateClient)
-			}
+// 	return initCmd
+// }
 
-			s, err := service.NewService(service.Relayer)
-			if err != nil {
-				return err
-			}
+// func relayerStartCommand() *cobra.Command {
+// 	shortDescription := "Start the relayer service"
+// 	startCmd := &cobra.Command{
+// 		Use:     "start",
+// 		Short:   shortDescription,
+// 		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, RelayerHelperText),
+// 		PreRunE: isInitiated(service.Relayer),
+// 		RunE: func(cmd *cobra.Command, args []string) error {
+// 			detach, err := cmd.Flags().GetBool(FlagDetach)
+// 			if err != nil {
+// 				return err
+// 			}
 
-			if detach {
-				err = s.Start()
-				if err != nil {
-					return err
-				}
-				fmt.Println("Started relayer service. You can see the logs with `weave relayer log`")
-				return nil
-			}
+// 			updateClient, err := cmd.Flags().GetString(FlagUpdateClient)
+// 			if err != nil {
+// 				return err
+// 			}
 
-			return service.NonDetachStart(s)
-		},
-	}
-	startCmd.Flags().String(FlagUpdateClient, "true", "Update light clients with new header information before starting the relayer (can be 'true' or 'false')")
-	startCmd.Flags().BoolP(FlagDetach, "d", false, "Run the relayer service in detached mode")
+// 			switch updateClient {
+// 			case "true":
+// 				err = relayer.UpdateClientFromConfig()
+// 				if err != nil {
+// 					return err
+// 				}
+// 			case "false":
+// 			default:
+// 				return fmt.Errorf("invalid update-client flag value: %q, expected 'true' or 'false'", updateClient)
+// 			}
 
-	return startCmd
-}
+// 			s, err := service.NewService(service.Relayer)
+// 			if err != nil {
+// 				return err
+// 			}
 
-func relayerStopCommand() *cobra.Command {
-	shortDescription := "Stop the relayer service"
-	stopCmd := &cobra.Command{
-		Use:     "stop",
-		Short:   shortDescription,
-		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, RelayerHelperText),
-		PreRunE: isInitiated(service.Relayer),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := service.NewService(service.Relayer)
-			if err != nil {
-				return err
-			}
-			err = s.Stop()
-			if err != nil {
-				return err
-			}
-			fmt.Println("Stopped relayer service.")
-			return nil
-		},
-	}
+// 			if detach {
+// 				err = s.Start()
+// 				if err != nil {
+// 					return err
+// 				}
+// 				fmt.Println("Started relayer service. You can see the logs with `weave relayer log`")
+// 				return nil
+// 			}
 
-	return stopCmd
-}
+// 			return service.NonDetachStart(s)
+// 		},
+// 	}
+// 	startCmd.Flags().String(FlagUpdateClient, "true", "Update light clients with new header information before starting the relayer (can be 'true' or 'false')")
+// 	startCmd.Flags().BoolP(FlagDetach, "d", false, "Run the relayer service in detached mode")
 
-func relayerRestartCommand() *cobra.Command {
-	shortDescription := "Restart the relayer service"
-	restartCmd := &cobra.Command{
-		Use:     "restart",
-		Short:   shortDescription,
-		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, RelayerHelperText),
-		PreRunE: isInitiated(service.Relayer),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := service.NewService(service.Relayer)
-			if err != nil {
-				return err
-			}
-			err = s.Restart()
-			if err != nil {
-				return err
-			}
+// 	return startCmd
+// }
 
-			fmt.Println("Started the relayer service. You can see the logs with `weave relayer log`")
-			return nil
-		},
-	}
+// func relayerStopCommand() *cobra.Command {
+// 	shortDescription := "Stop the relayer service"
+// 	stopCmd := &cobra.Command{
+// 		Use:     "stop",
+// 		Short:   shortDescription,
+// 		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, RelayerHelperText),
+// 		PreRunE: isInitiated(service.Relayer),
+// 		RunE: func(cmd *cobra.Command, args []string) error {
+// 			s, err := service.NewService(service.Relayer)
+// 			if err != nil {
+// 				return err
+// 			}
+// 			err = s.Stop()
+// 			if err != nil {
+// 				return err
+// 			}
+// 			fmt.Println("Stopped relayer service.")
+// 			return nil
+// 		},
+// 	}
 
-	return restartCmd
-}
+// 	return stopCmd
+// }
 
-func relayerLogCommand() *cobra.Command {
-	shortDescription := "Stream the logs of the relayer service"
-	logCmd := &cobra.Command{
-		Use:   "log",
-		Short: shortDescription,
-		Long:  fmt.Sprintf("%s.\n\n%s", shortDescription, RelayerHelperText),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			n, err := cmd.Flags().GetInt(FlagN)
-			if err != nil {
-				return err
-			}
+// func relayerRestartCommand() *cobra.Command {
+// 	shortDescription := "Restart the relayer service"
+// 	restartCmd := &cobra.Command{
+// 		Use:     "restart",
+// 		Short:   shortDescription,
+// 		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, RelayerHelperText),
+// 		PreRunE: isInitiated(service.Relayer),
+// 		RunE: func(cmd *cobra.Command, args []string) error {
+// 			s, err := service.NewService(service.Relayer)
+// 			if err != nil {
+// 				return err
+// 			}
+// 			err = s.Restart()
+// 			if err != nil {
+// 				return err
+// 			}
 
-			s, err := service.NewService(service.Relayer)
-			if err != nil {
-				return err
-			}
-			return s.Log(n)
-		},
-	}
+// 			fmt.Println("Started the relayer service. You can see the logs with `weave relayer log`")
+// 			return nil
+// 		},
+// 	}
 
-	logCmd.Flags().IntP(FlagN, FlagN, 100, "previous log lines to show")
+// 	return restartCmd
+// }
 
-	return logCmd
-}
+// func relayerLogCommand() *cobra.Command {
+// 	shortDescription := "Stream the logs of the relayer service"
+// 	logCmd := &cobra.Command{
+// 		Use:   "log",
+// 		Short: shortDescription,
+// 		Long:  fmt.Sprintf("%s.\n\n%s", shortDescription, RelayerHelperText),
+// 		RunE: func(cmd *cobra.Command, args []string) error {
+// 			n, err := cmd.Flags().GetInt(FlagN)
+// 			if err != nil {
+// 				return err
+// 			}
+
+// 			s, err := service.NewService(service.Relayer)
+// 			if err != nil {
+// 				return err
+// 			}
+// 			return s.Log(n)
+// 		},
+// 	}
+
+// 	logCmd.Flags().IntP(FlagN, FlagN, 100, "previous log lines to show")
+
+// 	return logCmd
+// }

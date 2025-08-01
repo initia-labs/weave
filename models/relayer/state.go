@@ -1,11 +1,13 @@
 package relayer
 
 import (
+	"github.com/initia-labs/weave/registry"
 	"github.com/initia-labs/weave/types"
 )
 
 type State struct {
 	weave       types.WeaveState
+	chainType   registry.ChainType
 	Config      map[string]string
 	IBCChannels []types.IBCChannelPair
 
@@ -22,8 +24,6 @@ type State struct {
 	l2NeedsFunding    bool
 	l2FundingAmount   string
 	l2FundingTxHash   string
-
-	hermesBinaryPath string
 
 	minitiaConfig *types.MinitiaConfig
 
@@ -62,8 +62,6 @@ func (state State) Clone() State {
 		l2NeedsFunding:    state.l2NeedsFunding,
 		l2FundingAmount:   state.l2FundingAmount,
 		l2FundingTxHash:   state.l2FundingTxHash,
-
-		hermesBinaryPath: state.hermesBinaryPath,
 
 		feeWhitelistAccounts: state.feeWhitelistAccounts,
 	}
