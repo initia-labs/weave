@@ -150,7 +150,7 @@ func (m *DeleteExistingMinitiaInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		homeDir, _ := os.UserHomeDir()
-		relayerHome := filepath.Join(homeDir, common.HermesHome)
+		relayerHome := filepath.Join(homeDir, common.RelayerDirectory)
 		if io.FileOrFolderExists(relayerHome) {
 			if err := io.DeleteDirectory(relayerHome); err != nil {
 				return m, m.HandlePanic(fmt.Errorf("failed to delete relayer: %v", err))
@@ -181,7 +181,7 @@ func (m *DeleteExistingMinitiaInput) View() string {
 		text += styles.RenderPrompt(fmt.Sprintf("- OPinit bot [%s]\n", opinitHome), []string{opinitHome}, styles.Empty)
 	}
 	homeDir, _ := os.UserHomeDir()
-	relayerHome := filepath.Join(homeDir, common.HermesHome)
+	relayerHome := filepath.Join(homeDir, common.RelayerDirectory)
 	if io.FileOrFolderExists(relayerHome) {
 		text += styles.RenderPrompt(fmt.Sprintf("- relayer [%s]\n", relayerHome), []string{relayerHome}, styles.Empty)
 	}
