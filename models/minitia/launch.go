@@ -114,10 +114,10 @@ func NewDeleteExistingMinitiaInput(ctx context.Context) *DeleteExistingMinitiaIn
 	model := &DeleteExistingMinitiaInput{
 		TextInput: ui.NewTextInput(true),
 		BaseModel: weavecontext.BaseModel{Ctx: ctx, CannotBack: true},
-		question:  "Type `delete` to delete the .minitia folder and proceed with weave rollup launch",
+		question:  "Type `confirm` to delete and proceed with weave rollup launch",
 	}
-	model.WithPlaceholder("Type `delete` to delete, Ctrl+C to keep the folder and quit this command.")
-	model.WithValidatorFn(common.ValidateExactString("delete"))
+	model.WithPlaceholder("Type `confirm` to delete and proceed, Ctrl+C to quit this command.")
+	model.WithValidatorFn(common.ValidateExactString("confirm"))
 	return model
 }
 
@@ -137,13 +137,24 @@ func (m *DeleteExistingMinitiaInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	input, cmd, done := m.TextInput.Update(msg)
 	if done {
 		state := weavecontext.PushPageAndGetState[LaunchState](m)
-
-		minitiaHome, err := weavecontext.GetMinitiaHome(m.Ctx)
-		if err != nil {
-			return m, m.HandlePanic(err)
+		if minitiaHome, err := weavecontext.GetMinitiaHome(m.Ctx); err == nil && io.FileOrFolderExists(minitiaHome) {
+			if err := io.DeleteDirectory(minitiaHome); err != nil {
+				return m, m.HandlePanic(fmt.Errorf("failed to delete .minitia: %v", err))
+			}
 		}
-		if err := io.DeleteDirectory(minitiaHome); err != nil {
-			return m, m.HandlePanic(fmt.Errorf("failed to delete .minitia: %v", err))
+
+		if opinitHome, err := weavecontext.GetOPInitHome(m.Ctx); err == nil && io.FileOrFolderExists(opinitHome) {
+			if err := io.DeleteDirectory(opinitHome); err != nil {
+				return m, m.HandlePanic(fmt.Errorf("failed to delete OPinit: %v", err))
+			}
+		}
+
+		homeDir, _ := os.UserHomeDir()
+		relayerHome := filepath.Join(homeDir, common.HermesHome)
+		if io.FileOrFolderExists(relayerHome) {
+			if err := io.DeleteDirectory(relayerHome); err != nil {
+				return m, m.HandlePanic(fmt.Errorf("failed to delete relayer: %v", err))
+			}
 		}
 
 		if state.launchFromExistingConfig {
@@ -162,14 +173,22 @@ func (m *DeleteExistingMinitiaInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *DeleteExistingMinitiaInput) View() string {
-	minitiaHome, err := weavecontext.GetMinitiaHome(m.Ctx)
-	if err != nil {
-		m.HandlePanic(err)
+	text := styles.RenderPrompt("🚨 To launch a new rollup, all existing data and configs will be deleted — including\n", []string{}, styles.Empty)
+	if minitiaHome, err := weavecontext.GetMinitiaHome(m.Ctx); err == nil && io.FileOrFolderExists(minitiaHome) {
+		text += styles.RenderPrompt(fmt.Sprintf("- sequencer node [%s]\n", minitiaHome), []string{minitiaHome}, styles.Empty)
 	}
-	return m.WrapView(styles.RenderPrompt(fmt.Sprintf("🚨 Existing %s folder detected.\n", minitiaHome), []string{minitiaHome}, styles.Empty) +
-		styles.RenderPrompt("To proceed with weave rollup launch, you must confirm the deletion of the .minitia folder.\nIf you do not confirm the deletion, the command will not run, and you will be returned to the homepage.\n\n", []string{".minitia", "weave rollup launch"}, styles.Empty) +
-		styles.Text("Please note that once you delete, all configurations, state, keys, and other data will be \n", styles.Yellow) + styles.BoldText("permanently deleted and cannot be reversed.\n", styles.Yellow) +
-		styles.RenderPrompt(m.GetQuestion(), []string{"`delete`", ".minitia", "weave rollup launch"}, styles.Question) + m.TextInput.View())
+	if opinitHome, err := weavecontext.GetOPInitHome(m.Ctx); err == nil && io.FileOrFolderExists(opinitHome) {
+		text += styles.RenderPrompt(fmt.Sprintf("- OPinit bot [%s]\n", opinitHome), []string{opinitHome}, styles.Empty)
+	}
+	homeDir, _ := os.UserHomeDir()
+	relayerHome := filepath.Join(homeDir, common.HermesHome)
+	if io.FileOrFolderExists(relayerHome) {
+		text += styles.RenderPrompt(fmt.Sprintf("- relayer [%s]\n", relayerHome), []string{relayerHome}, styles.Empty)
+	}
+	text += styles.Text("\nPlease note that once you delete, all configurations, state, keys, and other data will be \n", styles.Yellow) +
+		styles.BoldText("permanently deleted and cannot be reversed.\n\n", styles.Yellow) +
+		styles.RenderPrompt(m.GetQuestion(), []string{"`confirm`", "weave rollup launch"}, styles.Question)
+	return m.WrapView(text + m.TextInput.View())
 }
 
 type NetworkSelect struct {

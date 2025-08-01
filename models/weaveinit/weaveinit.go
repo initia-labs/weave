@@ -118,6 +118,7 @@ func (m *WeaveInit) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case LaunchNewRollupOption:
 			ctx := weavecontext.NewAppContext(*minitia.NewLaunchState())
 			ctx = weavecontext.SetMinitiaHome(ctx, filepath.Join(homeDir, common.MinitiaDirectory))
+			ctx = weavecontext.SetOPInitHome(ctx, filepath.Join(homeDir, common.OPinitDirectory))
 			ctx = weavecontext.SetWindowWidth(ctx, windowWidth)
 
 			analytics.AppendGlobalEventProperties(map[string]interface{}{
