@@ -14,6 +14,7 @@ import (
 	weavecontext "github.com/initia-labs/weave/context"
 	"github.com/initia-labs/weave/models"
 	"github.com/initia-labs/weave/models/relayer"
+	"github.com/initia-labs/weave/service"
 )
 
 func RelayerCommand() *cobra.Command {
@@ -28,7 +29,7 @@ func RelayerCommand() *cobra.Command {
 
 	cmd.AddCommand(
 		relayerInitCommand(),
-		// relayerStartCommand(),
+		relayerStartCommand(),
 		// relayerStopCommand(),
 		// relayerRestartCommand(),
 		// relayerLogCommand(),
@@ -84,67 +85,59 @@ func relayerInitCommand() *cobra.Command {
 	return initCmd
 }
 
-// 	homeDir, err := os.UserHomeDir()
-// 	if err != nil {
-// 		panic(fmt.Errorf("cannot get user home directory: %v", err))
-// 	}
+func relayerStartCommand() *cobra.Command {
+	shortDescription := "Start the relayer service"
+	startCmd := &cobra.Command{
+		Use:   "start",
+		Short: shortDescription,
+		Long:  fmt.Sprintf("%s.\n\n%s", shortDescription, RelayerHelperText),
+		// PreRunE: isInitiated(service.Relayer),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// detach, err := cmd.Flags().GetBool(FlagDetach)
+			// if err != nil {
+			// 	return err
+			// }
 
-// 	initCmd.Flags().String(FlagMinitiaHome, filepath.Join(homeDir, common.MinitiaDirectory), "Rollup application directory to fetch artifacts from if existed")
+			// updateClient, err := cmd.Flags().GetString(FlagUpdateClient)
+			// if err != nil {
+			// 	return err
+			// }
 
-// 	return initCmd
-// }
+			// switch updateClient {
+			// case "true":
+			// 	err = relayer.UpdateClientFromConfig()
+			// 	if err != nil {
+			// 		return err
+			// 	}
+			// case "false":
+			// default:
+			// 	return fmt.Errorf("invalid update-client flag value: %q, expected 'true' or 'false'", updateClient)
+			// }
 
-// func relayerStartCommand() *cobra.Command {
-// 	shortDescription := "Start the relayer service"
-// 	startCmd := &cobra.Command{
-// 		Use:     "start",
-// 		Short:   shortDescription,
-// 		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, RelayerHelperText),
-// 		PreRunE: isInitiated(service.Relayer),
-// 		RunE: func(cmd *cobra.Command, args []string) error {
-// 			detach, err := cmd.Flags().GetBool(FlagDetach)
-// 			if err != nil {
-// 				return err
-// 			}
+			s, err := service.NewService(service.Relayer)
+			if err != nil {
+				return err
+			}
 
-// 			updateClient, err := cmd.Flags().GetString(FlagUpdateClient)
-// 			if err != nil {
-// 				return err
-// 			}
+			return s.Start()
 
-// 			switch updateClient {
-// 			case "true":
-// 				err = relayer.UpdateClientFromConfig()
-// 				if err != nil {
-// 					return err
-// 				}
-// 			case "false":
-// 			default:
-// 				return fmt.Errorf("invalid update-client flag value: %q, expected 'true' or 'false'", updateClient)
-// 			}
+			// if detach {
+			// 	err = s.Start()
+			// 	if err != nil {
+			// 		return err
+			// 	}
+			// 	fmt.Println("Started relayer service. You can see the logs with `weave relayer log`")
+			// 	return nil
+			// }
 
-// 			s, err := service.NewService(service.Relayer)
-// 			if err != nil {
-// 				return err
-// 			}
+			// return service.NonDetachStart(s)
+		},
+	}
+	// startCmd.Flags().String(FlagUpdateClient, "true", "Update light clients with new header information before starting the relayer (can be 'true' or 'false')")
+	// startCmd.Flags().BoolP(FlagDetach, "d", false, "Run the relayer service in detached mode")
 
-// 			if detach {
-// 				err = s.Start()
-// 				if err != nil {
-// 					return err
-// 				}
-// 				fmt.Println("Started relayer service. You can see the logs with `weave relayer log`")
-// 				return nil
-// 			}
-
-// 			return service.NonDetachStart(s)
-// 		},
-// 	}
-// 	startCmd.Flags().String(FlagUpdateClient, "true", "Update light clients with new header information before starting the relayer (can be 'true' or 'false')")
-// 	startCmd.Flags().BoolP(FlagDetach, "d", false, "Run the relayer service in detached mode")
-
-// 	return startCmd
-// }
+	return startCmd
+}
 
 // func relayerStopCommand() *cobra.Command {
 // 	shortDescription := "Stop the relayer service"

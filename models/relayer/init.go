@@ -24,6 +24,7 @@ import (
 	"github.com/initia-labs/weave/cosmosutils"
 	weaveio "github.com/initia-labs/weave/io"
 	"github.com/initia-labs/weave/registry"
+	"github.com/initia-labs/weave/service"
 	"github.com/initia-labs/weave/styles"
 	"github.com/initia-labs/weave/tooltip"
 	"github.com/initia-labs/weave/types"
@@ -2523,6 +2524,24 @@ func WaitSettingUpRelayer(ctx context.Context) tea.Cmd {
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to create rapid relayer config: %v", err)}
 		}
+
+		// Get the user's home directory
+		userHome, err := os.UserHomeDir()
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get user home directory: %v", err)}
+		}
+
+		srv, err := service.NewService(service.Relayer)
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to initialize service: %v", err)}
+		}
+
+		if err = srv.Create("", filepath.Join(userHome, common.RelayerDirectory)); err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to create service: %v", err)}
+		}
+
+		// prune existing logs, ignore error
+		_ = srv.PruneLogs()
 
 		// Return updated state
 		return ui.EndLoading{Ctx: weavecontext.SetCurrentState(ctx, state)}

@@ -12,7 +12,7 @@ const (
 
 	FlagPollingInterval = "polling-interval"
 
-	FlagUpdateClient = "update-client"
+	// FlagUpdateClient = "update-client"
 
 	FlagWithConfig      = "with-config"
 	FlagKeyFile         = "key-file"
