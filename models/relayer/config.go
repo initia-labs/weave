@@ -110,7 +110,7 @@ func createRapidRelayerConfig(state State) error {
             }{{end}}]
           }
         }
-      ],
+      ]
     },
     {
       "bech32Prefix": "init",
