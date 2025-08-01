@@ -35,81 +35,9 @@ Its primary purpose is to solve several key challenges:
 >
 > This ensures proper handling of user-specific configurations and paths.
 
-## Installation
+## Get started
 
-### On macOS
-
-Install _Weave_ via [Homebrew](https://brew.sh/):
-
-```bash
-brew install initia-labs/tap/weave
-```
-
-### On Linux
-
-Install _Weave_ by downloading the appropriate binary for your architecture using `wget`:
-
-**For x86_64 (amd64)**
-
-```bash
-VERSION=$(curl -s https://api.github.com/repos/initia-labs/weave/releases/latest | grep '"tag_name":' | cut -d'"' -f4 | cut -c 2-)
-wget https://github.com/initia-labs/weave/releases/download/v$VERSION/weave-$VERSION-linux-amd64.tar.gz
-tar -xvf weave-$VERSION-linux-amd64.tar.gz
-```
-
-**For arm64**
-
-```bash
-VERSION=$(curl -s https://api.github.com/repos/initia-labs/weave/releases/latest | grep '"tag_name":' | cut -d'"' -f4 | cut -c 2-)
-wget https://github.com/initia-labs/weave/releases/download/v$VERSION/weave-$VERSION-linux-arm64.tar.gz
-tar -xvf weave-$VERSION-linux-arm64.tar.gz
-```
-
-### Building from Scratch
-
-To build _Weave_ from source, you will need a working Go environment and `make`. Follow these steps:
-
-```bash
-git clone https://github.com/initia-labs/weave.git
-cd weave
-VERSION=$(curl -s https://api.github.com/repos/initia-labs/weave/releases/latest | grep '"tag_name":' | cut -d'"' -f4 | cut -c 2-)
-git checkout tags/v$VERSION
-make install
-```
-
-### Download Pre-built binaries
-
-Go to the [Releases](https://github.com/initia-labs/weave/releases) page and download the binary for your operating system.
-
-### Verify Installation
-
-```bash
-weave version
-```
-
-This should return the version of the Weave binary you have installed. Example output:
-
-```bash
-vx.x.x  # The actual version number will reflect your installed version
-```
-
-## Quick Start
-
-To get started with Weave, run
-
-```bash
-weave init
-```
-
-It will ask you to set up the [Gas Station](/docs/gas_station.md) account and ask which infrastructure you want to setup.
-After that, Weave will guide you through the setup process step-by-step.
-
-## Usage
-
-1. [Bootstrapping Initia Node](/docs/initia_node.md)
-2. [Launch a new rollup](/docs/rollup_launch.md)
-3. [Setting up IBC relayer](/docs/relayer.md)
-4. [Setting up OPinit bots](/docs/opinit_bots.md)
+👉 https://docs.initia.xyz/developers/developer-guides/tools/clis/weave-cli/installation
 
 ## Usage data collection
 
