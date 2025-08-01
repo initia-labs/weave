@@ -55,9 +55,18 @@ func waitExistingMinitiaChecker(ctx context.Context) tea.Cmd {
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: err}
 		}
+		opinitPath, err := weavecontext.GetOPInitHome(ctx)
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: err}
+		}
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: err}
+		}
+		relayerPath := filepath.Join(homeDir, common.RelayerDirectory)
 		time.Sleep(1500 * time.Millisecond)
 
-		if !io.FileOrFolderExists(minitiaPath) {
+		if !io.FileOrFolderExists(minitiaPath) && !io.FileOrFolderExists(opinitPath) && !io.FileOrFolderExists(relayerPath) {
 			state.existingMinitiaApp = false
 			return ui.EndLoading{Ctx: weavecontext.SetCurrentState(ctx, state)}
 		} else {
