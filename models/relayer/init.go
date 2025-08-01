@@ -2611,7 +2611,6 @@ func (m *AddChallengerKeyToRelayer) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			state.l2RelayerAddress = state.minitiaConfig.SystemKeys.Challenger.L2Address
 			state.l2RelayerMnemonic = state.minitiaConfig.SystemKeys.Challenger.Mnemonic
 
-			state.weave.PushPreviousResponse(getRelayerSetSuccessMessage())
 			model := NewSettingUpRelayer(weavecontext.SetCurrentState(m.Ctx, state))
 			return model, model.Init()
 		case NoAddChallengerKeyToRelayerOption:
