@@ -87,6 +87,8 @@ func (ls LaunchState) Clone() LaunchState {
 		opBridgeOutputFinalizationPeriod:  ls.opBridgeOutputFinalizationPeriod,
 		opBridgeBatchSubmissionTarget:     ls.opBridgeBatchSubmissionTarget,
 		batchSubmissionIsCelestia:         ls.batchSubmissionIsCelestia,
+		daChainId:                         ls.daChainId,
+		daRPC:                             ls.daRPC,
 		generateKeys:                      ls.generateKeys,
 		systemKeyOperatorMnemonic:         ls.systemKeyOperatorMnemonic,
 		systemKeyBridgeExecutorMnemonic:   ls.systemKeyBridgeExecutorMnemonic,
