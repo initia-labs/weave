@@ -14,6 +14,7 @@ import (
 	"github.com/initia-labs/weave/models/initia"
 	"github.com/initia-labs/weave/models/minitia"
 	"github.com/initia-labs/weave/models/opinit_bots"
+	"github.com/initia-labs/weave/models/relayer"
 	"github.com/initia-labs/weave/styles"
 	"github.com/initia-labs/weave/types"
 	"github.com/initia-labs/weave/ui"
@@ -46,7 +47,7 @@ const (
 	RunL1NodeOption       Option = "Run an L1 node"
 	LaunchNewRollupOption Option = "Launch a new rollup"
 	RunOPBotsOption       Option = "Run OPinit bots"
-	RunRelayerOption      Option = "Run a relayer"
+	RunRelayerOption      Option = "Generate a relayer config"
 )
 
 func GetWeaveInitOptions() []Option {
@@ -66,7 +67,7 @@ func NewWeaveInit() *WeaveInit {
 		ui.NewTooltip(string(RunL1NodeOption), "Bootstrap an Initia Layer 1 full node to be able to join the network whether it's mainnet, testnet, or your own local network. Weave also make state-syncing and automatic upgrades super easy for you.", "", []string{}, []string{}, []string{}),
 		ui.NewTooltip(string(LaunchNewRollupOption), "Customize and deploy a new rollup on Initia in less than 5 minutes. This process includes configuring your rollup components (chain ID, gas, optimistic bridge, etc.) and fund OPinit bots to facilitate communications between your rollup and the underlying Initia L1.", "", []string{}, []string{}, []string{}),
 		ui.NewTooltip(string(RunOPBotsOption), "Configure and run OPinit bots, the glue between rollup and the underlying Initia L1.", "", []string{}, []string{}, []string{}),
-		ui.NewTooltip(string(RunRelayerOption), "Run a relayer to facilitate communications between your rollup and the underlying Initia L1.", "", []string{}, []string{}, []string{}),
+		ui.NewTooltip(string(RunRelayerOption), "Generate a relayer configuration to facilitate communications between your rollup and the underlying Initia L1.", "", []string{}, []string{}, []string{}),
 	}
 
 	return &WeaveInit{
@@ -103,7 +104,7 @@ func (m *WeaveInit) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			ctx = weavecontext.SetInitiaHome(ctx, filepath.Join(homeDir, common.InitiaDirectory))
 			ctx = weavecontext.SetWindowWidth(ctx, windowWidth)
 
-			analytics.AppendGlobalEventProperties(map[string]interface{}{
+			analytics.AppendGlobalEventProperties(map[string]any{
 				analytics.ComponentEventKey: analytics.L1NodeComponent,
 				analytics.FeatureEventKey:   analytics.SetupL1NodeFeature.Name,
 			})
@@ -120,7 +121,7 @@ func (m *WeaveInit) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			ctx = weavecontext.SetOPInitHome(ctx, filepath.Join(homeDir, common.OPinitDirectory))
 			ctx = weavecontext.SetWindowWidth(ctx, windowWidth)
 
-			analytics.AppendGlobalEventProperties(map[string]interface{}{
+			analytics.AppendGlobalEventProperties(map[string]any{
 				analytics.ComponentEventKey: analytics.RollupComponent,
 				analytics.FeatureEventKey:   analytics.RollupLaunchFeature.Name,
 			})
@@ -134,7 +135,7 @@ func (m *WeaveInit) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			ctx = weavecontext.SetOPInitHome(ctx, filepath.Join(homeDir, common.OPinitDirectory))
 			ctx = weavecontext.SetWindowWidth(ctx, windowWidth)
 
-			analytics.AppendGlobalEventProperties(map[string]interface{}{
+			analytics.AppendGlobalEventProperties(map[string]any{
 				analytics.ComponentEventKey: analytics.OPinitComponent,
 				analytics.FeatureEventKey:   analytics.SetupOPinitBotFeature.Name,
 			})
@@ -147,22 +148,22 @@ func (m *WeaveInit) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				},
 			)
 			return model, model.Init()
-			// case RunRelayerOption:
-			// 	ctx := weavecontext.NewAppContext(relayer.NewRelayerState())
-			// 	ctx = weavecontext.SetMinitiaHome(ctx, filepath.Join(homeDir, common.MinitiaDirectory))
-			// 	ctx = weavecontext.SetWindowWidth(ctx, windowWidth)
+		case RunRelayerOption:
+			ctx := weavecontext.NewAppContext(relayer.NewRelayerState())
+			ctx = weavecontext.SetMinitiaHome(ctx, filepath.Join(homeDir, common.MinitiaDirectory))
+			ctx = weavecontext.SetWindowWidth(ctx, windowWidth)
 
-			// 	analytics.AppendGlobalEventProperties(map[string]interface{}{
-			// 		analytics.ComponentEventKey: analytics.RelayerComponent,
-			// 		analytics.FeatureEventKey:   analytics.SetupRelayerFeature.Name,
-			// 	})
-			// 	analytics.TrackEvent(analytics.InitActionSelected, analytics.NewEmptyEvent().Add(analytics.OptionEventKey, analytics.SetupRelayerFeature.Name))
+			analytics.AppendGlobalEventProperties(map[string]any{
+				analytics.ComponentEventKey: analytics.RelayerComponent,
+				analytics.FeatureEventKey:   analytics.SetupRelayerFeature.Name,
+			})
+			analytics.TrackEvent(analytics.InitActionSelected, analytics.NewEmptyEvent().Add(analytics.OptionEventKey, analytics.SetupRelayerFeature.Name))
 
-			// 	model, err := relayer.NewRollupSelect(ctx)
-			// 	if err != nil {
-			// 		return m, m.HandlePanic(err)
-			// 	}
-			// 	return model, nil
+			model, err := relayer.NewRollupSelect(ctx)
+			if err != nil {
+				return m, m.HandlePanic(err)
+			}
+			return model, nil
 		}
 	}
 
