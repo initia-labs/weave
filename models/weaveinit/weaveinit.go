@@ -67,7 +67,7 @@ func NewWeaveInit() *WeaveInit {
 		ui.NewTooltip(string(RunL1NodeOption), "Bootstrap an Initia Layer 1 full node to be able to join the network whether it's mainnet, testnet, or your own local network. Weave also make state-syncing and automatic upgrades super easy for you.", "", []string{}, []string{}, []string{}),
 		ui.NewTooltip(string(LaunchNewRollupOption), "Customize and deploy a new rollup on Initia in less than 5 minutes. This process includes configuring your rollup components (chain ID, gas, optimistic bridge, etc.) and fund OPinit bots to facilitate communications between your rollup and the underlying Initia L1.", "", []string{}, []string{}, []string{}),
 		ui.NewTooltip(string(RunOPBotsOption), "Configure and run OPinit bots, the glue between rollup and the underlying Initia L1.", "", []string{}, []string{}, []string{}),
-		ui.NewTooltip(string(RunRelayerOption), "Run a relayer to facilitate communications between your rollup and the underlying Initia L1.", "", []string{}, []string{}, []string{}),
+		ui.NewTooltip(string(RunRelayerOption), "Generate a relayer configuration to facilitate communications between your rollup and the underlying Initia L1.", "", []string{}, []string{}, []string{}),
 	}
 
 	return &WeaveInit{
