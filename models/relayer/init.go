@@ -836,7 +836,6 @@ func (m *FetchingBalancesLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		state := weavecontext.PushPageAndGetState[State](m)
 
 		if !state.l1NeedsFunding && !state.l2NeedsFunding {
-			state.weave.PushPreviousResponse(getRelayerSetSuccessMessage())
 			return NewTerminalState(weavecontext.SetCurrentState(m.Ctx, state)), tea.Quit
 		}
 
@@ -951,7 +950,6 @@ func (m *FundingAmountSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return model, nil
 		case FundingUserTransfer:
 			state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, m.GetQuestion(), []string{}, "Transfer funds manually from other account"))
-			state.weave.PushPreviousResponse(getRelayerSetSuccessMessage())
 			state.weave.PushPreviousResponse(fmt.Sprintf(
 				"%s %s\n  %s\n%s\n\n",
 				styles.Text("i", styles.Yellow),
@@ -1299,7 +1297,6 @@ func (m *FundDefaultPresetBroadcastLoading) Update(msg tea.Msg) (tea.Model, tea.
 		if state.l2FundingTxHash != "" {
 			state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, "The relayer account has been funded on L2, with Tx Hash", []string{}, state.l2FundingTxHash))
 		}
-		state.weave.PushPreviousResponse(getRelayerSetSuccessMessage())
 
 		return NewTerminalState(weavecontext.SetCurrentState(m.Ctx, state)), tea.Quit
 	}
@@ -1407,7 +1404,6 @@ func (m *FundManuallyL2BalanceInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.DotsSeparator, m.GetQuestion(), []string{"Relayer account", "rollup"}, input.Text))
 
 		if state.l1FundingAmount == "0" && state.l2FundingAmount == "0" {
-			state.weave.PushPreviousResponse(getRelayerSetSuccessMessage())
 			return NewTerminalState(weavecontext.SetCurrentState(m.Ctx, state)), tea.Quit
 		}
 
@@ -1689,7 +1685,7 @@ func (m *TerminalState) Update(_ tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *TerminalState) View() string {
 	state := weavecontext.GetCurrentState[State](m.Ctx)
-	return m.WrapView(state.weave.Render())
+	return m.WrapView(state.weave.Render()) + getRelayerSetSuccessMessage()
 }
 
 type SelectingL1NetworkRegistry struct {
@@ -2629,9 +2625,10 @@ func (m *AddChallengerKeyToRelayer) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func getRelayerSetSuccessMessage() string {
 	userHome, _ := os.UserHomeDir()
 	relayerHome := filepath.Join(userHome, common.RelayerDirectory)
-	s := styles.RenderPrompt("\nRapid relayer config is generated successfully!", []string{}, styles.Completed)
-	s += "\n" + styles.RenderPrompt(fmt.Sprintf("Config file is saved at %s/config.json. You can modify it as needed. To start relaying:", relayerHome), []string{}, styles.Information)
-	s += "\n" + styles.RenderPrompt("1. git clone https://github.com/initia-labs/rapid-relayer && cd rapid-relayer && npm install]", []string{}, styles.Empty)
+	s := "\n" + styles.RenderPrompt("Rapid relayer config is generated successfully!", []string{}, styles.Completed)
+	s += "\n" + styles.RenderPrompt(fmt.Sprintf("Config file is saved at %s/config.json. You can modify it as needed.", relayerHome), []string{}, styles.Information)
+	s += "\n" + styles.RenderPrompt("To start relaying:", []string{}, styles.Empty)
+	s += "\n" + styles.RenderPrompt("1. git clone https://github.com/initia-labs/rapid-relayer && cd rapid-relayer && npm install", []string{}, styles.Empty)
 	s += "\n" + styles.RenderPrompt(fmt.Sprintf("2. cp %s/config.json ./config.json", relayerHome), []string{}, styles.Empty)
 	s += "\n" + styles.RenderPrompt("3. npm start", []string{}, styles.Empty) + "\n"
 	return s
