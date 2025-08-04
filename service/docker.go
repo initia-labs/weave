@@ -22,7 +22,7 @@ func (d *Docker) Create(version, appHome string) error {
 	_ = networkCmd.Run() // Ignore error if network already exists
 
 	// Pull the appropriate image based on command type and version
-	imageName, err := d.getImageName("v1.0.1")
+	imageName, err := d.getImageName("main")
 	if err != nil {
 		return fmt.Errorf("failed to get image name: %v", err)
 	}
@@ -36,27 +36,25 @@ func (d *Docker) Create(version, appHome string) error {
 }
 
 func (d *Docker) Start(optionalArgs ...string) error {
-	// serviceName, err := d.GetServiceName()
-	// if err != nil {
-	// 	return err
-	// }
-
-	// Get binary and home paths
-	_, appHome, err := d.GetServiceBinaryAndHome()
+	serviceName, err := d.GetServiceName()
 	if err != nil {
 		return err
 	}
 
+	// // Get binary and home paths
+	// _, appHome, err := d.GetServiceBinaryAndHome()
+	// if err != nil {
+	// 	return err
+	// }
+
 	args := []string{
 		"run",
-		"--rm",
-		// "-d",
-		// "--name", serviceName,
-		// "--restart", "unless-stopped",
+		"-d",
+		"--name", serviceName,
+		"--restart", "unless-stopped",
 		"--network", "weave-network",
-		// Bind mount the host directory instead of using Docker volume
-		"-v", fmt.Sprintf("%s:/app/data", appHome),
 	}
+	args = append(args, optionalArgs...)
 
 	// Add port mappings
 	ports, err := d.getPortMappings()
@@ -66,7 +64,7 @@ func (d *Docker) Start(optionalArgs ...string) error {
 	args = append(args, ports...)
 
 	// Add the image name
-	imageName, err := d.getImageName("v1.0.1")
+	imageName, err := d.getImageName("main")
 	if err != nil {
 		return err
 	}
@@ -190,7 +188,7 @@ func (d *Docker) getCommandArgs() ([]string, error) {
 	case OPinitChallenger:
 		return []string{"start", "challenger", "--home", "/app/data"}, nil
 	case Relayer:
-		return []string{"start"}, nil
+		return []string{}, nil
 	default:
 		return nil, fmt.Errorf("unsupported command: %v", d.commandName)
 	}

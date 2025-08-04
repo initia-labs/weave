@@ -119,7 +119,17 @@ func relayerStartCommand() *cobra.Command {
 				return err
 			}
 
-			return s.Start()
+			// Get the user's home directory
+			userHome, err := os.UserHomeDir()
+			if err != nil {
+				return err
+			}
+			relayerPath := filepath.Join(userHome, common.RelayerDirectory)
+
+			return s.Start(
+				"-v", fmt.Sprintf("%s:/config", relayerPath),
+				"-v", fmt.Sprintf("%s:/syncInfo", relayerPath),
+			)
 
 			// if detach {
 			// 	err = s.Start()
