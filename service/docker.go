@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+
+	"github.com/initia-labs/weave/common"
 )
 
 type Docker struct {
@@ -37,11 +40,11 @@ func (d *Docker) Start(optionalArgs ...string) error {
 		return err
 	}
 
-	// // Get binary and home paths
-	// _, appHome, err := d.GetServiceBinaryAndHome()
-	// if err != nil {
-	// 	return err
-	// }
+	// Get binary and home paths
+	_, appHome, err := d.GetServiceBinaryAndHome()
+	if err != nil {
+		return err
+	}
 
 	args := []string{
 		"run",
@@ -49,29 +52,38 @@ func (d *Docker) Start(optionalArgs ...string) error {
 		"--name", serviceName,
 		"--restart", "unless-stopped",
 		"--network", "host",
+		// TODO: do we need this?
+		"-v", fmt.Sprintf("%s:/app/data", appHome),
 	}
 	args = append(args, optionalArgs...)
 
-	// Add port mappings
-	ports, err := d.getPortMappings()
-	if err != nil {
+	// Add volume mount
+	if volumes, err := d.getVolumeMount(); err != nil {
 		return err
+	} else {
+		args = append(args, volumes...)
 	}
-	args = append(args, ports...)
+
+	// Add port mappings
+	if ports, err := d.getPortMappings(); err != nil {
+		return err
+	} else {
+		args = append(args, ports...)
+	}
 
 	// Add the image name
-	imageName, err := d.getImageName("main")
-	if err != nil {
+	if imageName, err := d.getImageName("main"); err != nil {
 		return err
+	} else {
+		args = append(args, imageName)
 	}
-	args = append(args, imageName)
 
 	// Add command arguments
-	cmdArgs, err := d.getCommandArgs()
-	if err != nil {
+	if cmdArgs, err := d.getCommandArgs(); err != nil {
 		return err
+	} else {
+		args = append(args, cmdArgs...)
 	}
-	args = append(args, cmdArgs...)
 
 	cmd := exec.Command("docker", args...)
 	if output, err := cmd.CombinedOutput(); err != nil {
@@ -127,6 +139,25 @@ func (d *Docker) getImageName(version string) (string, error) {
 		return fmt.Sprintf("%s/rapid-relayer:%s", baseImage, version), nil
 	default:
 		return "", fmt.Errorf("unsupported command: %v", d.commandName)
+	}
+}
+
+func (d *Docker) getVolumeMount() ([]string, error) {
+	// Get the user's home directory
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+
+	switch d.commandName {
+	case Relayer:
+		relayerPath := filepath.Join(userHome, common.RelayerDirectory)
+		return []string{
+			"-v", fmt.Sprintf("%s:/config", relayerPath),
+			"-v", fmt.Sprintf("%s:/syncInfo", relayerPath),
+		}, nil
+	default:
+		return []string{}, nil
 	}
 }
 
