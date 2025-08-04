@@ -186,7 +186,7 @@ func TestValidateURLWithPort(t *testing.T) {
 			name:    "missing port",
 			url:     "http://example.com",
 			wantErr: true,
-			errMsg:  "invalid port number: must be between 1 and 65535",
+			errMsg:  "URL must include a port number",
 		},
 		{
 			name:    "invalid port (too high)",

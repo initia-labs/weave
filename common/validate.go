@@ -206,7 +206,7 @@ func ValidateURLWithPort(str string) error {
 
 	// Check if port is present
 	_, port, err := net.SplitHostPort(u.Host)
-	if err != nil && !strings.Contains(err.Error(), "missing port in address") {
+	if err != nil {
 		return fmt.Errorf("URL must include a port number")
 	}
 
