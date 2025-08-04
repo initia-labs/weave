@@ -17,10 +17,6 @@ func NewDocker(commandName CommandName) *Docker {
 }
 
 func (d *Docker) Create(version, appHome string) error {
-	// Create Docker network if it doesn't exist
-	networkCmd := exec.Command("docker", "network", "create", "weave-network")
-	_ = networkCmd.Run() // Ignore error if network already exists
-
 	// Pull the appropriate image based on command type and version
 	imageName, err := d.getImageName("main")
 	if err != nil {
@@ -52,7 +48,7 @@ func (d *Docker) Start(optionalArgs ...string) error {
 		"-d",
 		"--name", serviceName,
 		"--restart", "unless-stopped",
-		"--network", "weave-network",
+		"--network", "host",
 	}
 	args = append(args, optionalArgs...)
 

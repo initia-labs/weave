@@ -30,9 +30,9 @@ func RelayerCommand() *cobra.Command {
 	cmd.AddCommand(
 		relayerInitCommand(),
 		relayerStartCommand(),
-		// relayerStopCommand(),
-		// relayerRestartCommand(),
-		// relayerLogCommand(),
+		relayerStopCommand(),
+		relayerRestartCommand(),
+		relayerLogCommand(),
 	)
 
 	return cmd
@@ -149,76 +149,76 @@ func relayerStartCommand() *cobra.Command {
 	return startCmd
 }
 
-// func relayerStopCommand() *cobra.Command {
-// 	shortDescription := "Stop the relayer service"
-// 	stopCmd := &cobra.Command{
-// 		Use:     "stop",
-// 		Short:   shortDescription,
-// 		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, RelayerHelperText),
-// 		PreRunE: isInitiated(service.Relayer),
-// 		RunE: func(cmd *cobra.Command, args []string) error {
-// 			s, err := service.NewService(service.Relayer)
-// 			if err != nil {
-// 				return err
-// 			}
-// 			err = s.Stop()
-// 			if err != nil {
-// 				return err
-// 			}
-// 			fmt.Println("Stopped relayer service.")
-// 			return nil
-// 		},
-// 	}
+func relayerStopCommand() *cobra.Command {
+	shortDescription := "Stop the relayer service"
+	stopCmd := &cobra.Command{
+		Use:   "stop",
+		Short: shortDescription,
+		Long:  fmt.Sprintf("%s.\n\n%s", shortDescription, RelayerHelperText),
+		// PreRunE: isInitiated(service.Relayer),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			s, err := service.NewService(service.Relayer)
+			if err != nil {
+				return err
+			}
+			err = s.Stop()
+			if err != nil {
+				return err
+			}
+			fmt.Println("Stopped relayer service.")
+			return nil
+		},
+	}
 
-// 	return stopCmd
-// }
+	return stopCmd
+}
 
-// func relayerRestartCommand() *cobra.Command {
-// 	shortDescription := "Restart the relayer service"
-// 	restartCmd := &cobra.Command{
-// 		Use:     "restart",
-// 		Short:   shortDescription,
-// 		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, RelayerHelperText),
-// 		PreRunE: isInitiated(service.Relayer),
-// 		RunE: func(cmd *cobra.Command, args []string) error {
-// 			s, err := service.NewService(service.Relayer)
-// 			if err != nil {
-// 				return err
-// 			}
-// 			err = s.Restart()
-// 			if err != nil {
-// 				return err
-// 			}
+func relayerRestartCommand() *cobra.Command {
+	shortDescription := "Restart the relayer service"
+	restartCmd := &cobra.Command{
+		Use:   "restart",
+		Short: shortDescription,
+		Long:  fmt.Sprintf("%s.\n\n%s", shortDescription, RelayerHelperText),
+		// PreRunE: isInitiated(service.Relayer),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			s, err := service.NewService(service.Relayer)
+			if err != nil {
+				return err
+			}
+			err = s.Restart()
+			if err != nil {
+				return err
+			}
 
-// 			fmt.Println("Started the relayer service. You can see the logs with `weave relayer log`")
-// 			return nil
-// 		},
-// 	}
+			fmt.Println("Started the relayer service. You can see the logs with `weave relayer log`")
+			return nil
+		},
+	}
 
-// 	return restartCmd
-// }
+	return restartCmd
+}
 
-// func relayerLogCommand() *cobra.Command {
-// 	shortDescription := "Stream the logs of the relayer service"
-// 	logCmd := &cobra.Command{
-// 		Use:   "log",
-// 		Short: shortDescription,
-// 		Long:  fmt.Sprintf("%s.\n\n%s", shortDescription, RelayerHelperText),
-// 		RunE: func(cmd *cobra.Command, args []string) error {
-// 			n, err := cmd.Flags().GetInt(FlagN)
-// 			if err != nil {
-// 				return err
-// 			}
+func relayerLogCommand() *cobra.Command {
+	shortDescription := "Stream the logs of the relayer service"
+	logCmd := &cobra.Command{
+		Use:   "log",
+		Short: shortDescription,
+		Long:  fmt.Sprintf("%s.\n\n%s", shortDescription, RelayerHelperText),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			n, err := cmd.Flags().GetInt(FlagN)
+			if err != nil {
+				return err
+			}
 
-// 			s, err := service.NewService(service.Relayer)
-// 			if err != nil {
-// 				return err
-// 			}
-// 			return s.Log(n)
-// 		},
-// 	}
+			s, err := service.NewService(service.Relayer)
+			if err != nil {
+				return err
+			}
+			return s.Log(n)
+		},
+	}
 
-// 	logCmd.Flags().IntP(FlagN, FlagN, 100, "previous log lines to show")
+	logCmd.Flags().IntP(FlagN, FlagN, 100, "previous log lines to show")
 
-// 	return logCmd
-// }
+	return logCmd
+}
