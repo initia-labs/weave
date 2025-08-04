@@ -93,10 +93,10 @@ func relayerStartCommand() *cobra.Command {
 		Long:  fmt.Sprintf("%s.\n\n%s", shortDescription, RelayerHelperText),
 		// PreRunE: isInitiated(service.Relayer),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// detach, err := cmd.Flags().GetBool(FlagDetach)
-			// if err != nil {
-			// 	return err
-			// }
+			detach, err := cmd.Flags().GetBool(FlagDetach)
+			if err != nil {
+				return err
+			}
 
 			// updateClient, err := cmd.Flags().GetString(FlagUpdateClient)
 			// if err != nil {
@@ -126,25 +126,22 @@ func relayerStartCommand() *cobra.Command {
 			}
 			relayerPath := filepath.Join(userHome, common.RelayerDirectory)
 
-			return s.Start(
+			if err = s.Start(
 				"-v", fmt.Sprintf("%s:/config", relayerPath),
 				"-v", fmt.Sprintf("%s:/syncInfo", relayerPath),
-			)
+			); err != nil {
+				return err
+			}
 
-			// if detach {
-			// 	err = s.Start()
-			// 	if err != nil {
-			// 		return err
-			// 	}
-			// 	fmt.Println("Started relayer service. You can see the logs with `weave relayer log`")
-			// 	return nil
-			// }
+			if detach {
+				return nil
+			}
 
-			// return service.NonDetachStart(s)
+			return s.Log(100)
 		},
 	}
 	// startCmd.Flags().String(FlagUpdateClient, "true", "Update light clients with new header information before starting the relayer (can be 'true' or 'false')")
-	// startCmd.Flags().BoolP(FlagDetach, "d", false, "Run the relayer service in detached mode")
+	startCmd.Flags().BoolP(FlagDetach, "d", false, "Run the relayer service in detached mode")
 
 	return startCmd
 }
