@@ -22,6 +22,7 @@ import (
 	"github.com/initia-labs/weave/config"
 	weavecontext "github.com/initia-labs/weave/context"
 	"github.com/initia-labs/weave/cosmosutils"
+	"github.com/initia-labs/weave/crypto"
 	"github.com/initia-labs/weave/io"
 	"github.com/initia-labs/weave/registry"
 	"github.com/initia-labs/weave/service"
@@ -1989,7 +1990,7 @@ func NewFeeWhitelistAccountsInput(ctx context.Context) *FeeWhitelistAccountsInpu
 	}
 	model.WithTooltip(&tooltip)
 	model.WithPlaceholder("Enter whitelist address (or leave this empty to skip), You can add multiple addresses by separating them with a comma (,)")
-	model.WithValidatorFn(common.IsValidAddresses)
+	model.WithValidatorFn(common.ValidateAddressesOrHexAddresses)
 	return model
 }
 
@@ -2044,7 +2045,7 @@ func NewGenesisAccountsAddressInput(ctx context.Context) *GenesisAccountsAddress
 		question:  "Specify a genesis account address",
 	}
 	model.WithPlaceholder("Enter a valid address")
-	model.WithValidatorFn(common.IsValidAddress)
+	model.WithValidatorFn(common.ValidateAnyHexAddressOrAddress)
 	return model
 }
 
@@ -2115,9 +2116,16 @@ func (m *GenesisAccountsBalanceInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	input, cmd, done := m.TextInput.Update(msg)
 	if done {
 		state := weavecontext.PushPageAndGetState[LaunchState](m)
-
+		address := m.address
+		if strings.HasPrefix(m.address, "0x") {
+			var err error
+			address, err = crypto.PubKeyToBech32Address(m.address)
+			if err != nil {
+				return m, m.HandlePanic(err)
+			}
+		}
 		state.genesisAccounts = append(state.genesisAccounts, types.GenesisAccount{
-			Address: m.address,
+			Address: address,
 			Coins:   fmt.Sprintf("%s%s", input.Text, state.gasDenom),
 		})
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.DotsSeparator, m.GetQuestion(), []string{m.address}, input.Text))
@@ -3076,8 +3084,17 @@ func (m *LaunchingNewMinitiaLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			time.Sleep(1 * time.Second)
 
 			cache := make(map[string]bool)
+
 			for _, acc := range strings.Split(state.feeWhitelistAccounts, ",") {
-				cache[acc] = true
+				if strings.HasPrefix(acc, "0x") {
+					acc, err = crypto.PubKeyToBech32Address(acc)
+					if err != nil {
+						return m, m.HandlePanic(err)
+					}
+					cache[acc] = true
+				} else {
+					cache[acc] = true
+				}
 			}
 
 			userHome, err := os.UserHomeDir()

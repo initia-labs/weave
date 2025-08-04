@@ -5,7 +5,6 @@ go 1.23
 toolchain go1.23.4
 
 require (
-	github.com/BurntSushi/toml v1.4.0
 	github.com/PuerkitoBio/goquery v1.10.0
 	github.com/amplitude/analytics-go v1.0.2
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4

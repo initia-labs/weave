@@ -206,7 +206,7 @@ func ValidateURLWithPort(str string) error {
 
 	// Check if port is present
 	_, port, err := net.SplitHostPort(u.Host)
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "missing port in address") {
 		return fmt.Errorf("URL must include a port number")
 	}
 
@@ -226,7 +226,7 @@ func ValidateWSURL(str string) error {
 }
 
 // IsValidDNS checks if a given string is a valid DNS name
-func IsValidDNS(dns string) bool {
+func ValidateDNS(dns string) bool {
 	// Regular expression for validating DNS names
 	dnsRegex := `^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$`
 	re := regexp.MustCompile(dnsRegex)
@@ -235,10 +235,10 @@ func IsValidDNS(dns string) bool {
 	return re.MatchString(dns)
 }
 
-// IsValidPeerOrSeed checks if each address in a comma-separated list is valid.
+// ValidatePeerOrSeed checks if each address in a comma-separated list is valid.
 // It allows empty strings and returns an error with detailed reasons if any address is invalid.
 // It accepts both IP addresses and DNS names.
-func IsValidPeerOrSeed(addresses string) error {
+func ValidatePeerOrSeed(addresses string) error {
 	// Compile the regular expression for node ID
 	nodeIDRegex, err := regexp.Compile(`^[a-f0-9]{40}$`)
 	if err != nil {
@@ -282,7 +282,7 @@ func IsValidPeerOrSeed(addresses string) error {
 		}
 
 		// Validate host (can be IP or DNS)
-		if net.ParseIP(host) == nil && !IsValidDNS(host) {
+		if net.ParseIP(host) == nil && !ValidateDNS(host) {
 			invalidAddresses = append(invalidAddresses, fmt.Sprintf("'%s': invalid IP or DNS name", address))
 			continue
 		}
@@ -320,7 +320,7 @@ func ValidateEmptyString(s string) error {
 	return nil
 }
 
-func IsValidInteger(s string) error {
+func ValidateInteger(s string) error {
 	num, err := strconv.Atoi(s)
 	if err != nil {
 		return fmt.Errorf("amount must be an integer")
@@ -331,7 +331,7 @@ func IsValidInteger(s string) error {
 	return nil
 }
 
-func IsValidAddress(s string) error {
+func ValidateAddress(s string) error {
 	initBech32Regex := `^init1(?:[a-z0-9]{38}|[a-z0-9]{58})$`
 	re := regexp.MustCompile(initBech32Regex)
 
@@ -341,13 +341,13 @@ func IsValidAddress(s string) error {
 	return nil
 }
 
-func IsValidAddresses(s string) error {
+func ValidateAddresses(s string) error {
 	if s == "" {
 		return nil
 	}
 	cache := make(map[string]bool)
 	for _, address := range strings.Split(s, ",") {
-		if err := IsValidAddress(address); err != nil {
+		if err := ValidateAddress(address); err != nil {
 			return err
 		}
 		if _, ok := cache[address]; ok {
@@ -355,6 +355,33 @@ func IsValidAddresses(s string) error {
 		}
 		cache[address] = true
 	}
+	return nil
+}
+
+func ValidateAnyHexAddressOrAddress(s string) error {
+	if strings.HasPrefix(s, "0x") {
+		_, err := crypto.PubKeyToBech32Address(s)
+		if err != nil {
+			return fmt.Errorf("invalid address: %s", s)
+		}
+	} else if strings.HasPrefix(s, crypto.InitHRP) {
+		if err := ValidateAddress(s); err != nil {
+			return fmt.Errorf("invalid address: %s", s)
+		}
+	} else {
+		return fmt.Errorf("invalid address: %s", s)
+	}
+
+	return nil
+}
+
+func ValidateAddressesOrHexAddresses(s string) error {
+	for _, address := range strings.Split(s, ",") {
+		if err := ValidateAnyHexAddressOrAddress(address); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
