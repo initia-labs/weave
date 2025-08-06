@@ -94,8 +94,8 @@ func createRapidRelayerConfig(state State) error {
       "bech32Prefix": "init",
       "chainId": "{{.ID}}",
       "gasPrice": "{{.GasPrice.Amount}}{{.GasPrice.Denom}}",
-      "restUri": ["{{.RESTAddr}}"],
-      "rpcUri": ["{{.RPCAddr}}"],
+      "restUri": "{{.RESTAddr}}",
+      "rpcUri": "{{.RPCAddr}}",
       "wallets": [
         {
           "key": {
@@ -116,8 +116,8 @@ func createRapidRelayerConfig(state State) error {
       "bech32Prefix": "init",
       "chainId": "{{.ID2}}",
       "gasPrice": "{{.GasPrice2.Amount}}{{.GasPrice2.Denom}}",
-      "restUri": ["{{.RESTAddr2}}"],
-      "rpcUri": ["{{.RPCAddr2}}"],
+      "restUri": "{{.RESTAddr2}}",
+      "rpcUri": "{{.RPCAddr2}}",
       "wallets": [
         {
           "key": {
