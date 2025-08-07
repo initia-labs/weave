@@ -226,6 +226,10 @@ func (cr *ChainRegistry) GetActiveRpcs() ([]string, error) {
 	semaphore := make(chan struct{}, MAX_FALLBACK_RPCS)
 
 	for _, rpc := range cr.Apis.Rpc {
+		if rpc.AuthorizedUser != "" {
+			continue
+		}
+
 		wg.Add(1)
 		go func(endpoint Endpoint) {
 			defer wg.Done()
@@ -303,6 +307,10 @@ func (cr *ChainRegistry) GetActiveLcds() ([]string, error) {
 	semaphore := make(chan struct{}, MAX_FALLBACK_LCDS)
 
 	for _, lcd := range cr.Apis.Rest {
+		if lcd.AuthorizedUser != "" {
+			continue
+		}
+
 		wg.Add(1)
 		go func(endpoint Endpoint) {
 			defer wg.Done()
