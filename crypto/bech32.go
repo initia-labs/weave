@@ -155,9 +155,10 @@ func getPaddedBytes(pubKeyBytes []byte) ([]byte, error) {
 		// Pad to 32 bytes on the left
 		paddedBytes = make([]byte, 32)
 		copy(paddedBytes[32-len(pubKeyBytes):], pubKeyBytes)
-	} else if len(pubKeyBytes) > 32 {
-		// Length is exactly 20, return error
+	} else {
+		// Length is greater than 32, return error
 		return nil, fmt.Errorf("invalid input length: %d bytes (must be < 20 or >= 21)", len(pubKeyBytes))
 	}
+
 	return paddedBytes, nil
 }
