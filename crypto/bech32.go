@@ -112,25 +112,20 @@ func PubKeyToBech32Address(pubKeyHex string) (string, error) {
 	// Remove "0x" prefix if present
 	pubKeyHex = strings.TrimPrefix(pubKeyHex, "0x")
 
+	// Pad odd-length hex strings with leading zero
+	if len(pubKeyHex)%2 != 0 {
+		pubKeyHex = "0" + pubKeyHex
+	}
+
 	// Decode the hex string to bytes
 	pubKeyBytes, err := hex.DecodeString(pubKeyHex)
 	if err != nil {
 		return "", fmt.Errorf("failed to decode hex string: %w", err)
 	}
 
-	// Check if the input is already a 20-byte hash (RIPEMD160)
-	var addressHash []byte
-	if len(pubKeyBytes) == 20 {
-		// Input is already a RIPEMD160 hash, use it directly
-		addressHash = pubKeyBytes
-	} else {
-		// Hash the public key with SHA256
-		shaHash := sha256.Sum256(pubKeyBytes)
-
-		// Hash with RIPEMD160
-		ripemd := ripemd160.New()
-		ripemd.Write(shaHash[:])
-		addressHash = ripemd.Sum(nil)
+	addressHash, err := getPaddedBytes(pubKeyBytes)
+	if err != nil {
+		return "", fmt.Errorf("failed to get padded bytes: %w", err)
 	}
 
 	// Convert to Bech32 format
@@ -146,4 +141,23 @@ func PubKeyToBech32Address(pubKeyHex string) (string, error) {
 	}
 
 	return bech32Addr, nil
+}
+
+// getPaddedBytes applies padding based on the length of pubKeyBytes
+func getPaddedBytes(pubKeyBytes []byte) ([]byte, error) {
+	var paddedBytes []byte
+
+	if len(pubKeyBytes) <= 20 {
+		// Pad to 20 bytes on the left
+		paddedBytes = make([]byte, 20)
+		copy(paddedBytes[20-len(pubKeyBytes):], pubKeyBytes)
+	} else if len(pubKeyBytes) >= 21 {
+		// Pad to 32 bytes on the left
+		paddedBytes = make([]byte, 32)
+		copy(paddedBytes[32-len(pubKeyBytes):], pubKeyBytes)
+	} else if len(pubKeyBytes) > 32 {
+		// Length is exactly 20, return error
+		return nil, fmt.Errorf("invalid input length: %d bytes (must be < 20 or >= 21)", len(pubKeyBytes))
+	}
+	return paddedBytes, nil
 }
