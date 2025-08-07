@@ -222,3 +222,69 @@ func TestValidateURLWithPort(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateHexAddress(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr bool
+	}{
+		{
+			name:    "valid hex address",
+			input:   "0x552bfcf61b41b22eab0a520b896b072a1cd22b8c",
+			wantErr: false,
+		},
+		{
+			name:    "valid capital hex address",
+			input:   "0x552BFCF61B41B22EAB0A520B896B072A1CD22B8C",
+			wantErr: false,
+		},
+		{
+			name:    "invalid hex address",
+			input:   "invalid",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateAnyHexAddressOrAddress(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("IsValidHexAddress() %s error = %v, wantErr %v", tt.name, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateAddressesOrHexAddresses(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr bool
+	}{
+		{
+			name:    "valid hex addresses (1)",
+			input:   "0x552bfcf61b41b22eab0a520b896b072a1cd22b8c,0x552bfcf61b41b22eab0a520b896b072a1cd22b8c",
+			wantErr: false,
+		},
+		{
+			name:    "multiple valid addresses",
+			input:   "0x552bfcf61b41b22eab0a520b896b072a1cd22b8c,init1254leasmgxeza2c22g9cj6c89gwdy2uvwv05qu",
+			wantErr: false,
+		},
+		{
+			name:    "multiple invalid hex addresses",
+			input:   "0x552bfcf61b41b22eab0a520b896b072a1cd22b8c,0x552bfcf61b41b22eab0a520b896b072a1cd22b8c,invalid",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateAddressesOrHexAddresses(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateAddressesOrHexAddresses() error = %v, wantErr %v, name = %s", err, tt.wantErr, tt.name)
+			}
+		})
+	}
+}

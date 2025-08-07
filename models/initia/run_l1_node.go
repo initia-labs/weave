@@ -580,7 +580,7 @@ func NewSeedsInput(ctx context.Context) *SeedsInput {
 		question:   "Specify seeds",
 		highlights: []string{"seeds"},
 	}
-	model.WithValidatorFn(common.IsValidPeerOrSeed)
+	model.WithValidatorFn(common.ValidatePeerOrSeed)
 	model.WithTooltip(&toolTip)
 
 	state := weavecontext.GetCurrentState[RunL1NodeState](ctx)
@@ -648,7 +648,7 @@ func NewPersistentPeersInput(ctx context.Context) (*PersistentPeersInput, error)
 		question:   "Specify persistent peers",
 		highlights: []string{"persistent peers"},
 	}
-	model.WithValidatorFn(common.IsValidPeerOrSeed)
+	model.WithValidatorFn(common.ValidatePeerOrSeed)
 	model.WithTooltip(&toolTip)
 
 	state := weavecontext.GetCurrentState[RunL1NodeState](ctx)
@@ -1686,7 +1686,7 @@ func NewAdditionalStateSyncPeersInput(ctx context.Context) (*AdditionalStateSync
 			"additional peers",
 		},
 	}
-	model.WithValidatorFn(common.IsValidPeerOrSeed)
+	model.WithValidatorFn(common.ValidatePeerOrSeed)
 
 	state := weavecontext.GetCurrentState[RunL1NodeState](ctx)
 	defaultStateSyncPeers, err := cosmosutils.FetchPolkachuStateSyncPeers(state.chainType)

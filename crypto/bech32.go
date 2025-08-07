@@ -2,6 +2,7 @@ package crypto
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"strconv"
 	"strings"
@@ -16,6 +17,7 @@ import (
 const (
 	CosmosHDPath   string = "m/44'/118'/0'/0/0"
 	HardenedOffset int    = 0x80000000
+	InitHRP        string = "init"
 )
 
 // MnemonicToBech32Address converts a mnemonic to a Cosmos SDK Bech32 address.
@@ -103,4 +105,60 @@ func GenerateMnemonic() (string, error) {
 	}
 
 	return mnemonic, nil
+}
+
+// PubKeyToBech32Address converts a hex string public key to a Cosmos SDK Bech32 address.
+func PubKeyToBech32Address(pubKeyHex string) (string, error) {
+	// Remove "0x" prefix if present
+	pubKeyHex = strings.TrimPrefix(pubKeyHex, "0x")
+
+	// Pad odd-length hex strings with leading zero
+	if len(pubKeyHex)%2 != 0 {
+		pubKeyHex = "0" + pubKeyHex
+	}
+
+	// Decode the hex string to bytes
+	pubKeyBytes, err := hex.DecodeString(pubKeyHex)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode hex string: %w", err)
+	}
+
+	addressHash, err := getPaddedBytes(pubKeyBytes)
+	if err != nil {
+		return "", fmt.Errorf("failed to get padded bytes: %w", err)
+	}
+
+	// Convert to Bech32 format
+	converted, err := bech32.ConvertBits(addressHash, 8, 5, true)
+	if err != nil {
+		return "", fmt.Errorf("failed to convert to Bech32: %w", err)
+	}
+
+	// Encode as Bech32 address
+	bech32Addr, err := bech32.Encode(InitHRP, converted)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode to Bech32: %w", err)
+	}
+
+	return bech32Addr, nil
+}
+
+// getPaddedBytes applies padding based on the length of pubKeyBytes
+func getPaddedBytes(pubKeyBytes []byte) ([]byte, error) {
+	var paddedBytes []byte
+
+	if len(pubKeyBytes) <= 20 {
+		// Pad to 20 bytes on the left
+		paddedBytes = make([]byte, 20)
+		copy(paddedBytes[20-len(pubKeyBytes):], pubKeyBytes)
+	} else if len(pubKeyBytes) >= 21 {
+		// Pad to 32 bytes on the left
+		paddedBytes = make([]byte, 32)
+		copy(paddedBytes[32-len(pubKeyBytes):], pubKeyBytes)
+	} else {
+		// Length is greater than 32, return error
+		return nil, fmt.Errorf("invalid input length: %d bytes", len(pubKeyBytes))
+	}
+
+	return paddedBytes, nil
 }
