@@ -98,22 +98,6 @@ func relayerStartCommand() *cobra.Command {
 				return err
 			}
 
-			// updateClient, err := cmd.Flags().GetString(FlagUpdateClient)
-			// if err != nil {
-			// 	return err
-			// }
-
-			// switch updateClient {
-			// case "true":
-			// 	err = relayer.UpdateClientFromConfig()
-			// 	if err != nil {
-			// 		return err
-			// 	}
-			// case "false":
-			// default:
-			// 	return fmt.Errorf("invalid update-client flag value: %q, expected 'true' or 'false'", updateClient)
-			// }
-
 			s, err := service.NewService(service.Relayer)
 			if err != nil {
 				return err
@@ -130,7 +114,6 @@ func relayerStartCommand() *cobra.Command {
 			return s.Log(100)
 		},
 	}
-	// startCmd.Flags().String(FlagUpdateClient, "true", "Update light clients with new header information before starting the relayer (can be 'true' or 'false')")
 	startCmd.Flags().BoolP(FlagDetach, "d", false, "Run the relayer service in detached mode")
 
 	return startCmd
