@@ -1027,7 +1027,7 @@ func NewL1StartHeightInput(ctx context.Context) *L1StartHeightInput {
 		highlights: []string{"L1 start height"},
 	}
 	model.WithPlaceholder("Enter the start height")
-	model.WithValidatorFn(common.IsValidInteger)
+	model.WithValidatorFn(common.ValidateInteger)
 	model.WithTooltip(&toolTip)
 	return model
 }
