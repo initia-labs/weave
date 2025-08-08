@@ -27,21 +27,24 @@ func isInitiated(cmd service.CommandName) func(_ *cobra.Command, _ []string) err
 				return fmt.Errorf("could not get service file for %s: %w", prettyName, err)
 			}
 
-			if !weaveio.FileOrFolderExists(serviceFile) {
-				return fmt.Errorf("service file %s not found", serviceFile)
-			}
+			// TODO: validate docker?
+			if serviceFile != "" {
+				if !weaveio.FileOrFolderExists(serviceFile) {
+					return fmt.Errorf("service file %s not found", serviceFile)
+				}
 
-			serviceBinary, serviceHome, err := service.GetServiceBinaryAndHome()
-			if err != nil {
-				return fmt.Errorf("could not determine %v binary and home directory: %w", prettyName, err)
-			}
+				serviceBinary, serviceHome, err := service.GetServiceBinaryAndHome()
+				if err != nil {
+					return fmt.Errorf("could not determine %v binary and home directory: %w", prettyName, err)
+				}
 
-			if !weaveio.FileOrFolderExists(serviceHome) {
-				return fmt.Errorf("home directory %s not found", serviceHome)
-			}
+				if !weaveio.FileOrFolderExists(serviceHome) {
+					return fmt.Errorf("home directory %s not found", serviceHome)
+				}
 
-			if !weaveio.FileOrFolderExists(serviceBinary) {
-				return fmt.Errorf("%s binary not found at %s", prettyName, serviceBinary)
+				if !weaveio.FileOrFolderExists(serviceBinary) {
+					return fmt.Errorf("%s binary not found at %s", prettyName, serviceBinary)
+				}
 			}
 
 			return nil

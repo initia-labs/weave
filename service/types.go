@@ -21,8 +21,8 @@ func (cmd CommandName) GetPrettyName() (string, error) {
 		return "rollup", nil
 	case OPinitExecutor, OPinitChallenger:
 		return "opinit", nil
-	// case Relayer:
-	// 	return "relayer", nil
+	case Relayer:
+		return "relayer", nil
 	default:
 		return "", fmt.Errorf("unsupported command %s", cmd)
 	}
@@ -36,8 +36,8 @@ func (cmd CommandName) GetInitCommand() (string, error) {
 		return "rollup launch", nil
 	case OPinitExecutor, OPinitChallenger:
 		return "opinit init", nil
-	// case Relayer:
-	// 	return "relayer init", nil
+	case Relayer:
+		return "relayer init", nil
 	default:
 		return "", fmt.Errorf("unsupported command %s", cmd)
 	}

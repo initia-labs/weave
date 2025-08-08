@@ -22,6 +22,10 @@ type Service interface {
 }
 
 func NewService(commandName CommandName) (Service, error) {
+	if commandName == Relayer {
+		return NewDocker(commandName), nil
+	}
+
 	switch runtime.GOOS {
 	case "linux":
 		return NewSystemd(commandName), nil
