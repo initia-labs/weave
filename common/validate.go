@@ -376,6 +376,9 @@ func ValidateAnyHexAddressOrAddress(s string) error {
 }
 
 func ValidateAddressesOrHexAddresses(s string) error {
+	if s == "" {
+		return nil
+	}
 	for _, address := range strings.Split(s, ",") {
 		if err := ValidateAnyHexAddressOrAddress(address); err != nil {
 			return err
