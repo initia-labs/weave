@@ -23,6 +23,7 @@ var (
 type BinaryRelease struct {
 	TagName     string `json:"tag_name"`
 	PublishedAt string `json:"published_at"`
+	Prerelease  bool   `json:"prerelease"`
 	Assets      []struct {
 		BrowserDownloadURL string `json:"browser_download_url"`
 	} `json:"assets"`
@@ -56,6 +57,16 @@ func getOSArch() (os, arch string, err error) {
 	return os, arch, err
 }
 
+func filterPreReleases(releases []BinaryRelease) []BinaryRelease {
+	filteredReleases := []BinaryRelease{}
+	for _, release := range releases {
+		if !release.Prerelease {
+			filteredReleases = append(filteredReleases, release)
+		}
+	}
+	return filteredReleases
+}
+
 func fetchReleases(url string) ([]BinaryRelease, error) {
 	httpClient := client.NewHTTPClient()
 	var releases []BinaryRelease
@@ -64,7 +75,7 @@ func fetchReleases(url string) ([]BinaryRelease, error) {
 		return nil, fmt.Errorf("failed to fetch releases: %v", err)
 	}
 
-	return releases, nil
+	return filterPreReleases(releases), nil
 }
 
 func mapReleasesToVersions(releases []BinaryRelease) (BinaryVersionWithDownloadURL, error) {

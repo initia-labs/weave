@@ -2,6 +2,7 @@ package cosmosutils
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -253,6 +254,43 @@ func TestNormalizeVersion(t *testing.T) {
 			result := normalizeVersion(tt.version)
 			if result != tt.expected {
 				t.Errorf("normalizeVersion(%s) = %s, want %s", tt.version, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestFilterPreReleases(t *testing.T) {
+	tests := []struct {
+		name     string
+		releases []BinaryRelease
+		expected []BinaryRelease
+	}{
+		{
+			name: "filter pre releases",
+			releases: []BinaryRelease{
+				{
+					TagName:    "v1.0.0",
+					Prerelease: true,
+				},
+				{
+					TagName:    "v1.0.1",
+					Prerelease: false,
+				},
+			},
+			expected: []BinaryRelease{
+				{
+					TagName:    "v1.0.1",
+					Prerelease: false,
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := filterPreReleases(tt.releases)
+			if !reflect.DeepEqual(result, tt.expected) {
+				t.Errorf("filterPreReleases(%v) = %v, want %v", tt.releases, result, tt.expected)
 			}
 		})
 	}
