@@ -12,7 +12,7 @@ jobs:
   notify-slack:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Get Slack member IDs
         id: get-slack-id
