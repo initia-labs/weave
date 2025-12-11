@@ -277,6 +277,11 @@ func TestValidateAddressesOrHexAddresses(t *testing.T) {
 			input:   "0x552bfcf61b41b22eab0a520b896b072a1cd22b8c,0x552bfcf61b41b22eab0a520b896b072a1cd22b8c,invalid",
 			wantErr: true,
 		},
+		{
+			name:    "empty string",
+			input:   "",
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
