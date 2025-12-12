@@ -2527,7 +2527,7 @@ func WaitSettingUpRelayer(ctx context.Context) tea.Cmd {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get user home directory: %v", err)}
 		}
 
-		srv, err := service.NewService(service.Relayer)
+		srv, err := service.NewService(service.Relayer, "")
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to initialize service: %v", err)}
 		}

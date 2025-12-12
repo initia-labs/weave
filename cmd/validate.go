@@ -17,7 +17,7 @@ func isInitiated(cmd service.CommandName) func(_ *cobra.Command, _ []string) err
 		}
 
 		if err := func() error {
-			service, err := service.NewService(cmd)
+			service, err := service.NewService(cmd, "")
 			if err != nil {
 				return fmt.Errorf("could not create %v service: %w", prettyName, err)
 			}

@@ -98,7 +98,7 @@ func relayerStartCommand() *cobra.Command {
 				return err
 			}
 
-			s, err := service.NewService(service.Relayer)
+			s, err := service.NewService(service.Relayer, "")
 			if err != nil {
 				return err
 			}
@@ -127,7 +127,7 @@ func relayerStopCommand() *cobra.Command {
 		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, RelayerHelperText),
 		PreRunE: isInitiated(service.Relayer),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := service.NewService(service.Relayer)
+			s, err := service.NewService(service.Relayer, "")
 			if err != nil {
 				return err
 			}
@@ -151,7 +151,7 @@ func relayerRestartCommand() *cobra.Command {
 		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, RelayerHelperText),
 		PreRunE: isInitiated(service.Relayer),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := service.NewService(service.Relayer)
+			s, err := service.NewService(service.Relayer, "")
 			if err != nil {
 				return err
 			}
@@ -180,7 +180,7 @@ func relayerLogCommand() *cobra.Command {
 				return err
 			}
 
-			s, err := service.NewService(service.Relayer)
+			s, err := service.NewService(service.Relayer, "")
 			if err != nil {
 				return err
 			}

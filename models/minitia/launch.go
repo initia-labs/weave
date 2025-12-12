@@ -2975,7 +2975,7 @@ func launchingMinitia(ctx context.Context, streamingLogs *[]string) tea.Cmd {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to set minimum-gas-prices: %v", err)}
 		}
 
-		srv, err := service.NewService(service.Minitia)
+		srv, err := service.NewService(service.Minitia, state.vmType)
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to initialize service: %v", err)}
 		}
@@ -3071,7 +3071,7 @@ func (m *LaunchingNewMinitiaLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		state.weave.PushPreviousResponse(scanText)
 
-		srv, err := service.NewService(service.Minitia)
+		srv, err := service.NewService(service.Minitia, state.vmType)
 		if err != nil {
 			state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.NoSeparator, "Invalid OS: only Linux and Darwin are supported", []string{}, fmt.Sprintf("%v", err)))
 		}
