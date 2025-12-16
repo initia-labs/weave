@@ -2533,7 +2533,7 @@ func WaitSettingUpRelayer(ctx context.Context) tea.Cmd {
 		}
 
 		// TODO: fix version
-		if err = srv.Create("", filepath.Join(userHome, common.RelayerDirectory)); err != nil {
+		if err = srv.Create("main", filepath.Join(userHome, common.RelayerDirectory)); err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to create service: %v", err)}
 		}
 
