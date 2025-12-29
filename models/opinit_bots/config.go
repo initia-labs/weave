@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/initia-labs/weave/crypto"
 	weaveio "github.com/initia-labs/weave/io"
 )
 
@@ -70,25 +71,25 @@ func GenerateMnemonicKeyfile(rawConfig []byte, botName string) (weaveio.KeyFile,
 			return nil, fmt.Errorf("failed to unmarshal executor config: %v", err)
 		}
 
-		bridgeExecutor, err := weaveio.GenerateKey("init")
+		bridgeExecutor, err := weaveio.GenerateKey("init", crypto.CosmosAddressType)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate bridge executor mnemonic: %w", err)
 		}
 		keyFile.AddKey(BridgeExecutorKeyName, bridgeExecutor)
 
-		outputSubmitter, err := weaveio.GenerateKey("init")
+		outputSubmitter, err := weaveio.GenerateKey("init", crypto.CosmosAddressType)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate output submitter mnemonic: %w", err)
 		}
 		keyFile.AddKey(OutputSubmitterKeyName, outputSubmitter)
 
-		batchSubmitter, err := weaveio.GenerateKey(config.DANode.Bech32Prefix)
+		batchSubmitter, err := weaveio.GenerateKey(config.DANode.Bech32Prefix, crypto.CosmosAddressType)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate batch submitter mnemonic: %w", err)
 		}
 		keyFile.AddKey(BatchSubmitterKeyName, batchSubmitter)
 
-		oracleBridgeExecutor, err := weaveio.GenerateKey("init")
+		oracleBridgeExecutor, err := weaveio.GenerateKey("init", crypto.CosmosAddressType)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate oracle bridge executor mnemonic: %w", err)
 		}
@@ -96,7 +97,7 @@ func GenerateMnemonicKeyfile(rawConfig []byte, botName string) (weaveio.KeyFile,
 
 		return keyFile, nil
 	case "challenger":
-		challenger, err := weaveio.GenerateKey("init")
+		challenger, err := weaveio.GenerateKey("init", crypto.CosmosAddressType)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate challenger mnemonic: %w", err)
 		}

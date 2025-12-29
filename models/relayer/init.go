@@ -22,6 +22,7 @@ import (
 	"github.com/initia-labs/weave/config"
 	weavecontext "github.com/initia-labs/weave/context"
 	"github.com/initia-labs/weave/cosmosutils"
+	"github.com/initia-labs/weave/crypto"
 	weaveio "github.com/initia-labs/weave/io"
 	"github.com/initia-labs/weave/registry"
 	"github.com/initia-labs/weave/styles"
@@ -453,7 +454,7 @@ func waitGenerateL1RelayerKeyLoading(ctx context.Context) tea.Cmd {
 
 		state := weavecontext.GetCurrentState[State](ctx)
 
-		relayerKey, err := weaveio.GenerateKey("init")
+		relayerKey, err := weaveio.GenerateKey("init", crypto.CosmosAddressType)
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("could not generate hermes key: %s", err)}
 		}
@@ -524,7 +525,7 @@ func waitGenerateL2RelayerKeyLoading(ctx context.Context) tea.Cmd {
 
 		state := weavecontext.GetCurrentState[State](ctx)
 
-		relayerKey, err := weaveio.GenerateKey("init")
+		relayerKey, err := weaveio.GenerateKey("init", crypto.CosmosAddressType)
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("could not generate hermes key: %s", err)}
 		}
@@ -685,7 +686,7 @@ func (m *ImportL1RelayerKeyInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if done {
 		state := weavecontext.PushPageAndGetState[State](m)
 
-		relayerKey, err := weaveio.RecoverKey("init", input.Text)
+		relayerKey, err := weaveio.RecoverKey("init", input.Text, crypto.CosmosAddressType)
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
@@ -752,7 +753,7 @@ func (m *ImportL2RelayerKeyInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if done {
 		state := weavecontext.PushPageAndGetState[State](m)
 
-		relayerKey, err := weaveio.RecoverKey("init", input.Text)
+		relayerKey, err := weaveio.RecoverKey("init", input.Text, crypto.CosmosAddressType)
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
