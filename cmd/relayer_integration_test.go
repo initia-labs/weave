@@ -49,14 +49,14 @@ func TestRelayerInit(t *testing.T) {
 		return strings.ToLower(networks[i].PrettyName) < strings.ToLower(networks[j].PrettyName)
 	})
 	for i, network := range networks {
-		if strings.EqualFold(network.PrettyName, "Minievm") {
+		if strings.EqualFold(network.PrettyName, "Evm") {
 			miniEvmIdx = i
 			break
 		}
 	}
 
 	if miniEvmIdx == -1 {
-		t.Fatalf("'Minievm' not found in networks")
+		t.Fatalf("'Evm' not found in networks")
 	}
 
 	pressDownSteps := make(testutil.Steps, miniEvmIdx)
