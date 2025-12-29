@@ -41,15 +41,15 @@ func MnemonicToBech32Address(hrp, mnemonic string, addressType AddressType) (str
 		return "", fmt.Errorf("failed to derive master key: %w", err)
 	}
 
-	var converted []byte
+	var addressBytes []byte
 	switch addressType {
 	case CosmosAddressType:
-		converted, err = deriveCosmosAddressBytes(masterKey)
+		addressBytes, err = deriveCosmosAddressBytes(masterKey)
 		if err != nil {
 			return "", fmt.Errorf("failed to derive cosmos address: %w", err)
 		}
 	case EVMAddressType:
-		converted, err = deriveEVMAddressBytes(masterKey)
+		addressBytes, err = deriveEVMAddressBytes(masterKey)
 		if err != nil {
 			return "", fmt.Errorf("failed to derive EVM address: %w", err)
 		}
@@ -57,6 +57,10 @@ func MnemonicToBech32Address(hrp, mnemonic string, addressType AddressType) (str
 		return "", fmt.Errorf("invalid address type: %d", addressType)
 	}
 
+	converted, err := bech32.ConvertBits(addressBytes, 8, 5, true)
+	if err != nil {
+		return "", fmt.Errorf("failed to convert to Bech32: %w", err)
+	}
 	bech32Addr, err := bech32.Encode(hrp, converted)
 	if err != nil {
 		return "", fmt.Errorf("failed to encode to Bech32: %w", err)
@@ -79,12 +83,7 @@ func deriveCosmosAddressBytes(masterKey *bip32.Key) ([]byte, error) {
 	ripemd.Write(shaHash[:])
 	addressHash := ripemd.Sum(nil)
 
-	converted, err := bech32.ConvertBits(addressHash, 8, 5, true)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert to Bech32: %w", err)
-	}
-
-	return converted, nil
+	return addressHash, nil
 }
 
 func deriveEVMAddressBytes(masterKey *bip32.Key) ([]byte, error) {
