@@ -6,13 +6,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/initia-labs/weave/crypto"
-	"github.com/initia-labs/weave/io"
-
 	"github.com/google/uuid"
 	"github.com/spf13/viper"
 
 	"github.com/initia-labs/weave/common"
+	"github.com/initia-labs/weave/crypto"
+	"github.com/initia-labs/weave/io"
 )
 
 var DevMode string
