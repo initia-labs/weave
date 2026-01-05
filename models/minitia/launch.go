@@ -2937,6 +2937,16 @@ func launchingMinitia(ctx context.Context, streamingLogs *[]string) tea.Cmd {
 		}
 
 		go func() {
+			err := createRollyticsConfig(state)
+			if err != nil {
+				*streamingLogs = append(*streamingLogs, err.Error())
+				if len(*streamingLogs) > 10 {
+					*streamingLogs = (*streamingLogs)[1:]
+				}
+			}
+		}()
+
+		go func() {
 			scanner := bufio.NewScanner(stdout)
 			for scanner.Scan() {
 				line := scanner.Text()

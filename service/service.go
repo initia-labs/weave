@@ -22,7 +22,7 @@ type Service interface {
 }
 
 func NewService(commandName CommandName, vmType string) (Service, error) {
-	if commandName == Relayer {
+	if commandName == Relayer || commandName == Rollytics {
 		return NewDocker(commandName, vmType), nil
 	}
 
