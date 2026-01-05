@@ -119,7 +119,7 @@ func setup(t *testing.T, services []service.CommandName) {
 	// move service files to backup
 	err := backupServiceFiles(services)
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatalf("failed to backup service files: %v", err)
 	}
 }
 
@@ -146,6 +146,6 @@ func teardown(t *testing.T, services []service.CommandName) {
 	// restore service files
 	err := restoreServiceFiles(services)
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatalf("failed to restore service files: %v", err)
 	}
 }
