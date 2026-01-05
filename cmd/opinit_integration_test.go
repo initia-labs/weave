@@ -121,16 +121,16 @@ func TestOPInitBotsInit(t *testing.T) {
 	)
 
 	steps := []testutil.Step{
-		testutil.PressEnter,             // press enter to init executor bot
-		testutil.WaitFetching,           // wait checking for the existing rollup app
-		testutil.PressEnter,             // press enter to select testnet as l1
-		testutil.WaitFetching,           // wait checking for the existing rollup app
-		testutil.PressTab,               // press tab to use the default listen address
-		testutil.PressEnter,             // press enter to confirm using the default listen address
-		testutil.PressEnter,             // press enter to confirm using the default l1 rpc endpoint
-		testutil.TypeText("minimove-2"), // type in the rollup chain id
-		testutil.PressEnter,             // press enter to confirm the rollup chain id
-		testutil.TypeText("https://rpc.minimove-2.initia.xyz"), // press tab to use the default rollup rpc endpoint
+		testutil.PressEnter,         // press enter to init executor bot
+		testutil.WaitFetching,       // wait checking for the existing rollup app
+		testutil.PressEnter,         // press enter to select testnet as l1
+		testutil.WaitFetching,       // wait checking for the existing rollup app
+		testutil.PressTab,           // press tab to use the default listen address
+		testutil.PressEnter,         // press enter to confirm using the default listen address
+		testutil.PressEnter,         // press enter to confirm using the default l1 rpc endpoint
+		testutil.TypeText("move-1"), // type in the rollup chain id
+		testutil.PressEnter,         // press enter to confirm the rollup chain id
+		testutil.TypeText("https://rpc-move-1.anvil.asia-southeast.initia.xyz"), // press tab to use the default rollup rpc endpoint
 		testutil.PressEnter,    // press enter to confirm using the default rollup rpc endpoint
 		testutil.PressTab,      // press tab to use the default gas denom
 		testutil.PressEnter,    // press enter to confirm using the default gas denom
