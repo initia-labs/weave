@@ -36,7 +36,7 @@ JSON_RPC_URL=http://host.docker.internal:8545
 # ACCOUNT_ADDRESS_PREFIX=init       # default: init
 
 # Server Configuration
-PORT=8088
+PORT=8080
 LOG_LEVEL=info
 
 # SENTRY_DSN="https://..."             # optional

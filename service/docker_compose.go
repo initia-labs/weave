@@ -117,7 +117,7 @@ func (d *Docker) createDockerCompose(version string) error {
       REST_URL: ${REST_URL}
       JSON_RPC_URL: ${JSON_RPC_URL}
     ports:
-      - "8080:8080"
+      - "8088:8080"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
