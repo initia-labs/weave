@@ -326,9 +326,9 @@ func TestCheckAndAddPort(t *testing.T) {
 }
 
 const (
-	MinimoveChainId string = "minimove-2"
-	MiniwasmChainId string = "miniwasm-2"
-	MinievmChainId  string = "minievm-2"
+	MinimoveChainId string = "move-1"
+	MiniwasmChainId string = "wasm-1"
+	MinievmChainId  string = "emv-1"
 )
 
 func TestLoadL2Registry(t *testing.T) {
