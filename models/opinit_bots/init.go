@@ -17,6 +17,7 @@ import (
 	"github.com/initia-labs/weave/common"
 	weavecontext "github.com/initia-labs/weave/context"
 	"github.com/initia-labs/weave/cosmosutils"
+	"github.com/initia-labs/weave/crypto"
 	"github.com/initia-labs/weave/io"
 	"github.com/initia-labs/weave/registry"
 	"github.com/initia-labs/weave/service"
@@ -1143,7 +1144,7 @@ func WaitStartingInitBot(ctx context.Context) tea.Cmd {
 				keyInfo := strings.Split(res, "\n")
 				address := strings.Split(keyInfo[0], ": ")
 				mnemonic := keyInfo[1]
-				keyFile.AddKey(string(BotNameToKeyName[botName]), io.NewKey(address[1], mnemonic))
+				keyFile.AddKey(string(BotNameToKeyName[botName]), io.NewKey(address[1], mnemonic, crypto.CosmosAddressType))
 			}
 		}
 
@@ -1422,7 +1423,7 @@ func (m *SetupOPInitBotsMissingKey) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						keyInfo := strings.Split(res, "\n")
 						address := strings.Split(keyInfo[0], ": ")
 						mnemonic := keyInfo[1]
-						keyFile.AddKey(string(BotNameToKeyName[botName]), io.NewKey(address[1], mnemonic))
+						keyFile.AddKey(string(BotNameToKeyName[botName]), io.NewKey(address[1], mnemonic, crypto.CosmosAddressType))
 					}
 				}
 

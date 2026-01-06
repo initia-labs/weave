@@ -12,16 +12,25 @@ import (
 	"github.com/tyler-smith/go-bip32"
 	"github.com/tyler-smith/go-bip39"
 	"golang.org/x/crypto/ripemd160"
+	"golang.org/x/crypto/sha3"
+)
+
+type AddressType int
+
+const (
+	CosmosAddressType AddressType = iota
+	EVMAddressType
 )
 
 const (
 	CosmosHDPath   string = "m/44'/118'/0'/0/0"
+	EVMHDPath      string = "m/44'/60'/0'/0/0"
 	HardenedOffset int    = 0x80000000
 	InitHRP        string = "init"
 )
 
 // MnemonicToBech32Address converts a mnemonic to a Cosmos SDK Bech32 address.
-func MnemonicToBech32Address(hrp, mnemonic string) (string, error) {
+func MnemonicToBech32Address(hrp, mnemonic string, addressType AddressType) (string, error) {
 	seed, err := bip39.NewSeedWithErrorChecking(mnemonic, "")
 	if err != nil {
 		return "", fmt.Errorf("failed to generate seed: %w", err)
@@ -32,9 +41,38 @@ func MnemonicToBech32Address(hrp, mnemonic string) (string, error) {
 		return "", fmt.Errorf("failed to derive master key: %w", err)
 	}
 
+	var addressBytes []byte
+	switch addressType {
+	case CosmosAddressType:
+		addressBytes, err = deriveCosmosAddressBytes(masterKey)
+		if err != nil {
+			return "", fmt.Errorf("failed to derive cosmos address: %w", err)
+		}
+	case EVMAddressType:
+		addressBytes, err = deriveEVMAddressBytes(masterKey)
+		if err != nil {
+			return "", fmt.Errorf("failed to derive EVM address: %w", err)
+		}
+	default:
+		return "", fmt.Errorf("invalid address type: %d", addressType)
+	}
+
+	converted, err := bech32.ConvertBits(addressBytes, 8, 5, true)
+	if err != nil {
+		return "", fmt.Errorf("failed to convert to Bech32: %w", err)
+	}
+	bech32Addr, err := bech32.Encode(hrp, converted)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode to Bech32: %w", err)
+	}
+
+	return bech32Addr, nil
+}
+
+func deriveCosmosAddressBytes(masterKey *bip32.Key) ([]byte, error) {
 	derivedKey, err := deriveKey(masterKey, CosmosHDPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to derive child key: %w", err)
+		return nil, fmt.Errorf("failed to derive child key: %w", err)
 	}
 
 	_, pubKey := btcec.PrivKeyFromBytes(derivedKey.Key)
@@ -45,17 +83,31 @@ func MnemonicToBech32Address(hrp, mnemonic string) (string, error) {
 	ripemd.Write(shaHash[:])
 	addressHash := ripemd.Sum(nil)
 
-	converted, err := bech32.ConvertBits(addressHash, 8, 5, true)
+	return addressHash, nil
+}
+
+func deriveEVMAddressBytes(masterKey *bip32.Key) ([]byte, error) {
+	derivedKey, err := deriveKey(masterKey, EVMHDPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to convert to Bech32: %w", err)
+		return nil, fmt.Errorf("failed to derive child key: %w", err)
 	}
 
-	bech32Addr, err := bech32.Encode(hrp, converted)
-	if err != nil {
-		return "", fmt.Errorf("failed to encode to Bech32: %w", err)
-	}
+	_, pubKey := btcec.PrivKeyFromBytes(derivedKey.Key)
+	// For EVM, we need the uncompressed public key (65 bytes: 0x04 + 32 bytes X + 32 bytes Y)
+	pubKeyBytes := pubKey.SerializeUncompressed()
 
-	return bech32Addr, nil
+	// Remove the 0x04 prefix, leaving only the 64-byte X,Y coordinates
+	pubKeyBytes = pubKeyBytes[1:]
+
+	// Apply Keccak256 hash
+	hash := sha3.NewLegacyKeccak256()
+	hash.Write(pubKeyBytes)
+	hashBytes := hash.Sum(nil)
+
+	// Take the last 20 bytes of the hash
+	addressBytes := hashBytes[len(hashBytes)-20:]
+
+	return addressBytes, nil
 }
 
 // deriveKey derives the private key along the given HD path.
