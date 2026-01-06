@@ -73,8 +73,8 @@ func TestDocker_getImageName(t *testing.T) {
 		{
 			name:        "relayer image",
 			commandName: Relayer,
-			version:     "latest",
-			want:        "ghcr.io/initia-labs/rapid-relayer:latest",
+			version:     "v1.0.7",
+			want:        "ghcr.io/initia-labs/rapid-relayer:v1.0.7",
 			wantErr:     false,
 		},
 	}
