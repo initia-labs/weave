@@ -102,7 +102,7 @@ func (d *Docker) Start(optionalArgs ...string) error {
 	}
 
 	// Get image name
-	imageName, err := d.getImageName("latest")
+	imageName, err := d.getImageName("main")
 	if err != nil {
 		return err
 	}
