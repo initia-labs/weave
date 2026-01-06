@@ -56,7 +56,9 @@ func (d *Docker) Create(version, appHome string) error {
 	defer out.Close()
 
 	// Read and discard pull output (or could display progress)
-	io.Copy(io.Discard, out)
+	if _, err := io.Copy(io.Discard, out); err != nil {
+		return fmt.Errorf("failed to read pull output: %v", err)
+	}
 
 	// Create named volume for data persistence
 	volumeName, err := d.getVolumeName()
