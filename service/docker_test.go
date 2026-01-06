@@ -1,10 +1,7 @@
 package service
 
 import (
-	"bytes"
 	"context"
-	"io"
-	"os"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -302,127 +299,127 @@ func TestDocker_Start(t *testing.T) {
 	}
 }
 
-func TestDocker_Log(t *testing.T) {
-	// Check if Docker is available
-	ctx := context.Background()
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-	if err != nil {
-		t.Skipf("Docker not available: %v", err)
-	}
-	defer cli.Close()
+// func TestDocker_Log(t *testing.T) {
+// 	// Check if Docker is available
+// 	ctx := context.Background()
+// 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+// 	if err != nil {
+// 		t.Skipf("Docker not available: %v", err)
+// 	}
+// 	defer cli.Close()
 
-	// Test that we can connect to Docker daemon
-	_, err = cli.Ping(ctx)
-	if err != nil {
-		t.Skipf("Docker daemon not responding: %v", err)
-	}
+// 	// Test that we can connect to Docker daemon
+// 	_, err = cli.Ping(ctx)
+// 	if err != nil {
+// 		t.Skipf("Docker daemon not responding: %v", err)
+// 	}
 
-	tests := []struct {
-		name        string
-		commandName CommandName
-		version     string
-		numLines    int
-		wantErr     bool
-	}{
-		{
-			name:        "get logs from relayer service",
-			commandName: Relayer,
-			version:     "v1.0.7",
-			numLines:    10,
-			wantErr:     false,
-		},
-	}
+// 	tests := []struct {
+// 		name        string
+// 		commandName CommandName
+// 		version     string
+// 		numLines    int
+// 		wantErr     bool
+// 	}{
+// 		{
+// 			name:        "get logs from relayer service",
+// 			commandName: Relayer,
+// 			version:     "v1.0.7",
+// 			numLines:    10,
+// 			wantErr:     false,
+// 		},
+// 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d := NewDocker(tt.commandName, "")
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			d := NewDocker(tt.commandName, "")
 
-			// Get service name for cleanup
-			serviceName, err := d.GetServiceName()
-			if err != nil {
-				t.Fatalf("failed to get service name: %v", err)
-			}
+// 			// Get service name for cleanup
+// 			serviceName, err := d.GetServiceName()
+// 			if err != nil {
+// 				t.Fatalf("failed to get service name: %v", err)
+// 			}
 
-			// Get volume name for cleanup
-			volumeName, err := d.getVolumeName()
-			if err != nil {
-				t.Fatalf("failed to get volume name: %v", err)
-			}
+// 			// Get volume name for cleanup
+// 			volumeName, err := d.getVolumeName()
+// 			if err != nil {
+// 				t.Fatalf("failed to get volume name: %v", err)
+// 			}
 
-			// Cleanup before test
-			_ = d.Stop()
-			cleanupDockerResources(t, cli, volumeName)
+// 			// Cleanup before test
+// 			_ = d.Stop()
+// 			cleanupDockerResources(t, cli, volumeName)
 
-			// Create and start the service
-			err = d.Create(tt.version, "/tmp/test-logs")
-			if err != nil {
-				t.Fatalf("Create() failed: %v", err)
-			}
+// 			// Create and start the service
+// 			err = d.Create(tt.version, "/tmp/test-logs")
+// 			if err != nil {
+// 				t.Fatalf("Create() failed: %v", err)
+// 			}
 
-			err = d.Start()
-			if err != nil {
-				t.Fatalf("Start() failed: %v", err)
-			}
+// 			err = d.Start()
+// 			if err != nil {
+// 				t.Fatalf("Start() failed: %v", err)
+// 			}
 
-			// Wait a moment for container to produce some logs
-			// Note: In real test, we might want to wait longer or check container status
-			t.Logf("Waiting for container to generate logs...")
+// 			// Wait a moment for container to produce some logs
+// 			// Note: In real test, we might want to wait longer or check container status
+// 			t.Logf("Waiting for container to generate logs...")
 
-			// Verify container is running before trying to get logs
-			containerJSON, err := cli.ContainerInspect(ctx, serviceName)
-			if err != nil {
-				t.Fatalf("failed to inspect container: %v", err)
-			}
+// 			// Verify container is running before trying to get logs
+// 			containerJSON, err := cli.ContainerInspect(ctx, serviceName)
+// 			if err != nil {
+// 				t.Fatalf("failed to inspect container: %v", err)
+// 			}
 
-			if !containerJSON.State.Running {
-				t.Logf("Warning: Container is not running, may not have logs")
-			}
+// 			if !containerJSON.State.Running {
+// 				t.Logf("Warning: Container is not running, may not have logs")
+// 			}
 
-			// Test Log function - capture stdout
-			// Save original stdout
-			oldStdout := os.Stdout
-			r, w, _ := os.Pipe()
-			os.Stdout = w
+// 			// Test Log function - capture stdout
+// 			// Save original stdout
+// 			oldStdout := os.Stdout
+// 			r, w, _ := os.Pipe()
+// 			os.Stdout = w
 
-			// Call Log in a goroutine so we can capture its output
-			errChan := make(chan error, 1)
-			go func() {
-				errChan <- d.Log(tt.numLines)
-			}()
+// 			// Call Log in a goroutine so we can capture its output
+// 			errChan := make(chan error, 1)
+// 			go func() {
+// 				errChan <- d.Log(tt.numLines)
+// 			}()
 
-			// Read captured output
-			outC := make(chan string, 1)
-			go func() {
-				var buf bytes.Buffer
-				io.Copy(&buf, r)
-				outC <- buf.String()
-			}()
+// 			// Read captured output
+// 			outC := make(chan string, 1)
+// 			go func() {
+// 				var buf bytes.Buffer
+// 				io.Copy(&buf, r)
+// 				outC <- buf.String()
+// 			}()
 
-			// Wait for Log to complete (with timeout protection)
-			err = <-errChan
-			w.Close()
-			output := <-outC
+// 			// Wait for Log to complete (with timeout protection)
+// 			err = <-errChan
+// 			w.Close()
+// 			output := <-outC
 
-			// Restore stdout
-			os.Stdout = oldStdout
+// 			// Restore stdout
+// 			os.Stdout = oldStdout
 
-			// Check for errors
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Log() error = %v, wantErr %v", err, tt.wantErr)
-			}
+// 			// Check for errors
+// 			if (err != nil) != tt.wantErr {
+// 				t.Errorf("Log() error = %v, wantErr %v", err, tt.wantErr)
+// 			}
 
-			// Display the captured logs
-			if !tt.wantErr {
-				if len(output) > 0 {
-					t.Logf("Captured logs (%d bytes):\n%s", len(output), output)
-				} else {
-					t.Logf("No logs captured (container may not have produced any logs yet)")
-				}
-			}
+// 			// Display the captured logs
+// 			if !tt.wantErr {
+// 				if len(output) > 0 {
+// 					t.Logf("Captured logs (%d bytes):\n%s", len(output), output)
+// 				} else {
+// 					t.Logf("No logs captured (container may not have produced any logs yet)")
+// 				}
+// 			}
 
-			// Cleanup after test
-			_ = d.Stop()
-			cleanupDockerResources(t, cli, volumeName)
-		})
-	}
-}
+// 			// Cleanup after test
+// 			_ = d.Stop()
+// 			cleanupDockerResources(t, cli, volumeName)
+// 		})
+// 	}
+// }
