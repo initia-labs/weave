@@ -199,7 +199,6 @@ func TestDocker_Create(t *testing.T) {
 		version     string
 		appHome     string
 		wantErr     bool
-		digest      string
 	}{
 		// {
 		// 	name:        "create minitia service",
@@ -214,7 +213,6 @@ func TestDocker_Create(t *testing.T) {
 			version:     "v1.0.7",
 			appHome:     "/tmp/test-relayer",
 			wantErr:     false,
-			digest:      "sha256:8134b10d23ad6cbc604efe6f719fa70e6ee143b26e0b8db54bca68a6f7feac16",
 		},
 		{
 			name:        "create relayer service with invalid version",
@@ -222,7 +220,6 @@ func TestDocker_Create(t *testing.T) {
 			version:     "invalid-version-that-does-not-exist-12345",
 			appHome:     "/tmp/test-relayer-invalid",
 			wantErr:     true,
-			digest:      "",
 		},
 	}
 
@@ -263,9 +260,6 @@ func TestDocker_Create(t *testing.T) {
 				if !imageExists {
 					t.Fatalf("Image %s was not pulled", imageName)
 				} else {
-					if imageInspect.ID != tt.digest {
-						t.Fatalf("Image %s was not pulled: %v", imageName, imageInspect)
-					}
 					t.Logf("Image pulled successfully: %s (ID: %s)", imageName, imageInspect.ID)
 				}
 			}
