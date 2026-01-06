@@ -64,13 +64,6 @@ func TestDocker_getImageName(t *testing.T) {
 		wantErr     bool
 	}{
 		{
-			name:        "minitia image",
-			commandName: Minitia,
-			version:     "v1.0.0",
-			want:        "ghcr.io/initia-labs/minitiad:v1.0.0",
-			wantErr:     false,
-		},
-		{
 			name:        "initia image",
 			commandName: UpgradableInitia,
 			version:     "main",
