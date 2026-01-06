@@ -336,7 +336,7 @@ func TestDocker_Start(t *testing.T) {
 		{
 			name:        "start relayer service",
 			commandName: Relayer,
-			version:     "main",
+			version:     "v1.0.7",
 			wantErr:     false,
 		},
 	}
