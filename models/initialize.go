@@ -226,7 +226,7 @@ func (m *GasStationMnemonicDisplayInput) Update(msg tea.Msg) (tea.Model, tea.Cmd
 
 func (m *GasStationMnemonicDisplayInput) View() string {
 	state := weavecontext.GetCurrentState[ExistingCheckerState](m.Ctx)
-	gasStationAddress, err := crypto.MnemonicToBech32Address("init", state.generatedMnemonic)
+	gasStationAddress, err := crypto.MnemonicToBech32Address("init", state.generatedMnemonic, crypto.EVMAddressType)
 	if err != nil {
 		m.HandlePanic(fmt.Errorf("failed to convert mnemonic to bech32 address: %w", err))
 	}
