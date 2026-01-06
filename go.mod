@@ -4,7 +4,6 @@ go 1.24.0
 
 toolchain go1.24.11
 
-
 require (
 	github.com/PuerkitoBio/goquery v1.10.0
 	github.com/amplitude/analytics-go v1.0.2
