@@ -377,8 +377,7 @@ func (d *Docker) PruneLogs() error {
 	// For Rollytics, use docker compose
 	if d.commandName == Rollytics {
 		// Docker compose doesn't have a direct prune logs command
-		// We can restart the services to clear logs, or truncate log files
-		return d.restartDockerCompose()
+		return nil
 	}
 
 	ctx := context.Background()
