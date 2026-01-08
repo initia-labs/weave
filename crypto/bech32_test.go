@@ -74,3 +74,74 @@ func TestPubKeyToBech32Address(t *testing.T) {
 		})
 	}
 }
+
+func TestMnemonicToBech32Address(t *testing.T) {
+	tests := []struct {
+		name        string
+		hrp         string
+		mnemonic    string
+		addressType AddressType
+		expected    string
+		expectErr   bool
+	}{
+		// Cosmos address type tests
+		{
+			name:        "Cosmos address - standard test vector",
+			hrp:         "init",
+			mnemonic:    "imitate sick vibrant bonus weather spice pave announce direct impulse strategy math",
+			addressType: CosmosAddressType,
+			expected:    "init16pawh0v7w996jrmtzugz3hmhq0wx6ndq5pp0dr",
+		},
+		// EVM address type tests
+		{
+			name:        "EVM address - standard test vector",
+			hrp:         "init",
+			mnemonic:    "imitate sick vibrant bonus weather spice pave announce direct impulse strategy math",
+			addressType: EVMAddressType,
+			expected:    "init1rv0kk09mcus8nj6ffmgmw2ulsktgnepnjd2lp7",
+		},
+		// Error cases
+		{
+			name:        "Invalid mnemonic - too short",
+			hrp:         "init",
+			mnemonic:    "abandon abandon abandon",
+			addressType: CosmosAddressType,
+			expectErr:   true,
+		},
+		{
+			name:        "Invalid mnemonic - invalid words",
+			hrp:         "init",
+			mnemonic:    "invalid words here that do not form a valid mnemonic phrase at all",
+			addressType: CosmosAddressType,
+			expectErr:   true,
+		},
+		{
+			name:        "Empty mnemonic",
+			hrp:         "init",
+			mnemonic:    "",
+			addressType: CosmosAddressType,
+			expectErr:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			address, err := MnemonicToBech32Address(tt.hrp, tt.mnemonic, tt.addressType)
+
+			if tt.expectErr {
+				assert.Error(t, err)
+				assert.Empty(t, address)
+			} else {
+				assert.NoError(t, err)
+				assert.NotEmpty(t, address)
+
+				// Verify address has the correct HRP prefix
+				assert.Contains(t, address, tt.hrp)
+
+				if tt.expected != "" {
+					assert.Equal(t, tt.expected, address)
+				}
+			}
+		})
+	}
+}

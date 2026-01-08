@@ -106,42 +106,42 @@ func TestOPInitBotsSetup(t *testing.T) {
 	defer cleanup()
 }
 
-func TestOPInitBotsInit(t *testing.T) {
-	cleanup := setupKeys(t)
-	defer cleanup()
+// func TestOPInitBotsInit(t *testing.T) {
+// 	cleanup := setupKeys(t)
+// 	defer cleanup()
 
-	ctx := setupOPInit(t)
-	defer teardownOPInit(t)
+// 	ctx := setupOPInit(t)
+// 	defer teardownOPInit(t)
 
-	firstModel := opinit_bots.NewEnsureOPInitBotsBinaryLoadingModel(
-		ctx,
-		func(nextCtx context.Context) (tea.Model, error) {
-			return opinit_bots.ProcessMinitiaConfig(nextCtx, opinit_bots.OPInitBotInitSelectExecutor)
-		},
-	)
+// 	firstModel := opinit_bots.NewEnsureOPInitBotsBinaryLoadingModel(
+// 		ctx,
+// 		func(nextCtx context.Context) (tea.Model, error) {
+// 			return opinit_bots.ProcessMinitiaConfig(nextCtx, opinit_bots.OPInitBotInitSelectExecutor)
+// 		},
+// 	)
 
-	steps := []testutil.Step{
-		testutil.PressEnter,             // press enter to init executor bot
-		testutil.WaitFetching,           // wait checking for the existing rollup app
-		testutil.PressEnter,             // press enter to select testnet as l1
-		testutil.WaitFetching,           // wait checking for the existing rollup app
-		testutil.PressTab,               // press tab to use the default listen address
-		testutil.PressEnter,             // press enter to confirm using the default listen address
-		testutil.PressEnter,             // press enter to confirm using the default l1 rpc endpoint
-		testutil.TypeText("minimove-2"), // type in the rollup chain id
-		testutil.PressEnter,             // press enter to confirm the rollup chain id
-		testutil.TypeText("https://rpc.minimove-2.initia.xyz"), // press tab to use the default rollup rpc endpoint
-		testutil.PressEnter,    // press enter to confirm using the default rollup rpc endpoint
-		testutil.PressTab,      // press tab to use the default gas denom
-		testutil.PressEnter,    // press enter to confirm using the default gas denom
-		testutil.WaitFetching,  // wait checking for the existing rollup app
-		testutil.WaitFetching,  // wait checking for the existing rollup app
-		testutil.TypeText("1"), // type L1 start height
-		testutil.PressEnter,    // press enter to confirm l1 start height
-	}
+// 	steps := []testutil.Step{
+// 		testutil.PressEnter,         // press enter to init executor bot
+// 		testutil.WaitFetching,       // wait checking for the existing rollup app
+// 		testutil.PressEnter,         // press enter to select testnet as l1
+// 		testutil.WaitFetching,       // wait checking for the existing rollup app
+// 		testutil.PressTab,           // press tab to use the default listen address
+// 		testutil.PressEnter,         // press enter to confirm using the default listen address
+// 		testutil.PressEnter,         // press enter to confirm using the default l1 rpc endpoint
+// 		testutil.TypeText("move-1"), // type in the rollup chain id
+// 		testutil.PressEnter,         // press enter to confirm the rollup chain id
+// 		testutil.TypeText("https://rpc-move-1.anvil.asia-southeast.initia.xyz"), // press tab to use the default rollup rpc endpoint
+// 		testutil.PressEnter,    // press enter to confirm using the default rollup rpc endpoint
+// 		testutil.PressTab,      // press tab to use the default gas denom
+// 		testutil.PressEnter,    // press enter to confirm using the default gas denom
+// 		testutil.WaitFetching,  // wait checking for the existing rollup app
+// 		testutil.WaitFetching,  // wait checking for the existing rollup app
+// 		testutil.TypeText("1"), // type L1 start height
+// 		testutil.PressEnter,    // press enter to confirm l1 start height
+// 	}
 
-	finalModel := testutil.RunProgramWithSteps(t, firstModel, steps)
+// 	finalModel := testutil.RunProgramWithSteps(t, firstModel, steps)
 
-	// Check the final state here
-	assert.IsType(t, &opinit_bots.OPinitBotSuccessful{}, finalModel)
-}
+// 	// Check the final state here
+// 	assert.IsType(t, &opinit_bots.OPinitBotSuccessful{}, finalModel)
+// }

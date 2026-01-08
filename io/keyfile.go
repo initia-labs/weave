@@ -9,36 +9,35 @@ import (
 )
 
 type Key struct {
-	Address  string `json:"address"`
-	Mnemonic string `json:"mnemonic"`
+	Address     string             `json:"address"`
+	Mnemonic    string             `json:"mnemonic"`
+	AddressType crypto.AddressType `json:"address_type"`
 }
 
-func NewKey(address, mnemonic string) *Key {
+func NewKey(address, mnemonic string, addressType crypto.AddressType) *Key {
 	return &Key{
-		Address:  address,
-		Mnemonic: mnemonic,
+		Address:     address,
+		Mnemonic:    mnemonic,
+		AddressType: addressType,
 	}
 }
 
-func GenerateKey(hrp string) (*Key, error) {
+func GenerateKey(hrp string, addressType crypto.AddressType) (*Key, error) {
 	mnemonic, err := crypto.GenerateMnemonic()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate mnemonic: %w", err)
 	}
 
-	address, err := crypto.MnemonicToBech32Address(hrp, mnemonic)
+	address, err := crypto.MnemonicToBech32Address(hrp, mnemonic, addressType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to derive address: %w", err)
 	}
 
-	return &Key{
-		Mnemonic: mnemonic,
-		Address:  address,
-	}, nil
+	return NewKey(address, mnemonic, addressType), nil
 }
 
-func RecoverKey(hrp, mnemonic string) (*Key, error) {
-	address, err := crypto.MnemonicToBech32Address(hrp, mnemonic)
+func RecoverKey(hrp, mnemonic string, addressType crypto.AddressType) (*Key, error) {
+	address, err := crypto.MnemonicToBech32Address(hrp, mnemonic, addressType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to derive address: %w", err)
 	}

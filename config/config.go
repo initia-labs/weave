@@ -3,7 +3,6 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/initia-labs/weave/io"
 	"os"
 	"path/filepath"
 
@@ -11,6 +10,8 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/initia-labs/weave/common"
+	"github.com/initia-labs/weave/crypto"
+	"github.com/initia-labs/weave/io"
 )
 
 var DevMode string
@@ -147,12 +148,12 @@ type GasStationKey struct {
 }
 
 func RecoverGasStationKey(mnemonic string) (*GasStationKey, error) {
-	initiaKey, err := io.RecoverKey("init", mnemonic)
+	initiaKey, err := io.RecoverKey("init", mnemonic, crypto.EVMAddressType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to recover initia gas station key: %v", err)
 	}
 
-	celestiaKey, err := io.RecoverKey("celestia", mnemonic)
+	celestiaKey, err := io.RecoverKey("celestia", mnemonic, crypto.CosmosAddressType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to recover celestia gas station key: %v", err)
 	}
