@@ -45,6 +45,7 @@ func MinitiaCommand() *cobra.Command {
 		minitiaStopCommand(),
 		minitiaRestartCommand(),
 		minitiaLogCommand(),
+		minitiaIndexerCommand(),
 	)
 
 	return cmd

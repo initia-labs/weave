@@ -30,6 +30,11 @@ func NewDocker(commandName CommandName, vmType string) *Docker {
 }
 
 func (d *Docker) Create(version, appHome string) error {
+	// For Rollytics, use docker compose
+	if d.commandName == Rollytics {
+		return d.createDockerCompose(version)
+	}
+
 	ctx := context.Background()
 
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
@@ -51,7 +56,9 @@ func (d *Docker) Create(version, appHome string) error {
 	defer out.Close()
 
 	// Read and discard pull output (or could display progress)
-	io.Copy(io.Discard, out)
+	if _, err := io.Copy(io.Discard, out); err != nil {
+		return fmt.Errorf("failed to read pull output: %v", err)
+	}
 
 	// Create named volume for data persistence
 	volumeName, err := d.getVolumeName()
@@ -70,6 +77,11 @@ func (d *Docker) Create(version, appHome string) error {
 }
 
 func (d *Docker) Start(optionalArgs ...string) error {
+	// For Rollytics, use docker compose
+	if d.commandName == Rollytics {
+		return d.startDockerCompose()
+	}
+
 	ctx := context.Background()
 
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
@@ -151,6 +163,11 @@ func (d *Docker) Start(optionalArgs ...string) error {
 }
 
 func (d *Docker) Stop() error {
+	// For Rollytics, use docker compose
+	if d.commandName == Rollytics {
+		return d.stopDockerCompose()
+	}
+
 	ctx := context.Background()
 
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
@@ -180,6 +197,11 @@ func (d *Docker) Stop() error {
 }
 
 func (d *Docker) Log(n int) error {
+	// For Rollytics, use docker compose
+	if d.commandName == Rollytics {
+		return d.logDockerCompose(n)
+	}
+
 	ctx := context.Background()
 
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
@@ -228,6 +250,9 @@ func (d *Docker) getImageName(version string) (string, error) {
 	case Relayer:
 		return fmt.Sprintf("%s/rapid-relayer:%s", baseImage, version), nil
 	case Rollytics:
+		if version == "" {
+			version = "latest"
+		}
 		return fmt.Sprintf("%s/rollytics:%s", baseImage, version), nil
 	default:
 		return "", fmt.Errorf("unsupported command: %v", d.commandName)
@@ -269,6 +294,9 @@ func (d *Docker) getPortBindings() (nat.PortMap, nat.PortSet, error) {
 		ports = []string{"3001"}
 	case Relayer:
 		ports = []string{"7010", "7011"}
+	case Rollytics:
+		// TODO: revisit port
+		ports = []string{"8080"}
 	default:
 		return portBindings, exposedPorts, nil
 	}
@@ -311,6 +339,8 @@ func (d *Docker) getCommandArgs() ([]string, error) {
 		return []string{"start", "challenger", "--home", "/app/data"}, nil
 	case Relayer:
 		return []string{}, nil
+	case Rollytics:
+		return []string{}, nil
 	default:
 		return nil, fmt.Errorf("unsupported command: %v", d.commandName)
 	}
@@ -325,6 +355,10 @@ func (d *Docker) GetServiceName() (string, error) {
 }
 
 func (d *Docker) GetServiceFile() (string, error) {
+	// For Rollytics, return docker-compose.yml path
+	if d.commandName == Rollytics {
+		return d.getComposeFilePath()
+	}
 	// Not needed for Docker implementation
 	return "", nil
 }
@@ -340,6 +374,12 @@ func (d *Docker) GetServiceBinaryAndHome() (string, string, error) {
 }
 
 func (d *Docker) PruneLogs() error {
+	// For Rollytics, use docker compose
+	if d.commandName == Rollytics {
+		// Docker compose doesn't have a direct prune logs command
+		return nil
+	}
+
 	ctx := context.Background()
 
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
@@ -372,6 +412,11 @@ func (d *Docker) PruneLogs() error {
 }
 
 func (d *Docker) Restart() error {
+	// For Rollytics, use docker compose
+	if d.commandName == Rollytics {
+		return d.restartDockerCompose()
+	}
+
 	if err := d.Stop(); err != nil {
 		return err
 	}
@@ -381,6 +426,11 @@ func (d *Docker) Restart() error {
 // RemoveVolume removes the Docker volume associated with this service
 // This is useful for complete cleanup and should be called separately from Stop
 func (d *Docker) RemoveVolume() error {
+	// For Rollytics, use docker compose
+	if d.commandName == Rollytics {
+		return d.removeDockerComposeVolumes()
+	}
+
 	ctx := context.Background()
 
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())

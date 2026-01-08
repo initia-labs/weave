@@ -24,8 +24,6 @@ func (cmd CommandName) GetPrettyName() (string, error) {
 		return "opinit", nil
 	case Relayer:
 		return "relayer", nil
-	case Rollytics:
-		return "rollytics", nil
 	default:
 		return "", fmt.Errorf("unsupported command %s", cmd)
 	}
@@ -56,10 +54,6 @@ func (cmd CommandName) GetBinaryName() (string, error) {
 		return "minitiad", nil
 	case OPinitExecutor, OPinitChallenger:
 		return "opinitd", nil
-	case Rollytics:
-		return "rollytics", nil
-	// case Relayer:
-	// 	return "hermes", nil
 	default:
 		return "", fmt.Errorf("unsupported command: %v", cmd)
 	}
@@ -77,10 +71,6 @@ func (cmd CommandName) GetServiceSlug() (string, error) {
 		return "opinitd.executor", nil
 	case OPinitChallenger:
 		return "opinitd.challenger", nil
-	case Rollytics:
-		return "rollytics", nil
-	// case Relayer:
-	// 	return "hermes", nil
 	default:
 		return "", fmt.Errorf("unsupported command: %v", cmd)
 	}
