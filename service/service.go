@@ -21,7 +21,11 @@ type Service interface {
 	GetServiceBinaryAndHome() (string, string, error)
 }
 
-func NewService(commandName CommandName) (Service, error) {
+func NewService(commandName CommandName, vmType string) (Service, error) {
+	if commandName == Relayer || commandName == Rollytics {
+		return NewDocker(commandName, vmType), nil
+	}
+
 	switch runtime.GOOS {
 	case "linux":
 		return NewSystemd(commandName), nil

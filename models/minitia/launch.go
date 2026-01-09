@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -2822,21 +2823,23 @@ func (sp *ScanPayload) EncodeToBase64() (string, error) {
 type LaunchingNewMinitiaLoading struct {
 	ui.Loading
 	weavecontext.BaseModel
-	streamingLogs *[]string
+	streamingLogs   *[]string
+	streamingLogsMu sync.Mutex
 }
 
 func NewLaunchingNewMinitiaLoading(ctx context.Context) *LaunchingNewMinitiaLoading {
 	newLogs := make([]string, 0)
-	return &LaunchingNewMinitiaLoading{
-		Loading: ui.NewLoading(
-			styles.RenderPrompt(
-				"Running `minitiad launch` with the specified config...",
-				[]string{"`minitiad launch`"},
-				styles.Empty,
-			), launchingMinitia(ctx, &newLogs)),
+	loading := &LaunchingNewMinitiaLoading{
 		BaseModel:     weavecontext.BaseModel{Ctx: ctx, CannotBack: true},
 		streamingLogs: &newLogs,
 	}
+	loading.Loading = ui.NewLoading(
+		styles.RenderPrompt(
+			"Running `minitiad launch` with the specified config...",
+			[]string{"`minitiad launch`"},
+			styles.Empty,
+		), launchingMinitia(ctx, &newLogs, &loading.streamingLogsMu))
+	return loading
 }
 
 func (m *LaunchingNewMinitiaLoading) Init() tea.Cmd {
@@ -2852,7 +2855,7 @@ func isJSONLog(line string) bool {
 	return timestampRegex.MatchString(line) || initPrefixRegex.MatchString(line)
 }
 
-func launchingMinitia(ctx context.Context, streamingLogs *[]string) tea.Cmd {
+func launchingMinitia(ctx context.Context, streamingLogs *[]string, streamingLogsMu *sync.Mutex) tea.Cmd {
 	return func() tea.Msg {
 		state := weavecontext.GetCurrentState[LaunchState](ctx)
 		userHome, err := os.UserHomeDir()
@@ -2937,14 +2940,28 @@ func launchingMinitia(ctx context.Context, streamingLogs *[]string) tea.Cmd {
 		}
 
 		go func() {
+			err := createRollyticsConfig(state)
+			if err != nil {
+				streamingLogsMu.Lock()
+				*streamingLogs = append(*streamingLogs, err.Error())
+				if len(*streamingLogs) > 10 {
+					*streamingLogs = (*streamingLogs)[1:]
+				}
+				streamingLogsMu.Unlock()
+			}
+		}()
+
+		go func() {
 			scanner := bufio.NewScanner(stdout)
 			for scanner.Scan() {
 				line := scanner.Text()
 				if !isJSONLog(line) {
+					streamingLogsMu.Lock()
 					*streamingLogs = append(*streamingLogs, line)
 					if len(*streamingLogs) > 10 {
 						*streamingLogs = (*streamingLogs)[1:]
 					}
+					streamingLogsMu.Unlock()
 				}
 			}
 		}()
@@ -2954,16 +2971,20 @@ func launchingMinitia(ctx context.Context, streamingLogs *[]string) tea.Cmd {
 			for scanner.Scan() {
 				line := scanner.Text()
 				if !isJSONLog(line) {
+					streamingLogsMu.Lock()
 					*streamingLogs = append(*streamingLogs, line)
 					if len(*streamingLogs) > 10 {
 						*streamingLogs = (*streamingLogs)[1:]
 					}
+					streamingLogsMu.Unlock()
 				}
 			}
 		}()
 
 		if err = launchCmd.Wait(); err != nil {
+			streamingLogsMu.Lock()
 			*streamingLogs = append(*streamingLogs, fmt.Sprintf("Launch command finished with error: %v", err))
+			streamingLogsMu.Unlock()
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("command execution failed: %v", err)}
 		}
 
@@ -2975,7 +2996,7 @@ func launchingMinitia(ctx context.Context, streamingLogs *[]string) tea.Cmd {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to set minimum-gas-prices: %v", err)}
 		}
 
-		srv, err := service.NewService(service.Minitia)
+		srv, err := service.NewService(service.Minitia, state.vmType)
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to initialize service: %v", err)}
 		}
@@ -3071,7 +3092,7 @@ func (m *LaunchingNewMinitiaLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		state.weave.PushPreviousResponse(scanText)
 
-		srv, err := service.NewService(service.Minitia)
+		srv, err := service.NewService(service.Minitia, state.vmType)
 		if err != nil {
 			state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.NoSeparator, "Invalid OS: only Linux and Darwin are supported", []string{}, fmt.Sprintf("%v", err)))
 		}
@@ -3138,7 +3159,10 @@ func (m *LaunchingNewMinitiaLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *LaunchingNewMinitiaLoading) View() string {
 	state := weavecontext.GetCurrentState[LaunchState](m.Ctx)
-	return m.WrapView(state.weave.Render() + "\n" + m.Loading.View() + "\n" + strings.Join(*m.streamingLogs, "\n"))
+	m.streamingLogsMu.Lock()
+	logs := strings.Join(*m.streamingLogs, "\n")
+	m.streamingLogsMu.Unlock()
+	return m.WrapView(state.weave.Render() + "\n" + m.Loading.View() + "\n" + logs)
 }
 
 type TerminalState struct {

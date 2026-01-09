@@ -41,9 +41,9 @@ func (g *GRPCClient) CheckHealth(serverAddr string) error {
 		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 
-	conn, err := grpc.Dial(serverAddr, opts...)
+	conn, err := grpc.NewClient(serverAddr, opts...)
 	if err != nil {
-		return fmt.Errorf("failed to connect to gRPC server: %v", err)
+		return fmt.Errorf("failed to create gRPC client (grpc.NewClient): %w; note: actual connection occurs later on the first RPC call", err)
 	}
 	defer conn.Close()
 

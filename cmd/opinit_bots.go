@@ -367,7 +367,7 @@ func OPInitBotsStartCommand() *cobra.Command {
 
 			botName := args[0]
 			bot := service.CommandName(botName)
-			s, err := service.NewService(bot)
+			s, err := service.NewService(bot, "")
 			if err != nil {
 				return err
 			}
@@ -406,7 +406,7 @@ func OPInitBotsStopCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			botName := args[0]
 			bot := service.CommandName(botName)
-			s, err := service.NewService(bot)
+			s, err := service.NewService(bot, "")
 			if err != nil {
 				return err
 			}
@@ -432,7 +432,7 @@ func OPInitBotsRestartCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			botName := args[0]
 			bot := service.CommandName(botName)
-			s, err := service.NewService(bot)
+			s, err := service.NewService(bot, "")
 			if err != nil {
 				return err
 			}
@@ -463,7 +463,7 @@ func OPInitBotsLogCommand() *cobra.Command {
 
 			botName := args[0]
 			bot := service.CommandName(botName)
-			s, err := service.NewService(bot)
+			s, err := service.NewService(bot, "")
 			if err != nil {
 				return err
 			}

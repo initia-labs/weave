@@ -1175,7 +1175,7 @@ func initializeApp(ctx context.Context) tea.Cmd {
 
 		}
 
-		srv, err := service.NewService(serviceCommand)
+		srv, err := service.NewService(serviceCommand, "")
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to initialize service: %v", err)}
 		}

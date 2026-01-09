@@ -45,6 +45,7 @@ func MinitiaCommand() *cobra.Command {
 		minitiaStopCommand(),
 		minitiaRestartCommand(),
 		minitiaLogCommand(),
+		minitiaIndexerCommand(),
 	)
 
 	return cmd
@@ -203,7 +204,7 @@ func minitiaStartCommand() *cobra.Command {
 				return err
 			}
 
-			s, err := service.NewService(service.Minitia)
+			s, err := service.NewService(service.Minitia, "")
 			if err != nil {
 				return err
 			}
@@ -234,7 +235,7 @@ func minitiaStopCommand() *cobra.Command {
 		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, RollupHelperText),
 		PreRunE: isInitiated(service.Minitia),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := service.NewService(service.Minitia)
+			s, err := service.NewService(service.Minitia, "")
 			if err != nil {
 				return err
 			}
@@ -258,7 +259,7 @@ func minitiaRestartCommand() *cobra.Command {
 		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, RollupHelperText),
 		PreRunE: isInitiated(service.Minitia),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := service.NewService(service.Minitia)
+			s, err := service.NewService(service.Minitia, "")
 			if err != nil {
 				return err
 			}
@@ -287,7 +288,7 @@ func minitiaLogCommand() *cobra.Command {
 				return err
 			}
 
-			s, err := service.NewService(service.Minitia)
+			s, err := service.NewService(service.Minitia, "")
 			if err != nil {
 				return err
 			}

@@ -26,4 +26,7 @@ const (
 
 	RelayerDirectory  = ".relayer"
 	RelayerConfigPath = ".relayer/config.json"
+
+	RollyticsDirectory  = ".rollytics"
+	RollyticsConfigPath = ".rollytics/.env"
 )
