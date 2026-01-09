@@ -2528,13 +2528,13 @@ func WaitSettingUpRelayer(ctx context.Context) tea.Cmd {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get user home directory: %v", err)}
 		}
 
-		srv, err := service.NewService(service.Relayer)
+		srv, err := service.NewService(service.Relayer, "")
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to initialize service: %v", err)}
 		}
 
 		// TODO: fix version
-		if err = srv.Create("", filepath.Join(userHome, common.RelayerDirectory)); err != nil {
+		if err = srv.Create("main", filepath.Join(userHome, common.RelayerDirectory)); err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to create service: %v", err)}
 		}
 
@@ -2648,10 +2648,9 @@ func getRelayerSetSuccessMessage() string {
 	relayerHome := filepath.Join(userHome, common.RelayerDirectory)
 	s := "\n" + styles.RenderPrompt("Rapid relayer config is generated successfully!", []string{}, styles.Completed)
 	s += "\n" + styles.RenderPrompt(fmt.Sprintf("Config file is saved at %s/config.json. You can modify it as needed.", relayerHome), []string{}, styles.Information)
-	s += "\n" + styles.RenderPrompt("To start relaying:", []string{}, styles.Empty)
-	s += "\n" + styles.RenderPrompt("1. git clone https://github.com/initia-labs/rapid-relayer && cd rapid-relayer && npm install", []string{}, styles.Empty)
-	s += "\n" + styles.RenderPrompt(fmt.Sprintf("2. cp %s/config.json ./config.json", relayerHome), []string{}, styles.Empty)
-	s += "\n" + styles.RenderPrompt("3. npm start", []string{}, styles.Empty) + "\n"
+	s += "\n" + styles.RenderPrompt("The relayer is now running in the background!", []string{}, styles.Completed)
+	s += "\n" + styles.RenderPrompt("To view relayer logs:", []string{}, styles.Empty)
+	s += "\n" + styles.RenderPrompt("  weave relayer log", []string{}, styles.Empty) + "\n"
 	return s
 }
 

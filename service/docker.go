@@ -1,126 +1,236 @@
 package service
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"strings"
+
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/client"
+	"github.com/docker/go-connections/nat"
 
 	"github.com/initia-labs/weave/common"
 )
 
 type Docker struct {
 	commandName CommandName
+	vmType      string
 }
 
-func NewDocker(commandName CommandName) *Docker {
+func NewDocker(commandName CommandName, vmType string) *Docker {
 	return &Docker{
 		commandName: commandName,
+		vmType:      vmType,
 	}
 }
 
 func (d *Docker) Create(version, appHome string) error {
+	// For Rollytics, use docker compose
+	if d.commandName == Rollytics {
+		return d.createDockerCompose(version)
+	}
+
+	ctx := context.Background()
+
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
 	// Pull the appropriate image based on command type and version
-	imageName, err := d.getImageName("main")
+	imageName, err := d.getImageName(version)
 	if err != nil {
 		return fmt.Errorf("failed to get image name: %v", err)
 	}
 
-	pullCmd := exec.Command("docker", "pull", imageName)
-	if output, err := pullCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to pull docker image: %v, output: %s", err, string(output))
+	out, err := cli.ImagePull(ctx, imageName, image.PullOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to pull docker image: %v", err)
+	}
+	defer out.Close()
+
+	// Read and discard pull output (or could display progress)
+	if _, err := io.Copy(io.Discard, out); err != nil {
+		return fmt.Errorf("failed to read pull output: %v", err)
+	}
+
+	// Create named volume for data persistence
+	volumeName, err := d.getVolumeName()
+	if err != nil {
+		return fmt.Errorf("failed to get volume name: %v", err)
+	}
+
+	_, err = cli.VolumeCreate(ctx, volume.CreateOptions{
+		Name: volumeName,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create docker volume: %v", err)
 	}
 
 	return nil
 }
 
 func (d *Docker) Start(optionalArgs ...string) error {
+	// For Rollytics, use docker compose
+	if d.commandName == Rollytics {
+		return d.startDockerCompose()
+	}
+
+	ctx := context.Background()
+
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
 	serviceName, err := d.GetServiceName()
 	if err != nil {
 		return err
 	}
 
-	// Get binary and home paths
-	_, appHome, err := d.GetServiceBinaryAndHome()
+	// Get volume name for data persistence
+	volumeName, err := d.getVolumeName()
 	if err != nil {
 		return err
 	}
 
-	args := []string{
-		"run",
-		"-d",
-		"--name", serviceName,
-		"--restart", "unless-stopped",
-		"--network", "host",
-		// TODO: do we need this?
-		"-v", fmt.Sprintf("%s:/app/data", appHome),
-	}
-	args = append(args, optionalArgs...)
-
-	// Add volume mount
-	if volumes, err := d.getVolumeMount(); err != nil {
+	// Get image name
+	imageName, err := d.getImageName("main")
+	if err != nil {
 		return err
-	} else {
-		args = append(args, volumes...)
 	}
 
-	// Add port mappings
-	if ports, err := d.getPortMappings(); err != nil {
+	// Build binds (volume mounts)
+	binds := []string{
+		fmt.Sprintf("%s:/app/data", volumeName),
+	}
+
+	// Add additional volume mounts
+	additionalMounts, err := d.getAdditionalVolumeMounts()
+	if err != nil {
 		return err
-	} else {
-		args = append(args, ports...)
 	}
+	binds = append(binds, additionalMounts...)
 
-	// Add the image name
-	if imageName, err := d.getImageName("main"); err != nil {
+	// Get port bindings
+	portBindings, exposedPorts, err := d.getPortBindings()
+	if err != nil {
 		return err
-	} else {
-		args = append(args, imageName)
 	}
 
-	// Add command arguments
-	if cmdArgs, err := d.getCommandArgs(); err != nil {
+	// Get command arguments
+	cmdArgs, err := d.getCommandArgs()
+	if err != nil {
 		return err
-	} else {
-		args = append(args, cmdArgs...)
 	}
 
-	cmd := exec.Command("docker", args...)
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to start container: %v, output: %s", err, string(output))
+	// Container configuration
+	config := &container.Config{
+		Image:        imageName,
+		Cmd:          cmdArgs,
+		ExposedPorts: exposedPorts,
+	}
+
+	// Host configuration
+	hostConfig := &container.HostConfig{
+		Binds:        binds,
+		PortBindings: portBindings,
+		NetworkMode:  "host",
+		RestartPolicy: container.RestartPolicy{
+			Name: "unless-stopped",
+		},
+	}
+
+	// Create container
+	resp, err := cli.ContainerCreate(ctx, config, hostConfig, nil, nil, serviceName)
+	if err != nil {
+		return fmt.Errorf("failed to create container: %v", err)
+	}
+
+	// Start container
+	if err := cli.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
+		return fmt.Errorf("failed to start container: %v", err)
 	}
 
 	return nil
 }
 
 func (d *Docker) Stop() error {
+	// For Rollytics, use docker compose
+	if d.commandName == Rollytics {
+		return d.stopDockerCompose()
+	}
+
+	ctx := context.Background()
+
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
 	serviceName, err := d.GetServiceName()
 	if err != nil {
 		return err
 	}
 
-	cmd := exec.Command("docker", "stop", serviceName)
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to stop container: %v, output: %s", err, string(output))
+	// Stop container
+	timeout := 10 // seconds
+	if err := cli.ContainerStop(ctx, serviceName, container.StopOptions{Timeout: &timeout}); err != nil {
+		return fmt.Errorf("failed to stop container: %v", err)
 	}
 
 	// Remove the container after stopping
-	rmCmd := exec.Command("docker", "rm", serviceName)
-	_ = rmCmd.Run() // Ignore error if container doesn't exist
+	if err := cli.ContainerRemove(ctx, serviceName, container.RemoveOptions{}); err != nil {
+		// Ignore error if container doesn't exist
+		return nil
+	}
 
 	return nil
 }
 
 func (d *Docker) Log(n int) error {
+	// For Rollytics, use docker compose
+	if d.commandName == Rollytics {
+		return d.logDockerCompose(n)
+	}
+
+	ctx := context.Background()
+
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
 	serviceName, err := d.GetServiceName()
 	if err != nil {
 		return err
 	}
 
-	cmd := exec.Command("docker", "logs", "--tail", fmt.Sprintf("%d", n), "-f", serviceName)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	options := container.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Follow:     true,
+		Tail:       fmt.Sprintf("%d", n),
+	}
+
+	out, err := cli.ContainerLogs(ctx, serviceName, options)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	// Copy logs to stdout
+	_, err = io.Copy(os.Stdout, out)
+	return err
 }
 
 func (d *Docker) getImageName(version string) (string, error) {
@@ -128,7 +238,9 @@ func (d *Docker) getImageName(version string) (string, error) {
 
 	switch d.commandName {
 	case Minitia:
-		return fmt.Sprintf("%s/minitiad:%s", baseImage, version), nil
+		// TODO: add minitia image name
+		panic("minitia image name is not supported")
+		// return fmt.Sprintf("%s/minitiad:%s", baseImage, version), nil
 	case UpgradableInitia, NonUpgradableInitia:
 		return fmt.Sprintf("%s/initiad:%s", baseImage, version), nil
 	case OPinitExecutor:
@@ -137,12 +249,17 @@ func (d *Docker) getImageName(version string) (string, error) {
 		return fmt.Sprintf("%s/opinit-bots:%s", baseImage, version), nil
 	case Relayer:
 		return fmt.Sprintf("%s/rapid-relayer:%s", baseImage, version), nil
+	case Rollytics:
+		if version == "" {
+			version = "latest"
+		}
+		return fmt.Sprintf("%s/rollytics:%s", baseImage, version), nil
 	default:
 		return "", fmt.Errorf("unsupported command: %v", d.commandName)
 	}
 }
 
-func (d *Docker) getVolumeMount() ([]string, error) {
+func (d *Docker) getAdditionalVolumeMounts() ([]string, error) {
 	// Get the user's home directory
 	userHome, err := os.UserHomeDir()
 	if err != nil {
@@ -153,47 +270,53 @@ func (d *Docker) getVolumeMount() ([]string, error) {
 	case Relayer:
 		relayerPath := filepath.Join(userHome, common.RelayerDirectory)
 		return []string{
-			"-v", fmt.Sprintf("%s:/config", relayerPath),
-			"-v", fmt.Sprintf("%s:/syncInfo", relayerPath),
+			fmt.Sprintf("%s:/config", relayerPath),
+			fmt.Sprintf("%s:/syncInfo", relayerPath),
 		}, nil
 	default:
 		return []string{}, nil
 	}
 }
 
-func (d *Docker) getPortMappings() ([]string, error) {
+func (d *Docker) getPortBindings() (nat.PortMap, nat.PortSet, error) {
+	portBindings := nat.PortMap{}
+	exposedPorts := nat.PortSet{}
+
+	var ports []string
 	switch d.commandName {
 	case Minitia:
-		return []string{
-			"-p", "26656:26656", // P2P
-			"-p", "26657:26657", // RPC
-			"-p", "1317:1317", // REST
-			"-p", "8545:8545", // JSON-RPC
-			"-p", "9090:9090", // gRPC
-		}, nil
+		ports = []string{"26656", "26657", "1317", "8545", "9090"}
 	case UpgradableInitia, NonUpgradableInitia:
-		return []string{
-			"-p", "26656:26656",
-			"-p", "26657:26657",
-			"-p", "1317:1317",
-			"-p", "9090:9090", // gRPC
-		}, nil
+		ports = []string{"26656", "26657", "1317", "9090"}
 	case OPinitChallenger:
-		return []string{
-			"-p", "3000:3000", // REST API
-		}, nil
+		ports = []string{"3000"}
 	case OPinitExecutor:
-		return []string{
-			"-p", "3001:3001", // REST API
-		}, nil
+		ports = []string{"3001"}
 	case Relayer:
-		return []string{
-			"-p", "7010:7010", // REST API
-			"-p", "7011:7011", // Telemetry
-		}, nil
+		ports = []string{"7010", "7011"}
+	case Rollytics:
+		// TODO: revisit port
+		ports = []string{"8080"}
 	default:
-		return []string{}, nil
+		return portBindings, exposedPorts, nil
 	}
+
+	for _, port := range ports {
+		containerPort, err := nat.NewPort("tcp", port)
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid port %s: %v", port, err)
+		}
+
+		exposedPorts[containerPort] = struct{}{}
+		portBindings[containerPort] = []nat.PortBinding{
+			{
+				HostIP:   "0.0.0.0",
+				HostPort: port,
+			},
+		}
+	}
+
+	return portBindings, exposedPorts, nil
 }
 
 func (d *Docker) getVolumeName() (string, error) {
@@ -216,6 +339,8 @@ func (d *Docker) getCommandArgs() ([]string, error) {
 		return []string{"start", "challenger", "--home", "/app/data"}, nil
 	case Relayer:
 		return []string{}, nil
+	case Rollytics:
+		return []string{}, nil
 	default:
 		return nil, fmt.Errorf("unsupported command: %v", d.commandName)
 	}
@@ -230,6 +355,10 @@ func (d *Docker) GetServiceName() (string, error) {
 }
 
 func (d *Docker) GetServiceFile() (string, error) {
+	// For Rollytics, return docker-compose.yml path
+	if d.commandName == Rollytics {
+		return d.getComposeFilePath()
+	}
 	// Not needed for Docker implementation
 	return "", nil
 }
@@ -239,23 +368,85 @@ func (d *Docker) GetServiceBinaryAndHome() (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
-	// Return the volume path as home
-	return "", fmt.Sprintf("/var/lib/docker/volumes/%s/_data", volumeName), nil
+	// Return empty binary (not applicable for Docker) and volume name as home identifier
+	// The actual data path inside Docker is /app/data, but the volume is managed by Docker
+	return "", volumeName, nil
 }
 
 func (d *Docker) PruneLogs() error {
+	// For Rollytics, use docker compose
+	if d.commandName == Rollytics {
+		// Docker compose doesn't have a direct prune logs command
+		return nil
+	}
+
+	ctx := context.Background()
+
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
 	serviceName, err := d.GetServiceName()
 	if err != nil {
 		return err
 	}
 
-	cmd := exec.Command("docker", "logs", "--truncate", "0", serviceName)
-	return cmd.Run()
+	// Inspect container to get log file path
+	containerJSON, err := cli.ContainerInspect(ctx, serviceName)
+	if err != nil {
+		return fmt.Errorf("failed to inspect container: %v", err)
+	}
+
+	// Truncate the log file directly
+	logPath := strings.TrimSpace(containerJSON.LogPath)
+	if logPath != "" {
+		if err := os.Truncate(logPath, 0); err != nil {
+			// If truncate fails (e.g., permission denied), try restarting the container
+			return d.Restart()
+		}
+	}
+
+	return nil
 }
 
 func (d *Docker) Restart() error {
+	// For Rollytics, use docker compose
+	if d.commandName == Rollytics {
+		return d.restartDockerCompose()
+	}
+
 	if err := d.Stop(); err != nil {
 		return err
 	}
 	return d.Start()
+}
+
+// RemoveVolume removes the Docker volume associated with this service
+// This is useful for complete cleanup and should be called separately from Stop
+func (d *Docker) RemoveVolume() error {
+	// For Rollytics, use docker compose
+	if d.commandName == Rollytics {
+		return d.removeDockerComposeVolumes()
+	}
+
+	ctx := context.Background()
+
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	volumeName, err := d.getVolumeName()
+	if err != nil {
+		return err
+	}
+
+	if err := cli.VolumeRemove(ctx, volumeName, false); err != nil {
+		return fmt.Errorf("failed to remove volume: %v", err)
+	}
+
+	return nil
 }

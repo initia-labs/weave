@@ -1154,7 +1154,7 @@ func WaitStartingInitBot(ctx context.Context) tea.Cmd {
 		}
 
 		if state.InitExecutorBot {
-			srv, err := service.NewService(service.OPinitExecutor)
+			srv, err := service.NewService(service.OPinitExecutor, "")
 			if err != nil {
 				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to initialize service: %v", err)}
 			}
@@ -1243,7 +1243,7 @@ func WaitStartingInitBot(ctx context.Context) tea.Cmd {
 				}
 			}
 		} else if state.InitChallengerBot {
-			srv, err := service.NewService(service.OPinitChallenger)
+			srv, err := service.NewService(service.OPinitChallenger, "")
 			if err != nil {
 				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to initialize service: %v", err)}
 			}
@@ -1310,7 +1310,7 @@ func (m *StartingInitBot) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.HandlePanic(m.Loading.NonRetryableErr)
 	}
 	if m.Loading.Completing {
-		srv, err := service.NewService(service.OPinitExecutor)
+		srv, err := service.NewService(service.OPinitExecutor, "")
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
@@ -1561,7 +1561,7 @@ func InitializeExecutorWithConfig(config ExecutorConfig, keyFile io.KeyFile, opI
 	}
 
 	// Additional initialization steps for executor
-	srv, err := service.NewService(service.OPinitExecutor)
+	srv, err := service.NewService(service.OPinitExecutor, "")
 	if err != nil {
 		return fmt.Errorf("failed to initialize service: %v", err)
 	}
@@ -1613,7 +1613,7 @@ func InitializeChallengerWithConfig(config ChallengerConfig, keyFile io.KeyFile,
 	}
 
 	// Additional initialization steps for executor
-	srv, err := service.NewService(service.OPinitChallenger)
+	srv, err := service.NewService(service.OPinitChallenger, "")
 	if err != nil {
 		return fmt.Errorf("failed to initialize service: %v", err)
 	}

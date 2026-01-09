@@ -88,7 +88,7 @@ func initiaStartCommand() *cobra.Command {
 				return err
 			}
 
-			s, err := service.NewService(service.UpgradableInitia)
+			s, err := service.NewService(service.UpgradableInitia, "")
 			if err != nil {
 				return err
 			}
@@ -119,7 +119,7 @@ func initiaStopCommand() *cobra.Command {
 		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, L1NodeHelperText),
 		PreRunE: isInitiated(service.UpgradableInitia),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := service.NewService(service.UpgradableInitia)
+			s, err := service.NewService(service.UpgradableInitia, "")
 			if err != nil {
 				return err
 			}
@@ -143,7 +143,7 @@ func initiaRestartCommand() *cobra.Command {
 		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, L1NodeHelperText),
 		PreRunE: isInitiated(service.UpgradableInitia),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := service.NewService(service.UpgradableInitia)
+			s, err := service.NewService(service.UpgradableInitia, "")
 			if err != nil {
 				return err
 			}
@@ -172,7 +172,7 @@ func initiaLogCommand() *cobra.Command {
 				return err
 			}
 
-			s, err := service.NewService(service.UpgradableInitia)
+			s, err := service.NewService(service.UpgradableInitia, "")
 			if err != nil {
 				return err
 			}
