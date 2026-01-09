@@ -188,24 +188,3 @@ func (te *InitiadTxExecutor) waitForTransactionInclusion(rpcURL, txHash string) 
 		}
 	}
 }
-
-type HermesTxExecutor struct {
-	binaryPath string
-}
-
-func NewHermesTxExecutor(binaryPath string) *HermesTxExecutor {
-	return &HermesTxExecutor{
-		binaryPath: binaryPath,
-	}
-}
-
-func (te *HermesTxExecutor) UpdateClient(clientId, chainId string) (string, error) {
-	cmd := exec.Command(te.binaryPath, "update", "client", "--host-chain", chainId, "--client", clientId)
-
-	outputBytes, err := cmd.Output()
-	if err != nil {
-		return string(outputBytes), fmt.Errorf("failed to update client: %v, output: %s", err, string(outputBytes))
-	}
-
-	return string(outputBytes), err
-}

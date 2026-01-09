@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/go-connections/nat"
 
 	"github.com/initia-labs/weave/common"
@@ -184,13 +185,16 @@ func (d *Docker) Stop() error {
 	// Stop container
 	timeout := 10 // seconds
 	if err := cli.ContainerStop(ctx, serviceName, container.StopOptions{Timeout: &timeout}); err != nil {
-		return fmt.Errorf("failed to stop container: %v", err)
+		if !errdefs.IsNotFound(err) {
+			return fmt.Errorf("failed to stop container: %v", err)
+		}
 	}
 
 	// Remove the container after stopping
 	if err := cli.ContainerRemove(ctx, serviceName, container.RemoveOptions{}); err != nil {
-		// Ignore error if container doesn't exist
-		return nil
+		if !errdefs.IsNotFound(err) {
+			return fmt.Errorf("failed to remove container: %v", err)
+		}
 	}
 
 	return nil

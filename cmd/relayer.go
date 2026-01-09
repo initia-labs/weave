@@ -160,7 +160,7 @@ func relayerRestartCommand() *cobra.Command {
 				return err
 			}
 
-			fmt.Println("Started the relayer service. You can see the logs with `weave relayer log`")
+			fmt.Println("Restarted the relayer service. You can see the logs with `weave relayer log`")
 			return nil
 		},
 	}
