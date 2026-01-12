@@ -213,6 +213,32 @@ func GetLatestOPInitBotVersion() (string, string, error) {
 	return getLatestVersionFromReleases(releases)
 }
 
+// GetLatestRapidRelayerVersion fetches the latest release tag from the rapid-relayer GitHub repository.
+// Returns only the tag name (e.g., "v1.0.7") since rapid-relayer is distributed as a Docker image.
+func GetLatestRapidRelayerVersion() (string, error) {
+	releases, err := fetchReleases("https://api.github.com/repos/initia-labs/rapid-relayer/releases")
+	if err != nil {
+		return "", err
+	}
+	if len(releases) < 1 {
+		return "", fmt.Errorf("no releases found")
+	}
+
+	// Find the highest version by comparing semantic versions
+	var latestRelease *BinaryRelease
+	for i := range releases {
+		if latestRelease == nil || CompareSemVer(releases[i].TagName, latestRelease.TagName) {
+			latestRelease = &releases[i]
+		}
+	}
+
+	if latestRelease == nil {
+		return "", fmt.Errorf("no stable release found")
+	}
+
+	return latestRelease.TagName, nil
+}
+
 // SortVersions sorts the versions based on semantic versioning, including pre-release handling
 func SortVersions(versions BinaryVersionWithDownloadURL) []string {
 	var versionTags []string

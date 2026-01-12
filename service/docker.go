@@ -104,7 +104,12 @@ func (d *Docker) Start(optionalArgs ...string) error {
 	}
 
 	// Get image name
-	imageName, err := d.getImageName("main")
+	version := "main"
+	if d.commandName == Relayer {
+		version = GetRapidRelayerVersion()
+	}
+
+	imageName, err := d.getImageName(version)
 	if err != nil {
 		return err
 	}
