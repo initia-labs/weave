@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
 
 	"github.com/initia-labs/weave/common"
@@ -232,8 +233,8 @@ func (d *Docker) Log(n int) error {
 	}
 	defer out.Close()
 
-	// Copy logs to stdout
-	_, err = io.Copy(os.Stdout, out)
+	// Demultiplex stdout and stderr streams
+	_, err = stdcopy.StdCopy(os.Stdout, os.Stderr, out)
 	return err
 }
 
