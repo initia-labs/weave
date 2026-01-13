@@ -118,7 +118,9 @@ func (d *Docker) Start(optionalArgs ...string) error {
 			version = d.relayerVersion
 		} else {
 			// Fallback: fetch version if Start() is called without Create() first
-			version = GetRapidRelayerVersion()
+			// Cache it so subsequent Start()/Restart() calls reuse the same version
+			d.relayerVersion = GetRapidRelayerVersion()
+			version = d.relayerVersion
 		}
 	}
 
