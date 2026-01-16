@@ -20,8 +20,9 @@ import (
 )
 
 type Docker struct {
-	commandName CommandName
-	vmType      string
+	commandName    CommandName
+	vmType         string
+	relayerVersion string // Cached version for relayer to ensure Create() and Start() use the same version
 }
 
 func NewDocker(commandName CommandName, vmType string) *Docker {
@@ -35,6 +36,12 @@ func (d *Docker) Create(version, appHome string) error {
 	// For Rollytics, use docker compose
 	if d.commandName == Rollytics {
 		return d.createDockerCompose(version)
+	}
+
+	// For relayer, fetch and cache the version to ensure Create() and Start() use the same version
+	if d.commandName == Relayer {
+		d.relayerVersion = GetRapidRelayerVersion()
+		version = d.relayerVersion
 	}
 
 	ctx := context.Background()
@@ -104,7 +111,20 @@ func (d *Docker) Start(optionalArgs ...string) error {
 	}
 
 	// Get image name
-	imageName, err := d.getImageName("main")
+	version := "main"
+	if d.commandName == Relayer {
+		// Use cached version from Create() if available, otherwise fetch it
+		if d.relayerVersion != "" {
+			version = d.relayerVersion
+		} else {
+			// Fallback: fetch version if Start() is called without Create() first
+			// Cache it so subsequent Start()/Restart() calls reuse the same version
+			d.relayerVersion = GetRapidRelayerVersion()
+			version = d.relayerVersion
+		}
+	}
+
+	imageName, err := d.getImageName(version)
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,10 @@
 package service
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/initia-labs/weave/cosmosutils"
+)
 
 type CommandName string
 
@@ -13,6 +17,21 @@ const (
 	Relayer             CommandName = "relayer"
 	Rollytics           CommandName = "rollytics"
 )
+
+// RapidRelayerVersionFallback is the fallback docker image tag used for the rapid relayer
+// when fetching the latest version from GitHub fails.
+const RapidRelayerVersionFallback = "v1.0.7"
+
+// GetRapidRelayerVersion fetches the latest rapid relayer version from GitHub.
+// Falls back to RapidRelayerVersionFallback if the fetch fails.
+func GetRapidRelayerVersion() string {
+	version, err := cosmosutils.GetLatestRapidRelayerVersion()
+	if err != nil {
+		// Fall back to hardcoded version if fetch fails
+		return RapidRelayerVersionFallback
+	}
+	return version
+}
 
 func (cmd CommandName) GetPrettyName() (string, error) {
 	switch cmd {
