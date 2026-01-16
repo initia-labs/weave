@@ -227,6 +227,9 @@ func GetLatestRapidRelayerVersion() (string, error) {
 	// Find the highest version by comparing semantic versions
 	var latestRelease *BinaryRelease
 	for i := range releases {
+		if releases[i].Prerelease {
+			continue
+		}
 		if latestRelease == nil || CompareSemVer(releases[i].TagName, latestRelease.TagName) {
 			latestRelease = &releases[i]
 		}
