@@ -286,7 +286,7 @@ func showGasStationBalance() error {
 	}
 	fmt.Printf("\n⛽️ Initia Address: %s\n\nTestnet\n%s\nMainnet\n%s\n\n", gasStationKey.InitiaAddress, initiaL1TestnetBalances.Render(maxWidth), initiaL1MainnetBalances.Render(maxWidth))
 	fmt.Printf("⛽️ Celestia Address: %s\n\nTestnet\n%s\nMainnet\n%s\n\n", gasStationKey.CelestiaAddress, celestiaTestnetBalance.Render(maxWidth), celestiaMainnetBalance.Render(maxWidth))
-	fmt.Printf("💧 You can get testnet INIT from -> https://faucet.testnet.initia.xyz.\n💧 For testnet TIA, please refer to -> https://docs.celestia.org/how-to-guides/mocha-testnet#mocha-testnet-faucet\n")
+	fmt.Printf("💧 You can get testnet INIT from -> https://app.testnet.initia.xyz/faucet.\n💧 For testnet TIA, please refer to -> https://docs.celestia.org/how-to-guides/mocha-testnet#mocha-testnet-faucet\n")
 
 	return nil
 }
