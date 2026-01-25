@@ -205,6 +205,8 @@ func GetLatestMinitiaVersion(vm string) (string, string, error) {
 	return getLatestVersionFromReleases(releases)
 }
 
+var semverPattern = regexp.MustCompile(`^v\d+\.\d+\.\d+(-[A-Za-z0-9.-]+)?$`)
+
 func GetMinitiadBinaryUrlFromLcd(httpClient *client.HTTPClient, rest string) (vm string, version string, url string, err error) {
 	var result NodeInfoResponse
 	_, err = httpClient.Get(rest, "/cosmos/base/tendermint/v1beta1/node_info", nil, &result)
@@ -213,12 +215,16 @@ func GetMinitiadBinaryUrlFromLcd(httpClient *client.HTTPClient, rest string) (vm
 	}
 
 	rawVersion := result.ApplicationVersion.Version
+	version = normalizeVersion(rawVersion)
+	if !semverPattern.MatchString(version) {
+		return "", "", "", fmt.Errorf("invalid version format after normalization: %q (raw: %q)", version, rawVersion)
+	}
+
 	vm = detectMinitiaVM(rawVersion)
 	if vm == "" {
 		return "", "", "", fmt.Errorf("could not detect VM type from version string: %s", rawVersion)
 	}
 
-	version = normalizeVersion(rawVersion)
 	url, err = getMinitiadBinaryURL(vm, version)
 	if err != nil {
 		return "", "", "", err
