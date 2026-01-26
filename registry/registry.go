@@ -65,7 +65,7 @@ var (
 	}
 	CELESTIA_TESTNET_LCDS = []Endpoint{
 		{
-			Address: "https://api-mocha.pops.one",
+			Address: "https://celestia-testnet-api.polkachu.com",
 		},
 		{
 			Address: "https://celestia-testnet-api.itrocket.net",
@@ -79,7 +79,7 @@ var (
 			Address: "https://rest.initia.xyz",
 		},
 		{
-			Address: "https://initia-rest.cosmosspaces.zone",
+			Address: "https://initia-api.polkachu.com",
 		},
 	}
 	INITIA_TESTNET_LCDS = []Endpoint{
