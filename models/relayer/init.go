@@ -1203,33 +1203,33 @@ func broadcastDefaultPresetFromGasStation(ctx context.Context) tea.Cmd {
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get gas station key: %v", err)}
 		}
-		l1ActiveLcd, err := GetL1ActiveLcd(ctx)
-		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: err}
-		}
-		cliTx, err := cosmosutils.NewInitiadTxExecutor(l1ActiveLcd)
-		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: err}
-		}
 
-		l1GasDenom, err := GetL1GasDenom(ctx)
-		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: err}
-		}
-		l1GasPrices, err := GetL1GasPrices(ctx)
-		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: err}
-		}
-		l1ActiveRpc, err := GetL1ActiveRpc(ctx)
-		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: err}
-		}
-		l1ChainId, err := GetL1ChainId(ctx)
-		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: err}
-		}
 		if state.l1FundingAmount != "0" {
-			res, err := cliTx.BroadcastMsgSend(
+			l1ActiveLcd, err := GetL1ActiveLcd(ctx)
+			if err != nil {
+				return ui.NonRetryableErrorLoading{Err: err}
+			}
+			l1Tx, err := cosmosutils.NewInitiadTxExecutor(l1ActiveLcd)
+			if err != nil {
+				return ui.NonRetryableErrorLoading{Err: err}
+			}
+			l1GasDenom, err := GetL1GasDenom(ctx)
+			if err != nil {
+				return ui.NonRetryableErrorLoading{Err: err}
+			}
+			l1GasPrices, err := GetL1GasPrices(ctx)
+			if err != nil {
+				return ui.NonRetryableErrorLoading{Err: err}
+			}
+			l1ActiveRpc, err := GetL1ActiveRpc(ctx)
+			if err != nil {
+				return ui.NonRetryableErrorLoading{Err: err}
+			}
+			l1ChainId, err := GetL1ChainId(ctx)
+			if err != nil {
+				return ui.NonRetryableErrorLoading{Err: err}
+			}
+			res, err := l1Tx.BroadcastMsgSend(
 				gasStationKey.Mnemonic,
 				state.l1RelayerAddress,
 				fmt.Sprintf("%s%s", state.l1FundingAmount, l1GasDenom),
@@ -1243,24 +1243,32 @@ func broadcastDefaultPresetFromGasStation(ctx context.Context) tea.Cmd {
 			state.l1FundingTxHash = res.TxHash
 		}
 
-		l2GasDenom, err := GetL2GasDenom(ctx)
-		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: err}
-		}
-		l2GasPrices, err := GetL2GasPrices(ctx)
-		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: err}
-		}
-		l2ActiveRpc, err := GetL2ActiveRpc(ctx)
-		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: err}
-		}
-		l2ChainId, err := GetL2ChainId(ctx)
-		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: err}
-		}
 		if state.l2FundingAmount != "0" {
-			res, err := cliTx.BroadcastMsgSend(
+			l2ActiveLcd, err := GetL2ActiveLcd(ctx)
+			if err != nil {
+				return ui.NonRetryableErrorLoading{Err: err}
+			}
+			l2Tx, err := cosmosutils.NewMinitiadTxExecutor(l2ActiveLcd)
+			if err != nil {
+				return ui.NonRetryableErrorLoading{Err: err}
+			}
+			l2GasDenom, err := GetL2GasDenom(ctx)
+			if err != nil {
+				return ui.NonRetryableErrorLoading{Err: err}
+			}
+			l2GasPrices, err := GetL2GasPrices(ctx)
+			if err != nil {
+				return ui.NonRetryableErrorLoading{Err: err}
+			}
+			l2ActiveRpc, err := GetL2ActiveRpc(ctx)
+			if err != nil {
+				return ui.NonRetryableErrorLoading{Err: err}
+			}
+			l2ChainId, err := GetL2ChainId(ctx)
+			if err != nil {
+				return ui.NonRetryableErrorLoading{Err: err}
+			}
+			res, err := l2Tx.BroadcastMsgSend(
 				gasStationKey.Mnemonic,
 				state.l2RelayerAddress,
 				fmt.Sprintf("%s%s", state.l2FundingAmount, l2GasDenom),
