@@ -15,6 +15,7 @@ import (
 	"github.com/initia-labs/weave/config"
 	"github.com/initia-labs/weave/cosmosutils"
 	"github.com/initia-labs/weave/io"
+	"github.com/initia-labs/weave/registry"
 	"github.com/initia-labs/weave/types"
 )
 
@@ -49,12 +50,17 @@ func (lsk *L1SystemKeys) FundAccountsWithGasStation(state *LaunchState) (*FundAc
 		return nil, fmt.Errorf("failed to get gas station key: %v", err)
 	}
 
-	_, err = cosmosutils.RecoverKeyFromMnemonic(state.binaryPath, common.WeaveGasStationKeyName, gasStationKey.Mnemonic)
+	l1BinaryPath, err := getInitiaL1BinaryPath(state.l1ChainId)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = cosmosutils.RecoverKeyFromMnemonic(l1BinaryPath, common.WeaveGasStationKeyName, gasStationKey.Mnemonic)
 	if err != nil {
 		return nil, fmt.Errorf("failed to recover gas station key: %v", err)
 	}
 	defer func() {
-		_ = cosmosutils.DeleteKey(state.binaryPath, common.WeaveGasStationKeyName)
+		_ = cosmosutils.DeleteKey(l1BinaryPath, common.WeaveGasStationKeyName)
 	}()
 
 	var rawTxContent string
@@ -128,14 +134,14 @@ func (lsk *L1SystemKeys) FundAccountsWithGasStation(state *LaunchState) (*FundAc
 		}
 	}()
 
-	signCmd := exec.Command(state.binaryPath, "tx", "sign", rawTxPath, "--from", common.WeaveGasStationKeyName, "--node", state.l1RPC,
+	signCmd := exec.Command(l1BinaryPath, "tx", "sign", rawTxPath, "--from", common.WeaveGasStationKeyName, "--node", state.l1RPC,
 		"--chain-id", state.l1ChainId, "--keyring-backend", "test", "--output-document", rawTxPath)
 	signRes, err := signCmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign transaction: %v, output: %s", err, string(signRes))
 	}
 
-	broadcastCmd := exec.Command(state.binaryPath, "tx", "broadcast", rawTxPath, "--node", state.l1RPC, "--output", "json")
+	broadcastCmd := exec.Command(l1BinaryPath, "tx", "broadcast", rawTxPath, "--node", state.l1RPC, "--output", "json")
 	broadcastRes, err := broadcastCmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("failed to broadcast transaction: %v, output: %s", err, string(broadcastRes))
@@ -150,7 +156,7 @@ func (lsk *L1SystemKeys) FundAccountsWithGasStation(state *LaunchState) (*FundAc
 		return nil, fmt.Errorf("initia l1 tx failed with error: %v", txResponse.RawLog)
 	}
 
-	err = lsk.waitForTransactionInclusion(state.binaryPath, state.l1RPC, txResponse.TxHash)
+	err = lsk.waitForTransactionInclusion(l1BinaryPath, state.l1RPC, txResponse.TxHash)
 	if err != nil {
 		return nil, err
 	}
@@ -207,6 +213,50 @@ func (lsk *L1SystemKeys) waitForTransactionInclusion(binaryPath, rpcURL, txHash 
 			// If the transaction is not in a block yet, continue polling
 		}
 	}
+}
+
+func getInitiaL1BinaryPath(chainId string) (string, error) {
+	l1Lcd, err := getInitiaL1Lcd(chainId)
+	if err != nil {
+		return "", err
+	}
+
+	httpClient := client.NewHTTPClient()
+	nodeVersion, url, err := cosmosutils.GetInitiaBinaryUrlFromLcd(httpClient, l1Lcd)
+	if err != nil {
+		return "", err
+	}
+
+	binaryPath, err := cosmosutils.GetInitiaBinaryPath(nodeVersion)
+	if err != nil {
+		return "", err
+	}
+
+	if err := cosmosutils.InstallInitiaBinary(nodeVersion, url, binaryPath); err != nil {
+		return "", err
+	}
+
+	return binaryPath, nil
+}
+
+func getInitiaL1Lcd(chainId string) (string, error) {
+	testnetRegistry, err := registry.GetChainRegistry(registry.InitiaL1Testnet)
+	if err != nil {
+		return "", err
+	}
+	if testnetRegistry.GetChainId() == chainId {
+		return testnetRegistry.GetFirstActiveLcd()
+	}
+
+	mainnetRegistry, err := registry.GetChainRegistry(registry.InitiaL1Mainnet)
+	if err != nil {
+		return "", err
+	}
+	if mainnetRegistry.GetChainId() == chainId {
+		return mainnetRegistry.GetFirstActiveLcd()
+	}
+
+	return "", fmt.Errorf("unsupported Initia L1 chain id: %s", chainId)
 }
 
 const FundMinitiaAccountsDefaultTxInterface = `
@@ -406,8 +456,13 @@ func (lsk *L1SystemKeys) VerifyGasStationBalances(state *LaunchState) error {
 		return fmt.Errorf("failed to get gas station key: %v", err)
 	}
 
+	l1BinaryPath, err := getInitiaL1BinaryPath(state.l1ChainId)
+	if err != nil {
+		return err
+	}
+
 	// Query L1 balances
-	l1Balances, err := queryChainBalance(state.binaryPath, state.l1RPC, gasStationKey.InitiaAddress)
+	l1Balances, err := queryChainBalance(l1BinaryPath, state.l1RPC, gasStationKey.InitiaAddress)
 	if err != nil {
 		return fmt.Errorf("failed to query L1 balance: %v", err)
 	}
