@@ -148,7 +148,7 @@ type GasStationKey struct {
 }
 
 func RecoverGasStationKey(mnemonic string) (*GasStationKey, error) {
-	initiaKey, err := io.RecoverKey("init", mnemonic, crypto.EVMAddressType)
+	initiaKey, err := io.RecoverKey("init", mnemonic, crypto.CosmosAddressType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to recover initia gas station key: %v", err)
 	}
