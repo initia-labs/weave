@@ -742,9 +742,7 @@ func (m *OpBridgeOutputFinalizationPeriodInput) Update(msg tea.Msg) (tea.Model, 
 
 		state.opBridgeOutputFinalizationPeriod = input.Text
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.DotsSeparator, m.GetQuestion(), m.highlights, input.Text))
-		state.opBridgeBatchSubmissionTarget = common.TransformFirstWordUpperCase(string(Celestia))
-		state.batchSubmissionIsCelestia = true
-		return NewOracleEnableSelect(weavecontext.SetCurrentState(m.Ctx, state)), nil
+		return NewOpBridgeBatchSubmissionTargetSelect(weavecontext.SetCurrentState(m.Ctx, state)), nil
 	}
 	m.TextInput = input
 	return m, cmd
