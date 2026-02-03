@@ -23,8 +23,7 @@ Its primary purpose is to solve several key challenges:
 - Go **v1.24** or higher when building from source
 - Docker and Docker Compose
   - For macOS: Install Docker Desktop from https://www.docker.com/products/docker-desktop/
-  - For Ubuntu/Debian:
-    - `apt-get install docker.io docker-compose-plugin`
+  - For Ubuntu/Debian: Follow Docker's official install guide for the APT repository: https://docs.docker.com/engine/install/
   - For other Linux distributions: Use your package manager or install Docker Engine from https://docs.docker.com/engine/install/
   - Verify: `docker --version` and `docker compose version`
 - LZ4 compression tool
