@@ -116,6 +116,12 @@ func (d *Docker) createDockerCompose(version string) error {
       RPC_URL: ${RPC_URL}
       REST_URL: ${REST_URL}
       JSON_RPC_URL: ${JSON_RPC_URL}
+      CORS_ENABLED: true
+      CORS_ALLOW_ORIGINS: "*"
+      CORS_ALLOW_METHODS: "GET,POST,PUT,DELETE,PATCH,OPTIONS,HEAD"
+      CORS_ALLOW_HEADERS: "Origin, Content-Type, Accept, Authorization, X-Requested-With"
+      CORS_ALLOW_CREDENTIALS: true
+      CORS_MAX_AGE: 300
     ports:
       - "8088:8080"
     extra_hosts:
