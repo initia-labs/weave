@@ -41,7 +41,7 @@ func (s *testReflectionServer) ServerReflectionInfo(stream grpc_reflection_v1.Se
 	}
 }
 
-// Test the CheckHealth method with a mock gRPC server
+// Test the CheckHealth method with a real gRPC server and test reflection handler
 func TestGRPCClient_CheckHealth_Success(t *testing.T) {
 	server := grpc.NewServer()
 	grpc_reflection_v1.RegisterServerReflectionServer(server, &testReflectionServer{})
