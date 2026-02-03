@@ -26,7 +26,7 @@ const (
 )
 
 func getServiceFilePathAndBackupFilePath(serviceName service.CommandName) (string, string, error) {
-	s, err := service.NewService(service.UpgradableInitia)
+	s, err := service.NewService(service.UpgradableInitia, "")
 	if err != nil {
 		return "", "", fmt.Errorf("failed to create service: %v", err)
 	}

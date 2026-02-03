@@ -49,6 +49,10 @@ type InitiadTxExecutor struct {
 	binaryPath string
 }
 
+type MinitiadTxExecutor struct {
+	binaryPath string
+}
+
 type MsgUpdateParams struct {
 	Authority string        `json:"authority"`
 	Params    OPChildParams `json:"params"`
@@ -117,15 +121,41 @@ func NewInitiadTxExecutor(rest string) (*InitiadTxExecutor, error) {
 }
 
 func (te *InitiadTxExecutor) BroadcastMsgSend(senderMnemonic, recipientAddress, amount, gasPrices, rpc, chainId string) (*InitiadTxResponse, error) {
-	_, err := RecoverKeyFromMnemonic(te.binaryPath, TmpKeyName, senderMnemonic)
+	return broadcastMsgSend(te.binaryPath, senderMnemonic, recipientAddress, amount, gasPrices, rpc, chainId)
+}
+
+func NewMinitiadTxExecutor(rest string) (*MinitiadTxExecutor, error) {
+	httpClient := client.NewHTTPClient()
+	vm, version, url, err := GetMinitiadBinaryUrlFromLcd(httpClient, rest)
+	if err != nil {
+		return nil, err
+	}
+	binaryPath, err := GetMinitiadBinaryPath(vm, version)
+	if err != nil {
+		return nil, err
+	}
+	err = InstallMinitiadBinary(vm, version, url, binaryPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return &MinitiadTxExecutor{binaryPath: binaryPath}, nil
+}
+
+func (te *MinitiadTxExecutor) BroadcastMsgSend(senderMnemonic, recipientAddress, amount, gasPrices, rpc, chainId string) (*InitiadTxResponse, error) {
+	return broadcastMsgSend(te.binaryPath, senderMnemonic, recipientAddress, amount, gasPrices, rpc, chainId)
+}
+
+func broadcastMsgSend(binaryPath, senderMnemonic, recipientAddress, amount, gasPrices, rpc, chainId string) (*InitiadTxResponse, error) {
+	_, err := RecoverKeyFromMnemonic(binaryPath, TmpKeyName, senderMnemonic)
 	if err != nil {
 		return nil, fmt.Errorf("failed to recover gas station key: %v", err)
 	}
 	defer func() {
-		_ = DeleteKey(te.binaryPath, TmpKeyName)
+		_ = DeleteKey(binaryPath, TmpKeyName)
 	}()
 
-	cmd := exec.Command(te.binaryPath, "tx", "bank", "send", TmpKeyName, recipientAddress, amount, "--from",
+	cmd := exec.Command(binaryPath, "tx", "bank", "send", TmpKeyName, recipientAddress, amount, "--from",
 		TmpKeyName, "--chain-id", chainId, "--gas", "auto", "--gas-adjustment", DefaultGasAdjustment,
 		"--gas-prices", gasPrices, "--node", rpc, "--output", "json", "--keyring-backend", "test", "-y")
 
@@ -144,7 +174,7 @@ func (te *InitiadTxExecutor) BroadcastMsgSend(senderMnemonic, recipientAddress, 
 		return nil, fmt.Errorf("tx failed with error: %v", txResponse.RawLog)
 	}
 
-	err = te.waitForTransactionInclusion(rpc, txResponse.TxHash)
+	err = waitForTransactionInclusion(binaryPath, rpc, txResponse.TxHash)
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +182,7 @@ func (te *InitiadTxExecutor) BroadcastMsgSend(senderMnemonic, recipientAddress, 
 	return &txResponse, nil
 }
 
-func (te *InitiadTxExecutor) waitForTransactionInclusion(rpcURL, txHash string) error {
+func waitForTransactionInclusion(binaryPath, rpcURL, txHash string) error {
 	// Poll for transaction status until it's included in a block
 	timeout := time.After(15 * time.Second)   // Example timeout for polling
 	ticker := time.NewTicker(3 * time.Second) // Poll every 3 seconds
@@ -164,7 +194,7 @@ func (te *InitiadTxExecutor) waitForTransactionInclusion(rpcURL, txHash string) 
 			return fmt.Errorf("transaction not included in block within timeout")
 		case <-ticker.C:
 			// Query transaction status
-			statusCmd := exec.Command(te.binaryPath, "query", "tx", txHash, "--node", rpcURL, "--output", "json")
+			statusCmd := exec.Command(binaryPath, "query", "tx", txHash, "--node", rpcURL, "--output", "json")
 			statusRes, err := statusCmd.CombinedOutput()
 			// If the transaction is not included in a block yet, just continue polling
 			if err != nil {
@@ -187,25 +217,4 @@ func (te *InitiadTxExecutor) waitForTransactionInclusion(rpcURL, txHash string) 
 			// If the transaction is not in a block yet, continue polling
 		}
 	}
-}
-
-type HermesTxExecutor struct {
-	binaryPath string
-}
-
-func NewHermesTxExecutor(binaryPath string) *HermesTxExecutor {
-	return &HermesTxExecutor{
-		binaryPath: binaryPath,
-	}
-}
-
-func (te *HermesTxExecutor) UpdateClient(clientId, chainId string) (string, error) {
-	cmd := exec.Command(te.binaryPath, "update", "client", "--host-chain", chainId, "--client", clientId)
-
-	outputBytes, err := cmd.Output()
-	if err != nil {
-		return string(outputBytes), fmt.Errorf("failed to update client: %v, output: %s", err, string(outputBytes))
-	}
-
-	return string(outputBytes), err
 }

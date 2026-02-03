@@ -205,12 +205,145 @@ func GetLatestMinitiaVersion(vm string) (string, string, error) {
 	return getLatestVersionFromReleases(releases)
 }
 
+var semverPattern = regexp.MustCompile(`^v\d+\.\d+\.\d+(-[A-Za-z0-9.-]+)?$`)
+
+func GetMinitiadBinaryUrlFromLcd(httpClient *client.HTTPClient, rest string) (vm string, version string, url string, err error) {
+	var result NodeInfoResponse
+	_, err = httpClient.Get(rest, "/cosmos/base/tendermint/v1beta1/node_info", nil, &result)
+	if err != nil {
+		return "", "", "", fmt.Errorf("error getting node info from LCD: %w", err)
+	}
+
+	rawVersion := result.ApplicationVersion.Version
+	version = normalizeVersion(rawVersion)
+	if !semverPattern.MatchString(version) {
+		return "", "", "", fmt.Errorf("invalid version format after normalization: %q (raw: %q)", version, rawVersion)
+	}
+
+	vm = detectMinitiaVM(rawVersion)
+	if vm == "" {
+		return "", "", "", fmt.Errorf("could not detect VM type from version string: %s", rawVersion)
+	}
+
+	url, err = getMinitiadBinaryURL(vm, version)
+	if err != nil {
+		return "", "", "", err
+	}
+
+	return vm, version, url, nil
+}
+
+func detectMinitiaVM(versionString string) string {
+	lower := strings.ToLower(versionString)
+	switch {
+	case strings.Contains(lower, "minievm") || strings.Contains(lower, "evm"):
+		return "evm"
+	case strings.Contains(lower, "minimove") || strings.Contains(lower, "move"):
+		return "move"
+	case strings.Contains(lower, "miniwasm") || strings.Contains(lower, "wasm"):
+		return "wasm"
+	default:
+		return ""
+	}
+}
+
+func getMinitiadBinaryURL(vm, version string) (string, error) {
+	goos, arch, err := getOSArch()
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf(
+		"https://github.com/initia-labs/mini%s/releases/download/%s/mini%s_%s_%s_%s.tar.gz",
+		vm, version, vm, version, goos, arch,
+	), nil
+}
+
+func GetMinitiadBinaryPath(vm, version string) (string, error) {
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get user home directory: %v", err)
+	}
+	extractedPath := filepath.Join(userHome, common.WeaveDataDirectory, fmt.Sprintf("mini%s@%s", vm, version))
+
+	switch runtime.GOOS {
+	case "linux":
+		return filepath.Join(extractedPath, fmt.Sprintf("mini%s_%s", vm, version), "minitiad"), nil
+	case "darwin":
+		return filepath.Join(extractedPath, "minitiad"), nil
+	default:
+		return "", fmt.Errorf("unsupported OS: %v", runtime.GOOS)
+	}
+}
+
+func InstallMinitiadBinary(vm, version, url, binaryPath string) error {
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get user home directory: %v", err)
+	}
+	tarballPath := filepath.Join(userHome, common.WeaveDataDirectory, "minitia.tar.gz")
+	extractedPath := filepath.Join(userHome, common.WeaveDataDirectory, fmt.Sprintf("mini%s@%s", vm, version))
+
+	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
+		if _, err := os.Stat(extractedPath); os.IsNotExist(err) {
+			err := os.MkdirAll(extractedPath, os.ModePerm)
+			if err != nil {
+				return fmt.Errorf("failed to create weave data directory: %v", err)
+			}
+		}
+
+		if err = io.DownloadAndExtractTarGz(url, tarballPath, extractedPath); err != nil {
+			return fmt.Errorf("failed to download and extract binary: %v", err)
+		}
+
+		err = os.Chmod(binaryPath, 0755)
+		if err != nil {
+			return fmt.Errorf("failed to set permissions for binary: %v", err)
+		}
+	}
+
+	if vm == "move" || vm == "wasm" {
+		return io.SetLibraryPaths(filepath.Dir(binaryPath))
+	}
+
+	return nil
+}
+
 func GetLatestOPInitBotVersion() (string, string, error) {
 	releases, err := fetchReleases("https://api.github.com/repos/initia-labs/opinit-bots/releases")
 	if err != nil {
 		return "", "", err
 	}
 	return getLatestVersionFromReleases(releases)
+}
+
+// GetLatestRapidRelayerVersion fetches the latest release tag from the rapid-relayer GitHub repository.
+// Returns only the tag name (e.g., "v1.0.7") since rapid-relayer is distributed as a Docker image.
+func GetLatestRapidRelayerVersion() (string, error) {
+	releases, err := fetchReleases("https://api.github.com/repos/initia-labs/rapid-relayer/releases")
+	if err != nil {
+		return "", err
+	}
+	if len(releases) < 1 {
+		return "", fmt.Errorf("no releases found")
+	}
+
+	// Find the highest version by comparing semantic versions
+	var latestRelease *BinaryRelease
+	for i := range releases {
+		if releases[i].Prerelease {
+			continue
+		}
+		if latestRelease == nil || CompareSemVer(releases[i].TagName, latestRelease.TagName) {
+			latestRelease = &releases[i]
+		}
+	}
+
+	if latestRelease == nil {
+		return "", fmt.Errorf("no stable release found")
+	}
+
+	return latestRelease.TagName, nil
 }
 
 // SortVersions sorts the versions based on semantic versioning, including pre-release handling

@@ -1,6 +1,10 @@
 package service
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/initia-labs/weave/cosmosutils"
+)
 
 type CommandName string
 
@@ -11,7 +15,23 @@ const (
 	OPinitExecutor      CommandName = "executor"
 	OPinitChallenger    CommandName = "challenger"
 	Relayer             CommandName = "relayer"
+	Rollytics           CommandName = "rollytics"
 )
+
+// RapidRelayerVersionFallback is the fallback docker image tag used for the rapid relayer
+// when fetching the latest version from GitHub fails.
+const RapidRelayerVersionFallback = "v1.0.7"
+
+// GetRapidRelayerVersion fetches the latest rapid relayer version from GitHub.
+// Falls back to RapidRelayerVersionFallback if the fetch fails.
+func GetRapidRelayerVersion() string {
+	version, err := cosmosutils.GetLatestRapidRelayerVersion()
+	if err != nil {
+		// Fall back to hardcoded version if fetch fails
+		return RapidRelayerVersionFallback
+	}
+	return version
+}
 
 func (cmd CommandName) GetPrettyName() (string, error) {
 	switch cmd {
@@ -21,8 +41,8 @@ func (cmd CommandName) GetPrettyName() (string, error) {
 		return "rollup", nil
 	case OPinitExecutor, OPinitChallenger:
 		return "opinit", nil
-	// case Relayer:
-	// 	return "relayer", nil
+	case Relayer:
+		return "relayer", nil
 	default:
 		return "", fmt.Errorf("unsupported command %s", cmd)
 	}
@@ -36,8 +56,10 @@ func (cmd CommandName) GetInitCommand() (string, error) {
 		return "rollup launch", nil
 	case OPinitExecutor, OPinitChallenger:
 		return "opinit init", nil
-	// case Relayer:
-	// 	return "relayer init", nil
+	case Relayer:
+		return "relayer init", nil
+	case Rollytics:
+		return "", nil
 	default:
 		return "", fmt.Errorf("unsupported command %s", cmd)
 	}
@@ -51,8 +73,6 @@ func (cmd CommandName) GetBinaryName() (string, error) {
 		return "minitiad", nil
 	case OPinitExecutor, OPinitChallenger:
 		return "opinitd", nil
-	// case Relayer:
-	// 	return "hermes", nil
 	default:
 		return "", fmt.Errorf("unsupported command: %v", cmd)
 	}
@@ -70,8 +90,6 @@ func (cmd CommandName) GetServiceSlug() (string, error) {
 		return "opinitd.executor", nil
 	case OPinitChallenger:
 		return "opinitd.challenger", nil
-	// case Relayer:
-	// 	return "hermes", nil
 	default:
 		return "", fmt.Errorf("unsupported command: %v", cmd)
 	}

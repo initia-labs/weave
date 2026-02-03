@@ -25,6 +25,7 @@ import (
 	"github.com/initia-labs/weave/crypto"
 	weaveio "github.com/initia-labs/weave/io"
 	"github.com/initia-labs/weave/registry"
+	"github.com/initia-labs/weave/service"
 	"github.com/initia-labs/weave/styles"
 	"github.com/initia-labs/weave/tooltip"
 	"github.com/initia-labs/weave/types"
@@ -1202,33 +1203,33 @@ func broadcastDefaultPresetFromGasStation(ctx context.Context) tea.Cmd {
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get gas station key: %v", err)}
 		}
-		l1ActiveLcd, err := GetL1ActiveLcd(ctx)
-		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: err}
-		}
-		cliTx, err := cosmosutils.NewInitiadTxExecutor(l1ActiveLcd)
-		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: err}
-		}
 
-		l1GasDenom, err := GetL1GasDenom(ctx)
-		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: err}
-		}
-		l1GasPrices, err := GetL1GasPrices(ctx)
-		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: err}
-		}
-		l1ActiveRpc, err := GetL1ActiveRpc(ctx)
-		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: err}
-		}
-		l1ChainId, err := GetL1ChainId(ctx)
-		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: err}
-		}
 		if state.l1FundingAmount != "0" {
-			res, err := cliTx.BroadcastMsgSend(
+			l1ActiveLcd, err := GetL1ActiveLcd(ctx)
+			if err != nil {
+				return ui.NonRetryableErrorLoading{Err: err}
+			}
+			l1Tx, err := cosmosutils.NewInitiadTxExecutor(l1ActiveLcd)
+			if err != nil {
+				return ui.NonRetryableErrorLoading{Err: err}
+			}
+			l1GasDenom, err := GetL1GasDenom(ctx)
+			if err != nil {
+				return ui.NonRetryableErrorLoading{Err: err}
+			}
+			l1GasPrices, err := GetL1GasPrices(ctx)
+			if err != nil {
+				return ui.NonRetryableErrorLoading{Err: err}
+			}
+			l1ActiveRpc, err := GetL1ActiveRpc(ctx)
+			if err != nil {
+				return ui.NonRetryableErrorLoading{Err: err}
+			}
+			l1ChainId, err := GetL1ChainId(ctx)
+			if err != nil {
+				return ui.NonRetryableErrorLoading{Err: err}
+			}
+			res, err := l1Tx.BroadcastMsgSend(
 				gasStationKey.Mnemonic,
 				state.l1RelayerAddress,
 				fmt.Sprintf("%s%s", state.l1FundingAmount, l1GasDenom),
@@ -1242,24 +1243,32 @@ func broadcastDefaultPresetFromGasStation(ctx context.Context) tea.Cmd {
 			state.l1FundingTxHash = res.TxHash
 		}
 
-		l2GasDenom, err := GetL2GasDenom(ctx)
-		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: err}
-		}
-		l2GasPrices, err := GetL2GasPrices(ctx)
-		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: err}
-		}
-		l2ActiveRpc, err := GetL2ActiveRpc(ctx)
-		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: err}
-		}
-		l2ChainId, err := GetL2ChainId(ctx)
-		if err != nil {
-			return ui.NonRetryableErrorLoading{Err: err}
-		}
 		if state.l2FundingAmount != "0" {
-			res, err := cliTx.BroadcastMsgSend(
+			l2ActiveLcd, err := GetL2ActiveLcd(ctx)
+			if err != nil {
+				return ui.NonRetryableErrorLoading{Err: err}
+			}
+			l2Tx, err := cosmosutils.NewMinitiadTxExecutor(l2ActiveLcd)
+			if err != nil {
+				return ui.NonRetryableErrorLoading{Err: err}
+			}
+			l2GasDenom, err := GetL2GasDenom(ctx)
+			if err != nil {
+				return ui.NonRetryableErrorLoading{Err: err}
+			}
+			l2GasPrices, err := GetL2GasPrices(ctx)
+			if err != nil {
+				return ui.NonRetryableErrorLoading{Err: err}
+			}
+			l2ActiveRpc, err := GetL2ActiveRpc(ctx)
+			if err != nil {
+				return ui.NonRetryableErrorLoading{Err: err}
+			}
+			l2ChainId, err := GetL2ChainId(ctx)
+			if err != nil {
+				return ui.NonRetryableErrorLoading{Err: err}
+			}
+			res, err := l2Tx.BroadcastMsgSend(
 				gasStationKey.Mnemonic,
 				state.l2RelayerAddress,
 				fmt.Sprintf("%s%s", state.l2FundingAmount, l2GasDenom),
@@ -2521,6 +2530,24 @@ func WaitSettingUpRelayer(ctx context.Context) tea.Cmd {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to create rapid relayer config: %v", err)}
 		}
 
+		// Get the user's home directory
+		userHome, err := os.UserHomeDir()
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get user home directory: %v", err)}
+		}
+
+		srv, err := service.NewService(service.Relayer, "")
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to initialize service: %v", err)}
+		}
+
+		if err = srv.Create(service.GetRapidRelayerVersion(), filepath.Join(userHome, common.RelayerDirectory)); err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to create service: %v", err)}
+		}
+
+		// prune existing logs, ignore error
+		_ = srv.PruneLogs()
+
 		// Return updated state
 		return ui.EndLoading{Ctx: weavecontext.SetCurrentState(ctx, state)}
 	}
@@ -2628,10 +2655,9 @@ func getRelayerSetSuccessMessage() string {
 	relayerHome := filepath.Join(userHome, common.RelayerDirectory)
 	s := "\n" + styles.RenderPrompt("Rapid relayer config is generated successfully!", []string{}, styles.Completed)
 	s += "\n" + styles.RenderPrompt(fmt.Sprintf("Config file is saved at %s/config.json. You can modify it as needed.", relayerHome), []string{}, styles.Information)
-	s += "\n" + styles.RenderPrompt("To start relaying:", []string{}, styles.Empty)
-	s += "\n" + styles.RenderPrompt("1. git clone https://github.com/initia-labs/rapid-relayer && cd rapid-relayer && npm install", []string{}, styles.Empty)
-	s += "\n" + styles.RenderPrompt(fmt.Sprintf("2. cp %s/config.json ./config.json", relayerHome), []string{}, styles.Empty)
-	s += "\n" + styles.RenderPrompt("3. npm start", []string{}, styles.Empty) + "\n"
+	s += "\n" + styles.RenderPrompt("The relayer is now running in the background!", []string{}, styles.Completed)
+	s += "\n" + styles.RenderPrompt("To view relayer logs:", []string{}, styles.Empty)
+	s += "\n" + styles.RenderPrompt("  weave relayer log", []string{}, styles.Empty) + "\n"
 	return s
 }
 
