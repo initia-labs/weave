@@ -472,9 +472,9 @@ func TestOpBridgeOutputFinalizationPeriodInput_Update(t *testing.T) {
 	enterPress := tea.KeyMsg{Type: tea.KeyEnter}
 	finalModel, cmd := updatedModel.Update(enterPress)
 
-	nextModel := finalModel.(*OracleEnableSelect)
+	nextModel := finalModel.(*OpBridgeBatchSubmissionTargetSelect)
 	state := weavecontext.GetCurrentState[LaunchState](nextModel.Ctx)
-	assert.IsType(t, &OracleEnableSelect{}, finalModel)
+	assert.IsType(t, &OpBridgeBatchSubmissionTargetSelect{}, finalModel)
 	assert.Equal(t, "12h", state.opBridgeOutputFinalizationPeriod)
 	assert.Nil(t, cmd)
 }
