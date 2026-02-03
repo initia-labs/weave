@@ -1,47 +1,49 @@
 package client
 
 import (
+	"io"
 	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection/grpc_reflection_v1"
 )
 
-// MockServerReflectionClient is a mock of the grpc_reflection_v1.ServerReflectionServer interface.
-type MockServerReflectionClient struct {
-	mock.Mock
+type mockReflectionServer struct {
+	grpc_reflection_v1.UnimplementedServerReflectionServer
 }
 
-// MockServerReflectionInfoServer is the mock server stream for ServerReflectionInfo.
-type MockServerReflectionInfoServer struct {
-	mock.Mock
-	grpc.ServerStream
-}
+func (s *mockReflectionServer) ServerReflectionInfo(stream grpc_reflection_v1.ServerReflection_ServerReflectionInfoServer) error {
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
 
-func (m *MockServerReflectionInfoServer) SendMsg(mess interface{}) error {
-	args := m.Called(mess)
-	return args.Error(0)
-}
-
-func (m *MockServerReflectionInfoServer) RecvMsg(mess interface{}) error {
-	args := m.Called(mess)
-	return args.Error(0)
+		switch req.MessageRequest.(type) {
+		case *grpc_reflection_v1.ServerReflectionRequest_ListServices:
+			err = stream.Send(&grpc_reflection_v1.ServerReflectionResponse{
+				MessageResponse: &grpc_reflection_v1.ServerReflectionResponse_ListServicesResponse{
+					ListServicesResponse: &grpc_reflection_v1.ListServiceResponse{},
+				},
+			})
+			if err != nil {
+				return err
+			}
+		}
+	}
 }
 
 // Test the CheckHealth method with a mock gRPC server
 func TestGRPCClient_CheckHealth_Success(t *testing.T) {
-	mockServerStream := new(MockServerReflectionInfoServer)
-	mockClient := new(MockServerReflectionClient)
-
-	mockClient.On("ServerReflectionInfo", mockServerStream).Return(nil)
-	mockServerStream.On("SendMsg", mock.Anything).Return(nil)
-	mockServerStream.On("RecvMsg", mock.Anything).Return(nil)
-
 	server := grpc.NewServer()
+	grpc_reflection_v1.RegisterServerReflectionServer(server, &mockReflectionServer{})
 
-	lis, err := net.Listen("tcp", "localhost:9090")
+	lis, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		t.Fatalf("failed to listen on port: %v", err)
 	}
@@ -54,7 +56,7 @@ func TestGRPCClient_CheckHealth_Success(t *testing.T) {
 	}()
 	defer server.Stop()
 
-	serverAddr := "localhost:9090"
+	serverAddr := lis.Addr().String()
 
 	client := NewGRPCClient()
 	err = client.CheckHealth(serverAddr)
