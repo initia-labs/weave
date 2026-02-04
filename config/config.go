@@ -108,6 +108,33 @@ func GetGasStationKey() (*GasStationKey, error) {
 		return nil, fmt.Errorf("failed to unmarshal json: %v", err)
 	}
 
+	if gasKey.Mnemonic != "" {
+		initiaKey, err := io.RecoverKey("init", gasKey.Mnemonic, crypto.EVMAddressType)
+		if err != nil {
+			return nil, fmt.Errorf("failed to recover initia gas station key: %v", err)
+		}
+		celestiaKey, err := io.RecoverKey("celestia", gasKey.Mnemonic, crypto.CosmosAddressType)
+		if err != nil {
+			return nil, fmt.Errorf("failed to recover celestia gas station key: %v", err)
+		}
+
+		updated := false
+		if gasKey.InitiaAddress != initiaKey.Address {
+			gasKey.InitiaAddress = initiaKey.Address
+			updated = true
+		}
+		if gasKey.CelestiaAddress != celestiaKey.Address {
+			gasKey.CelestiaAddress = celestiaKey.Address
+			updated = true
+		}
+		if updated {
+			err := SetConfig("common.gas_station", gasKey)
+			if err != nil {
+				return nil, fmt.Errorf("failed to persist gas station addresses: %v", err)
+			}
+		}
+	}
+
 	return &gasKey, nil
 }
 
