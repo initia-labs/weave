@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/initia-labs/weave/client"
 )
@@ -86,19 +87,67 @@ func ExtractTarGz(src string, dest string) error {
 }
 
 func SetLibraryPaths(binaryDir string) error {
-	switch runtime.GOOS {
-	case "darwin":
-		if err := os.Setenv("DYLD_LIBRARY_PATH", binaryDir); err != nil {
-			return fmt.Errorf("failed to set DYLD_LIBRARY_PATH: %v", err)
-		}
-	case "linux":
-		if err := os.Setenv("LD_LIBRARY_PATH", binaryDir); err != nil {
-			return fmt.Errorf("failed to set LD_LIBRARY_PATH: %v", err)
-		}
-	default:
-		return fmt.Errorf("unsupported OS for setting library paths: %v", runtime.GOOS)
+	envKey, envValue, err := LibraryPathEnv(binaryDir)
+	if err != nil {
+		return err
+	}
+	if err := os.Setenv(envKey, envValue); err != nil {
+		return fmt.Errorf("failed to set %s: %v", envKey, err)
 	}
 	return nil
+}
+
+func LibraryPathEnv(binaryDir string) (string, string, error) {
+	envKey, err := libraryPathKey()
+	if err != nil {
+		return "", "", err
+	}
+	return envKey, buildLibraryPath(binaryDir, os.Getenv(envKey)), nil
+}
+
+func WithLibraryPathEnv(env []string, binaryDir string) ([]string, error) {
+	envKey, envValue, err := LibraryPathEnv(binaryDir)
+	if err != nil {
+		return nil, err
+	}
+	return upsertEnv(env, envKey, envValue), nil
+}
+
+func libraryPathKey() (string, error) {
+	switch runtime.GOOS {
+	case "darwin":
+		return "DYLD_LIBRARY_PATH", nil
+	case "linux":
+		return "LD_LIBRARY_PATH", nil
+	default:
+		return "", fmt.Errorf("unsupported OS for setting library paths: %v", runtime.GOOS)
+	}
+}
+
+func buildLibraryPath(binaryDir, existing string) string {
+	paths := []string{binaryDir}
+	if existing == "" {
+		return strings.Join(paths, string(os.PathListSeparator))
+	}
+	existingPaths := strings.Split(existing, string(os.PathListSeparator))
+	for _, p := range existingPaths {
+		if p == "" || p == binaryDir {
+			continue
+		}
+		paths = append(paths, p)
+	}
+	return strings.Join(paths, string(os.PathListSeparator))
+}
+
+func upsertEnv(env []string, key, value string) []string {
+	prefix := key + "="
+	for i, item := range env {
+		if strings.HasPrefix(item, prefix) {
+			env[i] = prefix + value
+			return env
+		}
+	}
+	return append(env, prefix+value)
 }
 
 func WriteFile(path, content string) error {

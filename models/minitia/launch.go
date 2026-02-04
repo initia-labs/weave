@@ -2923,6 +2923,11 @@ func launchingMinitia(ctx context.Context, streamingLogs *[]string, streamingLog
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get minitia home directory: %v", err)}
 		}
 		launchCmd := exec.Command(state.binaryPath, "launch", "--with-config", configFilePath, "--home", minitiaHome)
+		cmdEnv, err := io.WithLibraryPathEnv(os.Environ(), filepath.Dir(state.binaryPath))
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to set library path for launch: %v", err)}
+		}
+		launchCmd.Env = cmdEnv
 
 		stdout, err := launchCmd.StdoutPipe()
 		if err != nil {
@@ -3145,6 +3150,11 @@ func (m *LaunchingNewMinitiaLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				"--from", "Validator", "--keyring-backend", "test",
 				"--chain-id", state.chainId, "-y",
 			)
+			cmdEnv, err := io.WithLibraryPathEnv(os.Environ(), filepath.Dir(state.binaryPath))
+			if err != nil {
+				return m, m.HandlePanic(fmt.Errorf("failed to set library path for tx: %v", err))
+			}
+			runCmd.Env = cmdEnv
 			if output, err := runCmd.CombinedOutput(); err != nil {
 				return m, m.HandlePanic(fmt.Errorf("failed to update params message: %v (output: %s)", err, string(output)))
 			}

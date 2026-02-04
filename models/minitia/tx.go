@@ -55,9 +55,20 @@ func (lsk *L1SystemKeys) FundAccountsWithGasStation(state *LaunchState) (*FundAc
 		return nil, err
 	}
 
-	_, err = cosmosutils.RecoverKeyFromMnemonic(l1BinaryPath, common.WeaveGasStationKeyName, gasStationKey.Mnemonic)
+	recoveredKey, err := cosmosutils.RecoverKeyFromMnemonic(l1BinaryPath, common.WeaveGasStationKeyName, gasStationKey.Mnemonic)
 	if err != nil {
 		return nil, fmt.Errorf("failed to recover gas station key: %v", err)
+	}
+	keyInfo, err := cosmosutils.UnmarshalKeyInfo(recoveredKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse gas station key info: %v", err)
+	}
+	gasStationAddress := gasStationKey.InitiaAddress
+	if gasStationAddress == "" {
+		return nil, fmt.Errorf("initia gas station address is empty")
+	}
+	if keyInfo.Address != gasStationAddress {
+		return nil, fmt.Errorf("gas station address mismatch: config=%s keyring=%s", gasStationAddress, keyInfo.Address)
 	}
 	defer func() {
 		_ = cosmosutils.DeleteKey(l1BinaryPath, common.WeaveGasStationKeyName)
@@ -67,7 +78,7 @@ func (lsk *L1SystemKeys) FundAccountsWithGasStation(state *LaunchState) (*FundAc
 	if state.batchSubmissionIsCelestia {
 		rawTxContent = fmt.Sprintf(
 			FundMinitiaAccountsWithoutBatchTxInterface,
-			gasStationKey.InitiaAddress,
+			gasStationAddress,
 			lsk.BridgeExecutor.Address,
 			lsk.BridgeExecutor.Coins,
 			lsk.OutputSubmitter.Address,
@@ -108,7 +119,7 @@ func (lsk *L1SystemKeys) FundAccountsWithGasStation(state *LaunchState) (*FundAc
 	} else {
 		rawTxContent = fmt.Sprintf(
 			FundMinitiaAccountsDefaultTxInterface,
-			gasStationKey.InitiaAddress,
+			gasStationAddress,
 			lsk.BridgeExecutor.Address,
 			lsk.BridgeExecutor.Coins,
 			lsk.OutputSubmitter.Address,
@@ -456,13 +467,18 @@ func (lsk *L1SystemKeys) VerifyGasStationBalances(state *LaunchState) error {
 		return fmt.Errorf("failed to get gas station key: %v", err)
 	}
 
+	gasStationAddress := gasStationKey.InitiaAddress
+	if gasStationAddress == "" {
+		return fmt.Errorf("initia gas station address is empty")
+	}
+
 	l1BinaryPath, err := getInitiaL1BinaryPath(state.l1ChainId)
 	if err != nil {
 		return err
 	}
 
 	// Query L1 balances
-	l1Balances, err := queryChainBalance(l1BinaryPath, state.l1RPC, gasStationKey.InitiaAddress)
+	l1Balances, err := queryChainBalance(l1BinaryPath, state.l1RPC, gasStationAddress)
 	if err != nil {
 		return fmt.Errorf("failed to query L1 balance: %v", err)
 	}

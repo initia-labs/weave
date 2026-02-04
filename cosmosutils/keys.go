@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/initia-labs/weave/common"
 )
 
 type KeyInfo struct {
@@ -80,7 +82,13 @@ func RecoverKeyFromMnemonic(appName, keyname, mnemonic string) (string, error) {
 	if strings.HasSuffix(appName, "celestia-appd") {
 		cmd = exec.Command(appName, "keys", "add", keyname, "--recover", "--keyring-backend", "test", "--output", "json")
 	} else {
-		cmd = exec.Command(appName, "keys", "add", keyname, "--coin-type", "118", "--key-type", "secp256k1", "--recover", "--keyring-backend", "test", "--output", "json")
+		coinType := "118"
+		keyType := "secp256k1"
+		if keyname == common.WeaveGasStationKeyName {
+			coinType = "60"
+			keyType = "eth_secp256k1"
+		}
+		cmd = exec.Command(appName, "keys", "add", keyname, "--coin-type", coinType, "--key-type", keyType, "--recover", "--keyring-backend", "test", "--output", "json")
 	}
 
 	// Pass the combined confirmation and mnemonic as input to the command
