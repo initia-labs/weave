@@ -59,6 +59,9 @@ func (lsk *L1SystemKeys) FundAccountsWithGasStation(state *LaunchState) (*FundAc
 	if err != nil {
 		return nil, fmt.Errorf("failed to recover gas station key: %v", err)
 	}
+	defer func() {
+		_ = cosmosutils.DeleteKey(l1BinaryPath, common.WeaveGasStationKeyName)
+	}()
 	keyInfo, err := cosmosutils.UnmarshalKeyInfo(recoveredKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse gas station key info: %v", err)
@@ -70,9 +73,6 @@ func (lsk *L1SystemKeys) FundAccountsWithGasStation(state *LaunchState) (*FundAc
 	if keyInfo.Address != gasStationAddress {
 		return nil, fmt.Errorf("gas station address mismatch: config=%s keyring=%s", gasStationAddress, keyInfo.Address)
 	}
-	defer func() {
-		_ = cosmosutils.DeleteKey(l1BinaryPath, common.WeaveGasStationKeyName)
-	}()
 
 	var rawTxContent string
 	if state.batchSubmissionIsCelestia {

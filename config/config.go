@@ -128,7 +128,10 @@ func GetGasStationKey() (*GasStationKey, error) {
 			updated = true
 		}
 		if updated {
-			_ = SetConfig("common.gas_station", gasKey)
+			err := SetConfig("common.gas_station", gasKey)
+			if err != nil {
+				return nil, fmt.Errorf("failed to persist gas station addresses: %v", err)
+			}
 		}
 	}
 

@@ -106,10 +106,11 @@ func LibraryPathEnv(binaryDir string) (string, string, error) {
 }
 
 func WithLibraryPathEnv(env []string, binaryDir string) ([]string, error) {
-	envKey, envValue, err := LibraryPathEnv(binaryDir)
+	envKey, err := libraryPathKey()
 	if err != nil {
 		return nil, err
 	}
+	envValue := buildLibraryPath(binaryDir, getEnvValue(env, envKey))
 	return upsertEnv(env, envKey, envValue), nil
 }
 
@@ -148,6 +149,16 @@ func upsertEnv(env []string, key, value string) []string {
 		}
 	}
 	return append(env, prefix+value)
+}
+
+func getEnvValue(env []string, key string) string {
+	prefix := key + "="
+	for _, item := range env {
+		if strings.HasPrefix(item, prefix) {
+			return strings.TrimPrefix(item, prefix)
+		}
+	}
+	return ""
 }
 
 func WriteFile(path, content string) error {
