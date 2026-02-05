@@ -65,7 +65,19 @@ func KeyExists(appName, keyname string) bool {
 
 // RecoverKeyFromMnemonic recovers or replaces a key using a mnemonic phrase
 // If the key already exists, it will replace the key and confirm with 'y' before adding the mnemonic
+// Uses default coin type: 60 for gas station keys, 118 for others
 func RecoverKeyFromMnemonic(appName, keyname, mnemonic string) (string, error) {
+	coinType := 118
+	if keyname == common.WeaveGasStationKeyName {
+		coinType = 60
+	}
+	return RecoverKeyFromMnemonicWithCoinType(appName, keyname, mnemonic, coinType)
+}
+
+// RecoverKeyFromMnemonicWithCoinType recovers or replaces a key using a mnemonic phrase with specified coin type
+// If the key already exists, it will replace the key and confirm with 'y' before adding the mnemonic
+// coinType must be explicitly provided (60 or 118), 0 is not allowed
+func RecoverKeyFromMnemonicWithCoinType(appName, keyname, mnemonic string, coinType int) (string, error) {
 	// Check if the key already exists
 	exists := KeyExists(appName, keyname)
 
@@ -82,13 +94,18 @@ func RecoverKeyFromMnemonic(appName, keyname, mnemonic string) (string, error) {
 	if strings.HasSuffix(appName, "celestia-appd") {
 		cmd = exec.Command(appName, "keys", "add", keyname, "--recover", "--keyring-backend", "test", "--output", "json")
 	} else {
-		coinType := "118"
+		// Validate coin type
+		if coinType == 0 {
+			return "", fmt.Errorf("coin type must be explicitly provided (60 or 118), got 0")
+		}
+		
+		coinTypeStr := fmt.Sprintf("%d", coinType)
 		keyType := "secp256k1"
-		if keyname == common.WeaveGasStationKeyName {
-			coinType = "60"
+		if coinType == 60 {
 			keyType = "eth_secp256k1"
 		}
-		cmd = exec.Command(appName, "keys", "add", keyname, "--coin-type", coinType, "--key-type", keyType, "--recover", "--keyring-backend", "test", "--output", "json")
+		
+		cmd = exec.Command(appName, "keys", "add", keyname, "--coin-type", coinTypeStr, "--key-type", keyType, "--recover", "--keyring-backend", "test", "--output", "json")
 	}
 
 	// Pass the combined confirmation and mnemonic as input to the command
