@@ -129,39 +129,46 @@ func GetGasStationKey() (*GasStationKey, error) {
 					gasKey.CoinType = &coinType
 					updated = true
 				}
-			}
-
-			// If no match or no stored address, default to 118 for existing configs
-			if gasKey.CoinType == nil {
+				// If neither matches the stored address, leave CoinType nil to prevent overwriting
+			} else {
+				// If no stored address, default to 118 for existing configs
 				coinType := 118
 				gasKey.CoinType = &coinType
 				updated = true
 			}
 		}
 
-		// Recover initia address using the determined coin type
-		initiaAddress, err := crypto.MnemonicToBech32AddressWithCoinType("init", gasKey.Mnemonic, *gasKey.CoinType)
-		if err != nil {
-			return nil, fmt.Errorf("failed to recover initia gas station key: %v", err)
-		}
-
-		celestiaKey, err := io.RecoverKey("celestia", gasKey.Mnemonic, crypto.CosmosAddressType)
-		if err != nil {
-			return nil, fmt.Errorf("failed to recover celestia gas station key: %v", err)
-		}
-
-		if gasKey.InitiaAddress != initiaAddress {
-			gasKey.InitiaAddress = initiaAddress
-			updated = true
-		}
-		if gasKey.CelestiaAddress != celestiaKey.Address {
-			gasKey.CelestiaAddress = celestiaKey.Address
-			updated = true
-		}
-		if updated {
-			err := SetConfig("common.gas_station", gasKey)
+		// Only proceed with address recovery if coin type was successfully determined
+		if gasKey.CoinType != nil {
+			// Recover initia address using the determined coin type
+			initiaAddress, err := crypto.MnemonicToBech32AddressWithCoinType("init", gasKey.Mnemonic, *gasKey.CoinType)
 			if err != nil {
-				return nil, fmt.Errorf("failed to persist gas station addresses: %v", err)
+				return nil, fmt.Errorf("failed to recover initia gas station key: %v", err)
+			}
+
+			celestiaKey, err := io.RecoverKey("celestia", gasKey.Mnemonic, crypto.CosmosAddressType)
+			if err != nil {
+				return nil, fmt.Errorf("failed to recover celestia gas station key: %v", err)
+			}
+
+			// Only update InitiaAddress if it matches the newly derived address or if empty
+			if gasKey.InitiaAddress == "" || gasKey.InitiaAddress == initiaAddress {
+				if gasKey.InitiaAddress != initiaAddress {
+					gasKey.InitiaAddress = initiaAddress
+					updated = true
+				}
+			}
+
+			if gasKey.CelestiaAddress != celestiaKey.Address {
+				gasKey.CelestiaAddress = celestiaKey.Address
+				updated = true
+			}
+
+			if updated {
+				err := SetConfig("common.gas_station", gasKey)
+				if err != nil {
+					return nil, fmt.Errorf("failed to persist gas station addresses: %v", err)
+				}
 			}
 		}
 	}
