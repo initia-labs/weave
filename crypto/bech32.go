@@ -100,14 +100,6 @@ func deriveAddressBytes(masterKey *bip32.Key, hdPath string, coinType int) ([]by
 	return ripemd.Sum(nil), nil
 }
 
-func deriveCosmosAddressBytes(masterKey *bip32.Key) ([]byte, error) {
-	return deriveAddressBytes(masterKey, CosmosHDPath, 118)
-}
-
-func deriveEVMAddressBytes(masterKey *bip32.Key) ([]byte, error) {
-	return deriveAddressBytes(masterKey, EVMHDPath, 60)
-}
-
 // deriveKey derives the private key along the given HD path.
 func deriveKey(masterKey *bip32.Key, path string) (*bip32.Key, error) {
 	key := masterKey
