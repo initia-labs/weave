@@ -123,7 +123,7 @@ func (d *Docker) createDockerCompose(version string) error {
       CORS_ALLOW_CREDENTIALS: true
       CORS_MAX_AGE: 300
     ports:
-      - "8088:8080"
+      - "6767:8080"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:

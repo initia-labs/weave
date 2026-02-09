@@ -39,6 +39,7 @@ const (
 	DefaultMinitiaGRPC      string = "http://localhost:9090"
 	DefaultMinitiaJsonRPC   string = "http://localhost:8545"
 	DefaultMinitiaJsonRPCWS string = "ws://localhost:8546"
+	DefaultMinitiaIndexer   string = "http://localhost:6767"
 
 	DefaultRollupDenom  string = "umin"
 	DefaultMinievmDenom string = "GAS"
