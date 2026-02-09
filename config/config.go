@@ -96,6 +96,25 @@ func GetGasStationKey() (*GasStationKey, error) {
 		return nil, fmt.Errorf("gas station key not exists")
 	}
 
+	gasKey, err := loadGasStationKeyFromConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	if gasKey.Mnemonic != "" {
+		if err := ensureGasStationKeyIntegrity(gasKey); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := validateGasStationKey(gasKey); err != nil {
+		return nil, err
+	}
+
+	return gasKey, nil
+}
+
+func loadGasStationKeyFromConfig() (*GasStationKey, error) {
 	data := GetConfig("common.gas_station")
 	jsonData, err := json.Marshal(data)
 	if err != nil {
@@ -103,82 +122,110 @@ func GetGasStationKey() (*GasStationKey, error) {
 	}
 
 	var gasKey GasStationKey
-	err = json.Unmarshal(jsonData, &gasKey)
-	if err != nil {
+	if err := json.Unmarshal(jsonData, &gasKey); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal json: %v", err)
 	}
 
-	if gasKey.Mnemonic != "" {
-		updated := false
-
-		// If coin type is not set, try to detect it by testing both 60 and 118
-		if gasKey.CoinType == nil {
-			// Try coin type 60 first (EVM)
-			addr60, err60 := crypto.MnemonicToBech32AddressWithCoinType("init", gasKey.Mnemonic, 60)
-			// Try coin type 118 (Cosmos)
-			addr118, err118 := crypto.MnemonicToBech32AddressWithCoinType("init", gasKey.Mnemonic, 118)
-
-			// If we have a stored initia address, match against it
-			if gasKey.InitiaAddress != "" {
-				if err60 == nil && addr60 == gasKey.InitiaAddress {
-					coinType := 60
-					gasKey.CoinType = &coinType
-					updated = true
-				} else if err118 == nil && addr118 == gasKey.InitiaAddress {
-					coinType := 118
-					gasKey.CoinType = &coinType
-					updated = true
-				}
-				// If neither matches the stored address, leave CoinType nil to prevent overwriting
-			} else {
-				// If no stored address, default to 118 for existing configs
-				coinType := 118
-				gasKey.CoinType = &coinType
-				updated = true
-			}
-		}
-
-		// Only proceed with address recovery if coin type was successfully determined
-		if gasKey.CoinType != nil {
-			// Recover initia address using the determined coin type
-			initiaAddress, err := crypto.MnemonicToBech32AddressWithCoinType("init", gasKey.Mnemonic, *gasKey.CoinType)
-			if err != nil {
-				return nil, fmt.Errorf("failed to recover initia gas station key: %v", err)
-			}
-
-			celestiaKey, err := io.RecoverKey("celestia", gasKey.Mnemonic, crypto.CosmosAddressType)
-			if err != nil {
-				return nil, fmt.Errorf("failed to recover celestia gas station key: %v", err)
-			}
-
-			// Only update InitiaAddress if it matches the newly derived address or if empty
-			if gasKey.InitiaAddress == "" || gasKey.InitiaAddress == initiaAddress {
-				if gasKey.InitiaAddress != initiaAddress {
-					gasKey.InitiaAddress = initiaAddress
-					updated = true
-				}
-			}
-
-			if gasKey.CelestiaAddress != celestiaKey.Address {
-				gasKey.CelestiaAddress = celestiaKey.Address
-				updated = true
-			}
-
-			if updated {
-				err := SetConfig("common.gas_station", gasKey)
-				if err != nil {
-					return nil, fmt.Errorf("failed to persist gas station addresses: %v", err)
-				}
-			}
-		}
-	}
-
-	// Ensure coin type is always set and valid
-	if gasKey.CoinType == nil || *gasKey.CoinType == 0 {
-		return nil, fmt.Errorf("gas station coin type not properly configured")
-	}
-
 	return &gasKey, nil
+}
+
+func ensureGasStationKeyIntegrity(gasKey *GasStationKey) error {
+	updated := false
+
+	// Detect and set coin type if missing
+	if gasKey.CoinType == nil {
+		if err := detectAndSetCoinType(gasKey); err != nil {
+			return err
+		}
+		updated = true
+	}
+
+	// Only recover addresses if coin type is set
+	if gasKey.CoinType != nil {
+		addressesUpdated, err := recoverAndUpdateAddresses(gasKey)
+		if err != nil {
+			return err
+		}
+		updated = updated || addressesUpdated
+	}
+
+	if updated {
+		if err := SetConfig("common.gas_station", gasKey); err != nil {
+			return fmt.Errorf("failed to persist gas station addresses: %v", err)
+		}
+	}
+
+	return nil
+}
+
+func detectAndSetCoinType(gasKey *GasStationKey) error {
+	// If we have a stored address, try to match it
+	if gasKey.InitiaAddress != "" {
+		if coinType, ok := matchCoinTypeToAddress(gasKey.Mnemonic, gasKey.InitiaAddress); ok {
+			gasKey.CoinType = &coinType
+			return nil
+		}
+		// If neither matches, leave CoinType nil to prevent overwriting
+		return nil
+	}
+
+	// Default to 118 for existing configs without stored address
+	coinType := 118
+	gasKey.CoinType = &coinType
+	return nil
+}
+
+func matchCoinTypeToAddress(mnemonic, storedAddress string) (int, bool) {
+	// Try coin type 60 (EVM)
+	if addr60, err := crypto.MnemonicToBech32AddressWithCoinType("init", mnemonic, 60); err == nil && addr60 == storedAddress {
+		return 60, true
+	}
+
+	// Try coin type 118 (Cosmos)
+	if addr118, err := crypto.MnemonicToBech32AddressWithCoinType("init", mnemonic, 118); err == nil && addr118 == storedAddress {
+		return 118, true
+	}
+
+	return 0, false
+}
+
+func recoverAndUpdateAddresses(gasKey *GasStationKey) (bool, error) {
+	updated := false
+
+	// Recover initia address
+	initiaAddress, err := crypto.MnemonicToBech32AddressWithCoinType("init", gasKey.Mnemonic, *gasKey.CoinType)
+	if err != nil {
+		return false, fmt.Errorf("failed to recover initia gas station key: %v", err)
+	}
+
+	// Recover celestia address
+	celestiaKey, err := io.RecoverKey("celestia", gasKey.Mnemonic, crypto.CosmosAddressType)
+	if err != nil {
+		return false, fmt.Errorf("failed to recover celestia gas station key: %v", err)
+	}
+
+	// Update initia address if empty or matches newly derived address
+	if gasKey.InitiaAddress == "" || gasKey.InitiaAddress == initiaAddress {
+		if gasKey.InitiaAddress != initiaAddress {
+			gasKey.InitiaAddress = initiaAddress
+			updated = true
+		}
+	}
+
+	// Update celestia address if changed
+	if gasKey.CelestiaAddress != celestiaKey.Address {
+		gasKey.CelestiaAddress = celestiaKey.Address
+		updated = true
+	}
+
+	return updated, nil
+}
+
+func validateGasStationKey(gasKey *GasStationKey) error {
+	if gasKey.CoinType == nil || *gasKey.CoinType == 0 {
+		return fmt.Errorf("gas station coin type not properly configured")
+	}
+	return nil
 }
 
 func AnalyticsOptOut() bool {
