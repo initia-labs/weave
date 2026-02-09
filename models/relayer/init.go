@@ -1236,6 +1236,7 @@ func broadcastDefaultPresetFromGasStation(ctx context.Context) tea.Cmd {
 				l1GasPrices,
 				l1ActiveRpc,
 				l1ChainId,
+				*gasStationKey.CoinType,
 			)
 			if err != nil {
 				return ui.NonRetryableErrorLoading{Err: err}
@@ -1275,6 +1276,7 @@ func broadcastDefaultPresetFromGasStation(ctx context.Context) tea.Cmd {
 				l2GasPrices,
 				l2ActiveRpc,
 				l2ChainId,
+				*gasStationKey.CoinType,
 			)
 			if err != nil {
 				return ui.NonRetryableErrorLoading{Err: err}

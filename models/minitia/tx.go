@@ -55,7 +55,7 @@ func (lsk *L1SystemKeys) FundAccountsWithGasStation(state *LaunchState) (*FundAc
 		return nil, err
 	}
 
-	recoveredKey, err := cosmosutils.RecoverKeyFromMnemonic(l1BinaryPath, common.WeaveGasStationKeyName, gasStationKey.Mnemonic)
+	recoveredKey, err := cosmosutils.RecoverKeyFromMnemonicWithCoinType(l1BinaryPath, common.WeaveGasStationKeyName, gasStationKey.Mnemonic, *gasStationKey.CoinType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to recover gas station key: %v", err)
 	}

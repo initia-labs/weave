@@ -31,6 +31,18 @@ const (
 
 // MnemonicToBech32Address converts a mnemonic to a Cosmos SDK Bech32 address.
 func MnemonicToBech32Address(hrp, mnemonic string, addressType AddressType) (string, error) {
+	switch addressType {
+	case CosmosAddressType:
+		return MnemonicToBech32AddressWithCoinType(hrp, mnemonic, 118)
+	case EVMAddressType:
+		return MnemonicToBech32AddressWithCoinType(hrp, mnemonic, 60)
+	default:
+		return "", fmt.Errorf("invalid address type: %d", addressType)
+	}
+}
+
+// MnemonicToBech32AddressWithCoinType converts a mnemonic to a Cosmos SDK Bech32 address using a custom coin type.
+func MnemonicToBech32AddressWithCoinType(hrp, mnemonic string, coinType int) (string, error) {
 	seed, err := bip39.NewSeedWithErrorChecking(mnemonic, "")
 	if err != nil {
 		return "", fmt.Errorf("failed to generate seed: %w", err)
@@ -41,20 +53,10 @@ func MnemonicToBech32Address(hrp, mnemonic string, addressType AddressType) (str
 		return "", fmt.Errorf("failed to derive master key: %w", err)
 	}
 
-	var addressBytes []byte
-	switch addressType {
-	case CosmosAddressType:
-		addressBytes, err = deriveCosmosAddressBytes(masterKey)
-		if err != nil {
-			return "", fmt.Errorf("failed to derive cosmos address: %w", err)
-		}
-	case EVMAddressType:
-		addressBytes, err = deriveEVMAddressBytes(masterKey)
-		if err != nil {
-			return "", fmt.Errorf("failed to derive EVM address: %w", err)
-		}
-	default:
-		return "", fmt.Errorf("invalid address type: %d", addressType)
+	hdPath := fmt.Sprintf("m/44'/%d'/0'/0/0", coinType)
+	addressBytes, err := deriveAddressBytes(masterKey, hdPath, coinType)
+	if err != nil {
+		return "", fmt.Errorf("failed to derive address: %w", err)
 	}
 
 	converted, err := bech32.ConvertBits(addressBytes, 8, 5, true)
@@ -69,45 +71,33 @@ func MnemonicToBech32Address(hrp, mnemonic string, addressType AddressType) (str
 	return bech32Addr, nil
 }
 
-func deriveCosmosAddressBytes(masterKey *bip32.Key) ([]byte, error) {
-	derivedKey, err := deriveKey(masterKey, CosmosHDPath)
+func deriveAddressBytes(masterKey *bip32.Key, hdPath string, coinType int) ([]byte, error) {
+	derivedKey, err := deriveKey(masterKey, hdPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to derive child key: %w", err)
 	}
 
 	_, pubKey := btcec.PrivKeyFromBytes(derivedKey.Key)
-	pubKeyBytes := pubKey.SerializeCompressed()
 
+	// For EVM (coin type 60), use uncompressed public key and Keccak256
+	if coinType == 60 {
+		pubKeyBytes := pubKey.SerializeUncompressed()
+		pubKeyBytes = pubKeyBytes[1:] // Remove 0x04 prefix
+
+		hash := sha3.NewLegacyKeccak256()
+		hash.Write(pubKeyBytes)
+		hashBytes := hash.Sum(nil)
+
+		return hashBytes[len(hashBytes)-20:], nil
+	}
+
+	// For Cosmos (coin type 118 and others), use compressed public key with SHA256 + RIPEMD160
+	pubKeyBytes := pubKey.SerializeCompressed()
 	shaHash := sha256.Sum256(pubKeyBytes)
 	ripemd := ripemd160.New()
 	ripemd.Write(shaHash[:])
-	addressHash := ripemd.Sum(nil)
 
-	return addressHash, nil
-}
-
-func deriveEVMAddressBytes(masterKey *bip32.Key) ([]byte, error) {
-	derivedKey, err := deriveKey(masterKey, EVMHDPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to derive child key: %w", err)
-	}
-
-	_, pubKey := btcec.PrivKeyFromBytes(derivedKey.Key)
-	// For EVM, we need the uncompressed public key (65 bytes: 0x04 + 32 bytes X + 32 bytes Y)
-	pubKeyBytes := pubKey.SerializeUncompressed()
-
-	// Remove the 0x04 prefix, leaving only the 64-byte X,Y coordinates
-	pubKeyBytes = pubKeyBytes[1:]
-
-	// Apply Keccak256 hash
-	hash := sha3.NewLegacyKeccak256()
-	hash.Write(pubKeyBytes)
-	hashBytes := hash.Sum(nil)
-
-	// Take the last 20 bytes of the hash
-	addressBytes := hashBytes[len(hashBytes)-20:]
-
-	return addressBytes, nil
+	return ripemd.Sum(nil), nil
 }
 
 // deriveKey derives the private key along the given HD path.

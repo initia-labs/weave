@@ -120,8 +120,8 @@ func NewInitiadTxExecutor(rest string) (*InitiadTxExecutor, error) {
 	}, nil
 }
 
-func (te *InitiadTxExecutor) BroadcastMsgSend(senderMnemonic, recipientAddress, amount, gasPrices, rpc, chainId string) (*InitiadTxResponse, error) {
-	return broadcastMsgSend(te.binaryPath, senderMnemonic, recipientAddress, amount, gasPrices, rpc, chainId)
+func (te *InitiadTxExecutor) BroadcastMsgSend(senderMnemonic, recipientAddress, amount, gasPrices, rpc, chainId string, coinType int) (*InitiadTxResponse, error) {
+	return broadcastMsgSend(te.binaryPath, senderMnemonic, recipientAddress, amount, gasPrices, rpc, chainId, coinType)
 }
 
 func NewMinitiadTxExecutor(rest string) (*MinitiadTxExecutor, error) {
@@ -142,12 +142,16 @@ func NewMinitiadTxExecutor(rest string) (*MinitiadTxExecutor, error) {
 	return &MinitiadTxExecutor{binaryPath: binaryPath}, nil
 }
 
-func (te *MinitiadTxExecutor) BroadcastMsgSend(senderMnemonic, recipientAddress, amount, gasPrices, rpc, chainId string) (*InitiadTxResponse, error) {
-	return broadcastMsgSend(te.binaryPath, senderMnemonic, recipientAddress, amount, gasPrices, rpc, chainId)
+func (te *MinitiadTxExecutor) BroadcastMsgSend(senderMnemonic, recipientAddress, amount, gasPrices, rpc, chainId string, coinType int) (*InitiadTxResponse, error) {
+	return broadcastMsgSend(te.binaryPath, senderMnemonic, recipientAddress, amount, gasPrices, rpc, chainId, coinType)
 }
 
-func broadcastMsgSend(binaryPath, senderMnemonic, recipientAddress, amount, gasPrices, rpc, chainId string) (*InitiadTxResponse, error) {
-	_, err := RecoverKeyFromMnemonic(binaryPath, TmpKeyName, senderMnemonic)
+func broadcastMsgSend(binaryPath, senderMnemonic, recipientAddress, amount, gasPrices, rpc, chainId string, coinType int) (*InitiadTxResponse, error) {
+	if coinType == 0 {
+		return nil, fmt.Errorf("coin type must be explicitly provided (60 or 118)")
+	}
+	
+	_, err := RecoverKeyFromMnemonicWithCoinType(binaryPath, TmpKeyName, senderMnemonic, coinType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to recover gas station key: %v", err)
 	}
