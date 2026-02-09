@@ -205,12 +205,12 @@ func recoverAndUpdateAddresses(gasKey *GasStationKey) (bool, error) {
 		return false, fmt.Errorf("failed to recover celestia gas station key: %v", err)
 	}
 
-	// Update initia address if empty or matches newly derived address
-	if gasKey.InitiaAddress == "" || gasKey.InitiaAddress == initiaAddress {
-		if gasKey.InitiaAddress != initiaAddress {
-			gasKey.InitiaAddress = initiaAddress
-			updated = true
-		}
+	// Update initia address if empty, or fail if mismatch
+	if gasKey.InitiaAddress == "" {
+		gasKey.InitiaAddress = initiaAddress
+		updated = true
+	} else if gasKey.InitiaAddress != initiaAddress {
+		return false, fmt.Errorf("stored initia address (%s) does not match derived address (%s) from mnemonic", gasKey.InitiaAddress, initiaAddress)
 	}
 
 	// Update celestia address if changed
