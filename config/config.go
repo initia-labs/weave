@@ -134,10 +134,11 @@ func ensureGasStationKeyIntegrity(gasKey *GasStationKey) error {
 
 	// Detect and set coin type if missing
 	if gasKey.CoinType == nil {
-		if err := detectAndSetCoinType(gasKey); err != nil {
+		coinTypeSet, err := detectAndSetCoinType(gasKey)
+		if err != nil {
 			return err
 		}
-		updated = true
+		updated = coinTypeSet
 	}
 
 	// Only recover addresses if coin type is set
@@ -158,21 +159,21 @@ func ensureGasStationKeyIntegrity(gasKey *GasStationKey) error {
 	return nil
 }
 
-func detectAndSetCoinType(gasKey *GasStationKey) error {
+func detectAndSetCoinType(gasKey *GasStationKey) (bool, error) {
 	// If we have a stored address, try to match it
 	if gasKey.InitiaAddress != "" {
 		if coinType, ok := matchCoinTypeToAddress(gasKey.Mnemonic, gasKey.InitiaAddress); ok {
 			gasKey.CoinType = &coinType
-			return nil
+			return true, nil
 		}
 		// If neither matches, leave CoinType nil to prevent overwriting
-		return nil
+		return false, nil
 	}
 
 	// Default to 118 for existing configs without stored address
 	coinType := 118
 	gasKey.CoinType = &coinType
-	return nil
+	return true, nil
 }
 
 func matchCoinTypeToAddress(mnemonic, storedAddress string) (int, bool) {
