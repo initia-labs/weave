@@ -7,6 +7,7 @@ import (
 
 	"github.com/initia-labs/weave/common"
 	"github.com/initia-labs/weave/service"
+	"github.com/initia-labs/weave/styles"
 	"github.com/spf13/cobra"
 )
 
@@ -51,6 +52,8 @@ func rollyticsStartCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			fmt.Println("Rollytics Address: ", styles.Text("http://localhost:6767", styles.Cyan))
+			fmt.Println("Swagger Docs:      ", styles.Text("http://localhost:6767/swagger", styles.Cyan))
 			fmt.Println("Started rollytics service. You can see the logs with `weave rollytics log`")
 			return nil
 

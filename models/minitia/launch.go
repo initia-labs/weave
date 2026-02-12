@@ -2806,6 +2806,7 @@ type ScanPayload struct {
 	Lcd         string  `json:"lcd"`
 	Rpc         string  `json:"rpc"`
 	JsonRpc     string  `json:"jsonRpc,omitempty"`
+	Indexer     string  `json:"indexer"`
 }
 
 func (sp *ScanPayload) EncodeToBase64() (string, error) {
@@ -3080,6 +3081,7 @@ func (m *LaunchingNewMinitiaLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			Lcd:         DefaultMinitiaLCD,
 			Rpc:         DefaultMinitiaRPC,
 			JsonRpc:     jsonRpc,
+			Indexer:     DefaultMinitiaIndexer,
 		}
 
 		encodedPayload, err := payload.EncodeToBase64()
@@ -3195,9 +3197,10 @@ func (m *TerminalState) Update(_ tea.Msg) (tea.Model, tea.Cmd) {
 func (m *TerminalState) View() string {
 	state := weavecontext.GetCurrentState[LaunchState](m.Ctx)
 	return m.WrapView(state.weave.Render()) + state.scanLink + fmt.Sprintf(
-		"\n\n%s %s\n%s\n",
+		"\n\n%s %s\n%s\n%s\n",
 		styles.Text("i", styles.Yellow),
 		styles.BoldUnderlineText("Important", styles.Yellow),
-		styles.Text("Open this in Chrome is recommended because some browsers may not support localhost access from a different host, or edit your browser's settings to allow it if necessary.", styles.Yellow),
+		styles.Text("Opening this in Chrome is recommended because some browsers may not support localhost access from a different host; alternatively, adjust your browser settings to allow it.", styles.Yellow),
+		styles.Text("Data will not be fully populated until indexer is running. Run "+styles.Text("weave rollup indexer start", styles.Cyan)+" to populate data.", styles.White),
 	)
 }
