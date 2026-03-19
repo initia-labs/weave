@@ -1,7 +1,10 @@
 package io
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -58,6 +61,38 @@ func TestExtractTarGz(t *testing.T) {
 		// Test invalid tarball
 		err := ExtractTarGz("./invalid.tar.gz", "./invalid")
 		assert.Error(t, err)
+	})
+
+	t.Run("PreservesExtractedFileMode", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		tarballPath := filepath.Join(tmpDir, "test.tar.gz")
+		extractDir := filepath.Join(tmpDir, "extract")
+
+		file, err := os.Create(tarballPath)
+		assert.NoError(t, err)
+
+		gzw := gzip.NewWriter(file)
+		tw := tar.NewWriter(gzw)
+
+		content := []byte("#!/bin/sh\necho ok\n")
+		header := &tar.Header{
+			Name: "minitiad",
+			Mode: 0o755,
+			Size: int64(len(content)),
+		}
+		assert.NoError(t, tw.WriteHeader(header))
+		_, err = tw.Write(content)
+		assert.NoError(t, err)
+		assert.NoError(t, tw.Close())
+		assert.NoError(t, gzw.Close())
+		assert.NoError(t, file.Close())
+
+		err = ExtractTarGz(tarballPath, extractDir)
+		assert.NoError(t, err)
+
+		info, err := os.Stat(filepath.Join(extractDir, "minitiad"))
+		assert.NoError(t, err)
+		assert.Equal(t, os.FileMode(0o755), info.Mode().Perm())
 	})
 }
 

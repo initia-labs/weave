@@ -67,7 +67,10 @@ func ExtractTarGz(src string, dest string) error {
 				return err
 			}
 		case tar.TypeReg:
-			file, err := os.Create(target)
+			if err := os.MkdirAll(filepath.Dir(target), os.ModePerm); err != nil {
+				return err
+			}
+			file, err := os.OpenFile(target, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.FileMode(header.Mode))
 			if err != nil {
 				return err
 			}
@@ -77,6 +80,9 @@ func ExtractTarGz(src string, dest string) error {
 			}
 			err = file.Close()
 			if err != nil {
+				return err
+			}
+			if err := os.Chmod(target, os.FileMode(header.Mode)); err != nil {
 				return err
 			}
 		default:

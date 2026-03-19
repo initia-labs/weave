@@ -260,7 +260,7 @@ func getMinitiadBinaryURL(vm, version string) (string, error) {
 }
 
 // FindBinaryDir walks versionDir to find the directory that contains the named
-// executable. This avoids hardcoding assumptions about how a release tarball is
+// binary. This avoids hardcoding assumptions about how a release tarball is
 // structured, so the code stays correct even if a future tarball places the
 // binary inside a subdirectory.
 func FindBinaryDir(versionDir, binaryName string) (string, error) {
@@ -269,7 +269,7 @@ func FindBinaryDir(versionDir, binaryName string) (string, error) {
 		if err != nil {
 			return err
 		}
-		if !info.IsDir() && info.Name() == binaryName && info.Mode()&0o111 != 0 {
+		if !info.IsDir() && info.Name() == binaryName {
 			result = filepath.Dir(path)
 			return filepath.SkipAll
 		}
