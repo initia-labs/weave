@@ -44,16 +44,29 @@ func (j *Systemd) GetServiceName() (string, error) {
 	return slug + ".service", nil
 }
 
+// isLingeringEnabled checks whether systemd lingering is already active for the user
+// by inspecting the linger state file directly, avoiding a loginctl call that may be denied.
+func (j *Systemd) isLingeringEnabled() bool {
+	lingerFile := filepath.Join("/var/lib/systemd/linger", j.user.Username)
+	_, err := os.Stat(lingerFile)
+	return err == nil
+}
+
 // ensureUserServicePrerequisites checks and sets up requirements before any systemd operation
 func (j *Systemd) ensureUserServicePrerequisites() error {
 	if !j.userMode {
 		return nil
 	}
 
-	enableCmd := exec.Command("loginctl", "enable-linger", j.user.Username)
-	if output, err := enableCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to enable lingering. Please run 'loginctl enable-linger %s' manually: %v (output: %s)",
-			j.user.Username, err, string(output))
+	if !j.isLingeringEnabled() {
+		enableCmd := exec.Command("loginctl", "enable-linger", j.user.Username)
+		if output, err := enableCmd.CombinedOutput(); err != nil {
+			// Re-check after failure: root may have already enabled it via the linger file.
+			if !j.isLingeringEnabled() {
+				return fmt.Errorf("failed to enable lingering. Please run 'loginctl enable-linger %s' manually: %v (output: %s)",
+					j.user.Username, err, string(output))
+			}
+		}
 	}
 
 	// Check and set XDG_RUNTIME_DIR if not set
