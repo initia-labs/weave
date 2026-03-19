@@ -52,6 +52,25 @@ func (j *Systemd) isLingeringEnabled() bool {
 	return err == nil
 }
 
+// enableLingering attempts to enable systemd lingering for the current user.
+// It first tries loginctl directly; if that is denied (common on cloud VMs with
+// restricted polkit rules), it retries with sudo, which Ubuntu cloud instances
+// typically allow without a password.
+func (j *Systemd) enableLingering() error {
+	enableCmd := exec.Command("loginctl", "enable-linger", j.user.Username)
+	if output, err := enableCmd.CombinedOutput(); err != nil {
+		// Retry with sudo — Ubuntu cloud VMs usually grant NOPASSWD sudo.
+		sudoCmd := exec.Command("sudo", "loginctl", "enable-linger", j.user.Username)
+		if sudoOutput, sudoErr := sudoCmd.CombinedOutput(); sudoErr != nil {
+			// Neither attempt worked; give a clear, actionable error.
+			_ = output
+			return fmt.Errorf("failed to enable lingering. Please run 'sudo loginctl enable-linger %s' manually: %v (output: %s)",
+				j.user.Username, sudoErr, string(sudoOutput))
+		}
+	}
+	return nil
+}
+
 // ensureUserServicePrerequisites checks and sets up requirements before any systemd operation
 func (j *Systemd) ensureUserServicePrerequisites() error {
 	if !j.userMode {
@@ -59,13 +78,8 @@ func (j *Systemd) ensureUserServicePrerequisites() error {
 	}
 
 	if !j.isLingeringEnabled() {
-		enableCmd := exec.Command("loginctl", "enable-linger", j.user.Username)
-		if output, err := enableCmd.CombinedOutput(); err != nil {
-			// Re-check after failure: root may have already enabled it via the linger file.
-			if !j.isLingeringEnabled() {
-				return fmt.Errorf("failed to enable lingering. Please run 'loginctl enable-linger %s' manually: %v (output: %s)",
-					j.user.Username, err, string(output))
-			}
+		if err := j.enableLingering(); err != nil {
+			return err
 		}
 	}
 
