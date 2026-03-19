@@ -274,6 +274,31 @@ func GetMinitiadBinaryPath(vm, version string) (string, error) {
 	}
 }
 
+// FindBinaryDir walks versionDir to find the directory that contains the named
+// executable. This avoids hardcoding assumptions about how a release tarball is
+// structured, so the code stays correct even if a future tarball places the
+// binary inside a subdirectory.
+func FindBinaryDir(versionDir, binaryName string) (string, error) {
+	var result string
+	err := filepath.Walk(versionDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && info.Name() == binaryName && info.Mode()&0o111 != 0 {
+			result = filepath.Dir(path)
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to search for binary %q in %s: %w", binaryName, versionDir, err)
+	}
+	if result == "" {
+		return "", fmt.Errorf("binary %q not found in %s", binaryName, versionDir)
+	}
+	return result, nil
+}
+
 func InstallMinitiadBinary(vm, version, url, binaryPath string) error {
 	userHome, err := os.UserHomeDir()
 	if err != nil {

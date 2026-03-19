@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/initia-labs/weave/common"
+	"github.com/initia-labs/weave/cosmosutils"
 	weaveio "github.com/initia-labs/weave/io"
 )
 
@@ -54,7 +55,16 @@ func (j *Launchd) Create(binaryVersion, appHome string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get binary name: %v", err)
 	}
-	binaryPath := filepath.Join(weaveDataPath, binaryVersion)
+	var binaryPath string
+	if j.commandName == Minitia {
+		versionDir := filepath.Join(weaveDataPath, binaryVersion)
+		binaryPath, err = cosmosutils.FindBinaryDir(versionDir, binaryName)
+		if err != nil {
+			return fmt.Errorf("failed to locate %s binary: %w", binaryName, err)
+		}
+	} else {
+		binaryPath = filepath.Join(weaveDataPath, binaryVersion)
+	}
 	if err = os.Setenv("HOME", userHome); err != nil {
 		return fmt.Errorf("failed to set HOME: %v", err)
 	}

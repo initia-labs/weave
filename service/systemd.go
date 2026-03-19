@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/initia-labs/weave/common"
+	"github.com/initia-labs/weave/cosmosutils"
 )
 
 const (
@@ -116,8 +117,14 @@ func (j *Systemd) Create(binaryVersion, appHome string) error {
 	}
 	var binaryPath string
 	switch j.commandName {
-	case UpgradableInitia, NonUpgradableInitia, Minitia:
+	case UpgradableInitia, NonUpgradableInitia:
 		binaryPath = filepath.Join(userHome, common.WeaveDataDirectory, binaryVersion)
+	case Minitia:
+		versionDir := filepath.Join(userHome, common.WeaveDataDirectory, binaryVersion)
+		binaryPath, err = cosmosutils.FindBinaryDir(versionDir, binaryName)
+		if err != nil {
+			return fmt.Errorf("failed to locate %s binary: %w", binaryName, err)
+		}
 	default:
 		binaryPath = filepath.Join(userHome, common.WeaveDataDirectory)
 	}

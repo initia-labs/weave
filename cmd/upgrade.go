@@ -115,12 +115,17 @@ func downloadAndReplaceBinary(downloadURL string) error {
 
 	tarballPath := filepath.Join(homeDir, common.WeaveDataDirectory, "weave-binary.tar.gz")
 	extractedPath := filepath.Join(homeDir, common.WeaveDataDirectory)
-	binaryPath := filepath.Join(extractedPath, "weave")
 	fmt.Printf("⬇️ Downloading from %s...\n", downloadURL)
 
 	if err = io.DownloadAndExtractTarGz(downloadURL, tarballPath, extractedPath); err != nil {
 		return fmt.Errorf("failed to download and extract binary: %v", err)
 	}
+
+	binaryDir, err := cosmosutils.FindBinaryDir(extractedPath, "weave")
+	if err != nil {
+		return fmt.Errorf("could not locate weave binary after extraction: %w", err)
+	}
+	binaryPath := filepath.Join(binaryDir, "weave")
 	defer func() {
 		_ = io.DeleteFile(binaryPath)
 	}()
