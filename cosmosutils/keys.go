@@ -98,13 +98,13 @@ func RecoverKeyFromMnemonicWithCoinType(appName, keyname, mnemonic string, coinT
 		if coinType == 0 {
 			return "", fmt.Errorf("coin type must be explicitly provided (60 or 118), got 0")
 		}
-		
+
 		coinTypeStr := fmt.Sprintf("%d", coinType)
 		keyType := "secp256k1"
 		if coinType == 60 {
 			keyType = "eth_secp256k1"
 		}
-		
+
 		cmd = exec.Command(appName, "keys", "add", keyname, "--coin-type", coinTypeStr, "--key-type", keyType, "--recover", "--keyring-backend", "test", "--output", "json")
 	}
 

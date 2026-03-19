@@ -2188,12 +2188,11 @@ func downloadMinitiaApp(ctx context.Context) tea.Cmd {
 				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to download and extract binary: %v", err)}
 			}
 
-			err = os.Chmod(binaryPath, 0o755)
-			if err != nil {
-				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to set permissions for binary: %v", err)}
-			}
-
 			state.downloadedNewBinary = true
+		}
+
+		if err = os.Chmod(binaryPath, 0o755); err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to set permissions for binary: %v", err)}
 		}
 
 		if state.vmType == string(Move) || state.vmType == string(Wasm) {

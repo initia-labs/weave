@@ -293,11 +293,10 @@ func InstallMinitiadBinary(vm, version, url, binaryPath string) error {
 		if err = io.DownloadAndExtractTarGz(url, tarballPath, extractedPath); err != nil {
 			return fmt.Errorf("failed to download and extract binary: %v", err)
 		}
+	}
 
-		err = os.Chmod(binaryPath, 0755)
-		if err != nil {
-			return fmt.Errorf("failed to set permissions for binary: %v", err)
-		}
+	if err := os.Chmod(binaryPath, 0755); err != nil {
+		return fmt.Errorf("failed to set permissions for binary: %v", err)
 	}
 
 	if vm == "move" || vm == "wasm" {

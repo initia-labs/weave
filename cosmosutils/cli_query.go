@@ -97,11 +97,10 @@ func NewMinitiadQuerier() (*MinitiadQuerier, error) {
 		if err = io.DownloadAndExtractTarGz(downloadURL, tarballPath, extractedPath); err != nil {
 			return nil, fmt.Errorf("failed to download minitia binary: %v", err)
 		}
+	}
 
-		err = os.Chmod(binaryPath, 0755)
-		if err != nil {
-			return nil, fmt.Errorf("failed to set permissions for binary: %v", err)
-		}
+	if err := os.Chmod(binaryPath, 0755); err != nil {
+		return nil, fmt.Errorf("failed to set permissions for binary: %v", err)
 	}
 
 	return &MinitiadQuerier{binaryPath: binaryPath}, nil
