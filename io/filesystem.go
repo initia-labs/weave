@@ -58,6 +58,7 @@ func ExtractTarGz(src string, dest string) error {
 	}
 	defer gzr.Close()
 
+	destPrefix := dest + string(filepath.Separator)
 	tarReader := tar.NewReader(gzr)
 	for {
 		header, err := tarReader.Next()
@@ -69,6 +70,9 @@ func ExtractTarGz(src string, dest string) error {
 		}
 
 		target := filepath.Join(dest, header.Name)
+		if !strings.HasPrefix(target, destPrefix) && target != dest {
+			return fmt.Errorf("tar entry %q escapes extraction root", header.Name)
+		}
 		switch header.Typeflag {
 		case tar.TypeDir:
 			if err := os.MkdirAll(target, os.ModePerm); err != nil {
@@ -92,10 +96,8 @@ func ExtractTarGz(src string, dest string) error {
 				return err
 			}
 		case tar.TypeSymlink:
-			if !isWithinRoot(dest, header.Name) {
-				return fmt.Errorf("symlink %q escapes extraction root", header.Name)
-			}
-			if filepath.IsAbs(header.Linkname) || !isWithinRoot(dest, filepath.Join(filepath.Dir(header.Name), header.Linkname)) {
+			linkTarget := filepath.Join(filepath.Dir(target), header.Linkname)
+			if !strings.HasPrefix(linkTarget, destPrefix) && linkTarget != dest {
 				return fmt.Errorf("symlink %q -> %q escapes extraction root", header.Name, header.Linkname)
 			}
 			if err := os.MkdirAll(filepath.Dir(target), os.ModePerm); err != nil {
@@ -109,27 +111,6 @@ func ExtractTarGz(src string, dest string) error {
 		}
 	}
 	return nil
-}
-
-// isWithinRoot reports whether candidate (a relative, slash-separated tar path)
-// resolves to a location inside root after cleaning and resolving any symlinks
-// that already exist on disk. root must be an absolute, EvalSymlinks-resolved
-// path.
-func isWithinRoot(root, candidate string) bool {
-	if filepath.IsAbs(candidate) {
-		return false
-	}
-	full := filepath.Join(root, candidate)
-	if resolved, err := filepath.EvalSymlinks(full); err == nil {
-		full = resolved
-	} else if resolved, err := filepath.EvalSymlinks(filepath.Dir(full)); err == nil {
-		full = filepath.Join(resolved, filepath.Base(full))
-	}
-	rel, err := filepath.Rel(root, full)
-	if err != nil {
-		return false
-	}
-	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 func SetLibraryPaths(binaryDir string) error {
