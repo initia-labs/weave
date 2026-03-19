@@ -130,11 +130,7 @@ func NewMinitiadTxExecutor(rest string) (*MinitiadTxExecutor, error) {
 	if err != nil {
 		return nil, err
 	}
-	binaryPath, err := GetMinitiadBinaryPath(vm, version)
-	if err != nil {
-		return nil, err
-	}
-	err = InstallMinitiadBinary(vm, version, url, binaryPath)
+	binaryPath, err := EnsureMinitiadBinary(vm, version, url)
 	if err != nil {
 		return nil, err
 	}

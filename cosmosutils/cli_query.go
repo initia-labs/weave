@@ -3,13 +3,9 @@ package cosmosutils
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
 
 	"github.com/initia-labs/weave/client"
-	"github.com/initia-labs/weave/common"
-	"github.com/initia-labs/weave/io"
 	"github.com/initia-labs/weave/types"
 )
 
@@ -73,34 +69,9 @@ func NewMinitiadQuerier() (*MinitiadQuerier, error) {
 		return nil, err
 	}
 
-	userHome, err := os.UserHomeDir()
+	binaryPath, err := EnsureMinitiadBinary(DefaultMinitiadQuerierVM, version, downloadURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get user home dir: %v", err)
-	}
-	binaryPath, err := GetMinitiadBinaryPath(DefaultMinitiadQuerierVM, version)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get binary path: %v", err)
-	}
-
-	weaveDataPath := filepath.Join(userHome, common.WeaveDataDirectory)
-	tarballPath := filepath.Join(weaveDataPath, "minitia.tar.gz")
-	extractedPath := filepath.Join(weaveDataPath, fmt.Sprintf("mini%s@%s", DefaultMinitiadQuerierVM, version))
-
-	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
-		if _, err := os.Stat(extractedPath); os.IsNotExist(err) {
-			err := os.MkdirAll(extractedPath, os.ModePerm)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create weave data directory: %v", err)
-			}
-		}
-
-		if err = io.DownloadAndExtractTarGz(downloadURL, tarballPath, extractedPath); err != nil {
-			return nil, fmt.Errorf("failed to download minitia binary: %v", err)
-		}
-	}
-
-	if err := os.Chmod(binaryPath, 0755); err != nil {
-		return nil, fmt.Errorf("failed to set permissions for binary: %v", err)
+		return nil, fmt.Errorf("failed to ensure minitiad binary: %v", err)
 	}
 
 	return &MinitiadQuerier{binaryPath: binaryPath}, nil
