@@ -2170,14 +2170,9 @@ func downloadMinitiaApp(ctx context.Context) tea.Cmd {
 		tarballPath := filepath.Join(weaveDataPath, "minitia.tar.gz")
 		extractedPath := filepath.Join(weaveDataPath, fmt.Sprintf("mini%s@%s", strings.ToLower(state.vmType), state.minitiadVersion))
 
-		var binaryPath string
-		switch runtime.GOOS {
-		case "linux":
-			binaryPath = filepath.Join(extractedPath, fmt.Sprintf("mini%s_%s", strings.ToLower(state.vmType), state.minitiadVersion), AppName)
-		case "darwin":
-			binaryPath = filepath.Join(extractedPath, AppName)
-		default:
-			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("unsupported OS: %v", runtime.GOOS)}
+		binaryPath, err := cosmosutils.GetMinitiadBinaryPath(strings.ToLower(state.vmType), state.minitiadVersion)
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get binary path: %v", err)}
 		}
 		state.binaryPath = binaryPath
 

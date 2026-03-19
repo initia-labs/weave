@@ -268,7 +268,11 @@ func GetMinitiadBinaryPath(vm, version string) (string, error) {
 
 	switch runtime.GOOS {
 	case "linux":
-		return filepath.Join(extractedPath, fmt.Sprintf("mini%s_%s", vm, version), "minitiad"), nil
+		goos, arch, err := getOSArch()
+		if err != nil {
+			return "", err
+		}
+		return filepath.Join(extractedPath, fmt.Sprintf("mini%s_%s_%s_%s", vm, version, goos, arch), "minitiad"), nil
 	case "darwin":
 		return filepath.Join(extractedPath, "minitiad"), nil
 	default:

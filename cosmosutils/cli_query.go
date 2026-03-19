@@ -77,10 +77,14 @@ func NewMinitiadQuerier() (*MinitiadQuerier, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user home dir: %v", err)
 	}
+	binaryPath, err := GetMinitiadBinaryPath(DefaultMinitiadQuerierVM, version)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get binary path: %v", err)
+	}
+
 	weaveDataPath := filepath.Join(userHome, common.WeaveDataDirectory)
 	tarballPath := filepath.Join(weaveDataPath, "minitia.tar.gz")
 	extractedPath := filepath.Join(weaveDataPath, fmt.Sprintf("mini%s@%s", DefaultMinitiadQuerierVM, version))
-	binaryPath := filepath.Join(extractedPath, DefaultMinitiadQuerierAppName)
 
 	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
 		if _, err := os.Stat(extractedPath); os.IsNotExist(err) {
