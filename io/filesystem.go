@@ -67,16 +67,27 @@ func ExtractTarGz(src string, dest string) error {
 				return err
 			}
 		case tar.TypeReg:
-			file, err := os.Create(target)
+			if err := os.MkdirAll(filepath.Dir(target), os.ModePerm); err != nil {
+				return err
+			}
+			file, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, header.FileInfo().Mode())
 			if err != nil {
 				return err
 			}
 			_, err = io.Copy(file, tarReader)
 			if err != nil {
+				file.Close()
 				return err
 			}
 			err = file.Close()
 			if err != nil {
+				return err
+			}
+		case tar.TypeSymlink:
+			if err := os.MkdirAll(filepath.Dir(target), os.ModePerm); err != nil {
+				return err
+			}
+			if err := os.Symlink(header.Linkname, target); err != nil {
 				return err
 			}
 		default:
