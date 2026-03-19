@@ -94,6 +94,35 @@ func TestExtractTarGz(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, os.FileMode(0o755), info.Mode().Perm())
 	})
+
+	t.Run("RejectsPathTraversalEntries", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		tarballPath := filepath.Join(tmpDir, "test.tar.gz")
+		extractDir := filepath.Join(tmpDir, "extract")
+
+		file, err := os.Create(tarballPath)
+		assert.NoError(t, err)
+
+		gzw := gzip.NewWriter(file)
+		tw := tar.NewWriter(gzw)
+
+		content := []byte("bad\n")
+		header := &tar.Header{
+			Name: "../escape",
+			Mode: 0o644,
+			Size: int64(len(content)),
+		}
+		assert.NoError(t, tw.WriteHeader(header))
+		_, err = tw.Write(content)
+		assert.NoError(t, err)
+		assert.NoError(t, tw.Close())
+		assert.NoError(t, gzw.Close())
+		assert.NoError(t, file.Close())
+
+		err = ExtractTarGz(tarballPath, extractDir)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "unsafe archive entry path")
+	})
 }
 
 func TestSetLibraryPaths(t *testing.T) {

@@ -38,6 +38,11 @@ func DownloadAndExtractTarGz(url, tarballPath, extractedPath string) error {
 }
 
 func ExtractTarGz(src string, dest string) error {
+	destRoot, err := filepath.Abs(dest)
+	if err != nil {
+		return err
+	}
+
 	file, err := os.Open(src)
 	if err != nil {
 		return err
@@ -60,7 +65,10 @@ func ExtractTarGz(src string, dest string) error {
 			return err
 		}
 
-		target := filepath.Join(dest, header.Name)
+		target, err := safeArchivePath(destRoot, header.Name)
+		if err != nil {
+			return err
+		}
 		switch header.Typeflag {
 		case tar.TypeDir:
 			if err := os.MkdirAll(target, os.ModePerm); err != nil {
@@ -90,6 +98,23 @@ func ExtractTarGz(src string, dest string) error {
 		}
 	}
 	return nil
+}
+
+func safeArchivePath(destRoot, entryName string) (string, error) {
+	cleanName := filepath.Clean(entryName)
+	if cleanName == "." {
+		return destRoot, nil
+	}
+
+	target := filepath.Join(destRoot, cleanName)
+	rel, err := filepath.Rel(destRoot, target)
+	if err != nil {
+		return "", err
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("unsafe archive entry path: %s", entryName)
+	}
+	return target, nil
 }
 
 func SetLibraryPaths(binaryDir string) error {
