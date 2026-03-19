@@ -38,6 +38,14 @@ func DownloadAndExtractTarGz(url, tarballPath, extractedPath string) error {
 }
 
 func ExtractTarGz(src string, dest string) error {
+	dest, err := filepath.Abs(dest)
+	if err != nil {
+		return fmt.Errorf("failed to resolve extraction path: %w", err)
+	}
+	if resolved, evalErr := filepath.EvalSymlinks(dest); evalErr == nil {
+		dest = resolved
+	}
+
 	file, err := os.Open(src)
 	if err != nil {
 		return err
@@ -84,6 +92,12 @@ func ExtractTarGz(src string, dest string) error {
 				return err
 			}
 		case tar.TypeSymlink:
+			if !isWithinRoot(dest, header.Name) {
+				return fmt.Errorf("symlink %q escapes extraction root", header.Name)
+			}
+			if filepath.IsAbs(header.Linkname) || !isWithinRoot(dest, filepath.Join(filepath.Dir(header.Name), header.Linkname)) {
+				return fmt.Errorf("symlink %q -> %q escapes extraction root", header.Name, header.Linkname)
+			}
 			if err := os.MkdirAll(filepath.Dir(target), os.ModePerm); err != nil {
 				return err
 			}
@@ -95,6 +109,27 @@ func ExtractTarGz(src string, dest string) error {
 		}
 	}
 	return nil
+}
+
+// isWithinRoot reports whether candidate (a relative, slash-separated tar path)
+// resolves to a location inside root after cleaning and resolving any symlinks
+// that already exist on disk. root must be an absolute, EvalSymlinks-resolved
+// path.
+func isWithinRoot(root, candidate string) bool {
+	if filepath.IsAbs(candidate) {
+		return false
+	}
+	full := filepath.Join(root, candidate)
+	if resolved, err := filepath.EvalSymlinks(full); err == nil {
+		full = resolved
+	} else if resolved, err := filepath.EvalSymlinks(filepath.Dir(full)); err == nil {
+		full = filepath.Join(resolved, filepath.Base(full))
+	}
+	rel, err := filepath.Rel(root, full)
+	if err != nil {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 func SetLibraryPaths(binaryDir string) error {
