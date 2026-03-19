@@ -2,6 +2,8 @@ package cosmosutils
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -293,5 +295,141 @@ func TestFilterPreReleases(t *testing.T) {
 				t.Errorf("filterPreReleases(%v) = %v, want %v", tt.releases, result, tt.expected)
 			}
 		})
+	}
+}
+
+// createExecutable creates a file with 0755 permissions at the given path.
+func createExecutable(t *testing.T, path string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestFindBinaryDir(t *testing.T) {
+	tests := []struct {
+		name       string
+		layout     func(root string)
+		binaryName string
+		wantRel    string // expected result relative to root, "" means error
+	}{
+		{
+			name: "binary at root of version dir",
+			layout: func(root string) {
+				createExecutable(t, filepath.Join(root, "minitiad"))
+			},
+			binaryName: "minitiad",
+			wantRel:    ".",
+		},
+		{
+			name: "binary in a subdirectory",
+			layout: func(root string) {
+				createExecutable(t, filepath.Join(root, "minimove_v0.6.0", "minitiad"))
+			},
+			binaryName: "minitiad",
+			wantRel:    "minimove_v0.6.0",
+		},
+		{
+			name: "binary deeply nested",
+			layout: func(root string) {
+				createExecutable(t, filepath.Join(root, "a", "b", "c", "minitiad"))
+			},
+			binaryName: "minitiad",
+			wantRel:    filepath.Join("a", "b", "c"),
+		},
+		{
+			name: "non-executable file is ignored",
+			layout: func(root string) {
+				os.MkdirAll(root, 0o755)
+				os.WriteFile(filepath.Join(root, "minitiad"), []byte("data"), 0o644)
+			},
+			binaryName: "minitiad",
+			wantRel:    "",
+		},
+		{
+			name: "wrong name is ignored",
+			layout: func(root string) {
+				createExecutable(t, filepath.Join(root, "cosmovisor"))
+			},
+			binaryName: "minitiad",
+			wantRel:    "",
+		},
+		{
+			name: "empty directory",
+			layout: func(root string) {
+				os.MkdirAll(root, 0o755)
+			},
+			binaryName: "minitiad",
+			wantRel:    "",
+		},
+		{
+			name: "multiple matches returns first found",
+			layout: func(root string) {
+				createExecutable(t, filepath.Join(root, "minitiad"))
+				createExecutable(t, filepath.Join(root, "sub", "minitiad"))
+			},
+			binaryName: "minitiad",
+			wantRel:    ".", // Walk is lexical; root comes before "sub/"
+		},
+		{
+			name: "nonexistent directory",
+			layout: func(_ string) {
+				// intentionally don't create anything
+			},
+			binaryName: "minitiad",
+			wantRel:    "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := filepath.Join(t.TempDir(), "version")
+			tt.layout(root)
+
+			dir, err := FindBinaryDir(root, tt.binaryName)
+
+			if tt.wantRel == "" {
+				if err == nil {
+					t.Fatalf("expected error, got dir=%q", dir)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			want := filepath.Join(root, tt.wantRel)
+			if dir != want {
+				t.Errorf("got %q, want %q", dir, want)
+			}
+		})
+	}
+}
+
+func TestEnsureMinitiadBinary_NestedLayout(t *testing.T) {
+	origHome := os.Getenv("HOME")
+	tmpHome := t.TempDir()
+	os.Setenv("HOME", tmpHome)
+	defer os.Setenv("HOME", origHome)
+
+	vm, version := "move", "v0.5.0"
+	versionDir := filepath.Join(tmpHome, ".weave", "data", fmt.Sprintf("mini%s@%s", vm, version))
+
+	// Stage binary inside a nested subdirectory (simulates a tarball that
+	// extracts into minimove_v0.5.0/minitiad).
+	createExecutable(t, filepath.Join(versionDir, "minimove_v0.5.0", "minitiad"))
+
+	binaryPath, err := EnsureMinitiadBinary(vm, version, "http://should-not-be-called")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	want := filepath.Join(versionDir, "minimove_v0.5.0", "minitiad")
+	if binaryPath != want {
+		t.Errorf("got %q, want %q", binaryPath, want)
 	}
 }

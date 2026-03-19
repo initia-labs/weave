@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/initia-labs/weave/common"
+	"github.com/initia-labs/weave/cosmosutils"
 )
 
 const (
@@ -44,16 +45,43 @@ func (j *Systemd) GetServiceName() (string, error) {
 	return slug + ".service", nil
 }
 
+// isLingeringEnabled checks whether systemd lingering is already active for the user
+// by inspecting the linger state file directly, avoiding a loginctl call that may be denied.
+func (j *Systemd) isLingeringEnabled() bool {
+	lingerFile := filepath.Join("/var/lib/systemd/linger", j.user.Username)
+	_, err := os.Stat(lingerFile)
+	return err == nil
+}
+
+// enableLingering attempts to enable systemd lingering for the current user.
+// It first tries loginctl directly; if that is denied (common on cloud VMs with
+// restricted polkit rules), it retries with sudo, which Ubuntu cloud instances
+// typically allow without a password.
+func (j *Systemd) enableLingering() error {
+	enableCmd := exec.Command("loginctl", "enable-linger", j.user.Username)
+	if output, err := enableCmd.CombinedOutput(); err != nil {
+		// Retry with sudo — Ubuntu cloud VMs usually grant NOPASSWD sudo.
+		sudoCmd := exec.Command("sudo", "loginctl", "enable-linger", j.user.Username)
+		if sudoOutput, sudoErr := sudoCmd.CombinedOutput(); sudoErr != nil {
+			// Neither attempt worked; give a clear, actionable error.
+			_ = output
+			return fmt.Errorf("failed to enable lingering. Please run 'sudo loginctl enable-linger %s' manually: %v (output: %s)",
+				j.user.Username, sudoErr, string(sudoOutput))
+		}
+	}
+	return nil
+}
+
 // ensureUserServicePrerequisites checks and sets up requirements before any systemd operation
 func (j *Systemd) ensureUserServicePrerequisites() error {
 	if !j.userMode {
 		return nil
 	}
 
-	enableCmd := exec.Command("loginctl", "enable-linger", j.user.Username)
-	if output, err := enableCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to enable lingering. Please run 'loginctl enable-linger %s' manually: %v (output: %s)",
-			j.user.Username, err, string(output))
+	if !j.isLingeringEnabled() {
+		if err := j.enableLingering(); err != nil {
+			return err
+		}
 	}
 
 	// Check and set XDG_RUNTIME_DIR if not set
@@ -92,7 +120,11 @@ func (j *Systemd) Create(binaryVersion, appHome string) error {
 	case UpgradableInitia, NonUpgradableInitia:
 		binaryPath = filepath.Join(userHome, common.WeaveDataDirectory, binaryVersion)
 	case Minitia:
-		binaryPath = filepath.Join(userHome, common.WeaveDataDirectory, binaryVersion, strings.ReplaceAll(binaryVersion, "@", "_"))
+		versionDir := filepath.Join(userHome, common.WeaveDataDirectory, binaryVersion)
+		binaryPath, err = cosmosutils.FindBinaryDir(versionDir, binaryName)
+		if err != nil {
+			return fmt.Errorf("failed to locate %s binary: %w", binaryName, err)
+		}
 	default:
 		binaryPath = filepath.Join(userHome, common.WeaveDataDirectory)
 	}

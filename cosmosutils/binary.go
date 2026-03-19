@@ -259,54 +259,72 @@ func getMinitiadBinaryURL(vm, version string) (string, error) {
 	), nil
 }
 
-func GetMinitiadBinaryPath(vm, version string) (string, error) {
+// FindBinaryDir walks versionDir to find the directory that contains the named
+// executable. This avoids hardcoding assumptions about how a release tarball is
+// structured, so the code stays correct even if a future tarball places the
+// binary inside a subdirectory.
+func FindBinaryDir(versionDir, binaryName string) (string, error) {
+	var result string
+	err := filepath.Walk(versionDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && info.Name() == binaryName && info.Mode()&0o111 != 0 {
+			result = filepath.Dir(path)
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to search for binary %q in %s: %w", binaryName, versionDir, err)
+	}
+	if result == "" {
+		return "", fmt.Errorf("binary %q not found in %s", binaryName, versionDir)
+	}
+	return result, nil
+}
+
+// EnsureMinitiadBinary guarantees the minitiad binary for the given vm/version
+// is present and returns its full path. It first checks the version directory
+// with FindBinaryDir so it tolerates any tarball layout; only if the binary is
+// absent does it download and re-extract. The caller therefore never needs to
+// construct or assume a hardcoded sub-path inside the version directory.
+func EnsureMinitiadBinary(vm, version, url string) (string, error) {
 	userHome, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("failed to get user home directory: %v", err)
 	}
+
 	extractedPath := filepath.Join(userHome, common.WeaveDataDirectory, fmt.Sprintf("mini%s@%s", vm, version))
 
-	switch runtime.GOOS {
-	case "linux":
-		return filepath.Join(extractedPath, fmt.Sprintf("mini%s_%s", vm, version), "minitiad"), nil
-	case "darwin":
-		return filepath.Join(extractedPath, "minitiad"), nil
-	default:
-		return "", fmt.Errorf("unsupported OS: %v", runtime.GOOS)
-	}
-}
-
-func InstallMinitiadBinary(vm, version, url, binaryPath string) error {
-	userHome, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("failed to get user home directory: %v", err)
-	}
-	tarballPath := filepath.Join(userHome, common.WeaveDataDirectory, "minitia.tar.gz")
-	extractedPath := filepath.Join(userHome, common.WeaveDataDirectory, fmt.Sprintf("mini%s@%s", vm, version))
-
-	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
-		if _, err := os.Stat(extractedPath); os.IsNotExist(err) {
-			err := os.MkdirAll(extractedPath, os.ModePerm)
-			if err != nil {
-				return fmt.Errorf("failed to create weave data directory: %v", err)
-			}
+	binaryDir, findErr := FindBinaryDir(extractedPath, "minitiad")
+	if findErr != nil {
+		// Binary not present yet — download and extract.
+		if err := os.MkdirAll(extractedPath, os.ModePerm); err != nil {
+			return "", fmt.Errorf("failed to create version directory: %v", err)
 		}
-
-		if err = io.DownloadAndExtractTarGz(url, tarballPath, extractedPath); err != nil {
-			return fmt.Errorf("failed to download and extract binary: %v", err)
+		tarballPath := filepath.Join(userHome, common.WeaveDataDirectory, "minitia.tar.gz")
+		if err := io.DownloadAndExtractTarGz(url, tarballPath, extractedPath); err != nil {
+			return "", fmt.Errorf("failed to download and extract minitiad binary: %v", err)
 		}
-
-		err = os.Chmod(binaryPath, 0755)
+		binaryDir, err = FindBinaryDir(extractedPath, "minitiad")
 		if err != nil {
-			return fmt.Errorf("failed to set permissions for binary: %v", err)
+			return "", fmt.Errorf("minitiad binary not found after extraction in %s: %w", extractedPath, err)
 		}
+	}
+
+	binaryPath := filepath.Join(binaryDir, "minitiad")
+	if err := os.Chmod(binaryPath, 0o755); err != nil {
+		return "", fmt.Errorf("failed to set permissions for minitiad binary: %v", err)
 	}
 
 	if vm == "move" || vm == "wasm" {
-		return io.SetLibraryPaths(filepath.Dir(binaryPath))
+		if err := io.SetLibraryPaths(binaryDir); err != nil {
+			return "", err
+		}
 	}
 
-	return nil
+	return binaryPath, nil
 }
 
 func GetLatestOPInitBotVersion() (string, string, error) {

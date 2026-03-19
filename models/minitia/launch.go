@@ -2166,47 +2166,20 @@ func downloadMinitiaApp(ctx context.Context) tea.Cmd {
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get user home directory: %v", err)}
 		}
-		weaveDataPath := filepath.Join(userHome, common.WeaveDataDirectory)
-		tarballPath := filepath.Join(weaveDataPath, "minitia.tar.gz")
-		extractedPath := filepath.Join(weaveDataPath, fmt.Sprintf("mini%s@%s", strings.ToLower(state.vmType), state.minitiadVersion))
 
-		var binaryPath string
-		switch runtime.GOOS {
-		case "linux":
-			binaryPath = filepath.Join(extractedPath, fmt.Sprintf("mini%s_%s", strings.ToLower(state.vmType), state.minitiadVersion), AppName)
-		case "darwin":
-			binaryPath = filepath.Join(extractedPath, AppName)
-		default:
-			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("unsupported OS: %v", runtime.GOOS)}
+		vm := strings.ToLower(state.vmType)
+		extractedPath := filepath.Join(userHome, common.WeaveDataDirectory, fmt.Sprintf("mini%s@%s", vm, state.minitiadVersion))
+
+		// Determine whether a fresh download will be needed before delegating,
+		// so we can still set downloadedNewBinary accurately.
+		_, findErr := cosmosutils.FindBinaryDir(extractedPath, "minitiad")
+		state.downloadedNewBinary = findErr != nil
+
+		binaryPath, err := cosmosutils.EnsureMinitiadBinary(vm, state.minitiadVersion, state.minitiadEndpoint)
+		if err != nil {
+			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to ensure minitiad binary: %v", err)}
 		}
 		state.binaryPath = binaryPath
-
-		if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
-			if _, err := os.Stat(extractedPath); os.IsNotExist(err) {
-				err := os.MkdirAll(extractedPath, os.ModePerm)
-				if err != nil {
-					return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to create weave data directory: %v", err)}
-				}
-			}
-
-			if err = io.DownloadAndExtractTarGz(state.minitiadEndpoint, tarballPath, extractedPath); err != nil {
-				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to download and extract binary: %v", err)}
-			}
-
-			err = os.Chmod(binaryPath, 0o755)
-			if err != nil {
-				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to set permissions for binary: %v", err)}
-			}
-
-			state.downloadedNewBinary = true
-		}
-
-		if state.vmType == string(Move) || state.vmType == string(Wasm) {
-			err = io.SetLibraryPaths(filepath.Dir(binaryPath))
-			if err != nil {
-				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to set library path: %v", err)}
-			}
-		}
 
 		return ui.EndLoading{
 			Ctx: weavecontext.SetCurrentState(ctx, state),

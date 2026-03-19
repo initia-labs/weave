@@ -113,17 +113,28 @@ func downloadAndReplaceBinary(downloadURL string) error {
 		return fmt.Errorf("failed to get user home directory: %v", err)
 	}
 
-	tarballPath := filepath.Join(homeDir, common.WeaveDataDirectory, "weave-binary.tar.gz")
-	extractedPath := filepath.Join(homeDir, common.WeaveDataDirectory)
-	binaryPath := filepath.Join(extractedPath, "weave")
-	fmt.Printf("⬇️ Downloading from %s...\n", downloadURL)
-
-	if err = io.DownloadAndExtractTarGz(downloadURL, tarballPath, extractedPath); err != nil {
-		return fmt.Errorf("failed to download and extract binary: %v", err)
+	// Extract into a private temp directory so FindBinaryDir cannot match a
+	// stale weave binary that may already exist under the shared data root.
+	tempDir, err := os.MkdirTemp(filepath.Join(homeDir, common.WeaveDataDirectory), "weave-upgrade-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp extraction directory: %v", err)
 	}
 	defer func() {
-		_ = io.DeleteFile(binaryPath)
+		_ = io.DeleteDirectory(tempDir)
 	}()
+
+	tarballPath := filepath.Join(tempDir, "weave-binary.tar.gz")
+	fmt.Printf("⬇️ Downloading from %s...\n", downloadURL)
+
+	if err = io.DownloadAndExtractTarGz(downloadURL, tarballPath, tempDir); err != nil {
+		return fmt.Errorf("failed to download and extract binary: %v", err)
+	}
+
+	binaryDir, err := cosmosutils.FindBinaryDir(tempDir, "weave")
+	if err != nil {
+		return fmt.Errorf("could not locate weave binary after extraction: %w", err)
+	}
+	binaryPath := filepath.Join(binaryDir, "weave")
 
 	if err = doReplace(binaryPath); err != nil {
 		return fmt.Errorf("failed to replace the new weave binary: %v", err)
