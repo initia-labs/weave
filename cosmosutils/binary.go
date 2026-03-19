@@ -267,13 +267,7 @@ func GetMinitiadBinaryPath(vm, version string) (string, error) {
 	extractedPath := filepath.Join(userHome, common.WeaveDataDirectory, fmt.Sprintf("mini%s@%s", vm, version))
 
 	switch runtime.GOOS {
-	case "linux":
-		goos, arch, err := getOSArch()
-		if err != nil {
-			return "", err
-		}
-		return filepath.Join(extractedPath, fmt.Sprintf("mini%s_%s_%s_%s", vm, version, goos, arch), "minitiad"), nil
-	case "darwin":
+	case "darwin", "linux":
 		return filepath.Join(extractedPath, "minitiad"), nil
 	default:
 		return "", fmt.Errorf("unsupported OS: %v", runtime.GOOS)
