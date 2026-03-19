@@ -341,13 +341,13 @@ func TestFindBinaryDir(t *testing.T) {
 			wantRel:    filepath.Join("a", "b", "c"),
 		},
 		{
-			name: "non-executable file is ignored",
+			name: "non-executable file is found",
 			layout: func(root string) {
 				os.MkdirAll(root, 0o755)
 				os.WriteFile(filepath.Join(root, "minitiad"), []byte("data"), 0o644)
 			},
 			binaryName: "minitiad",
-			wantRel:    "",
+			wantRel:    ".",
 		},
 		{
 			name: "wrong name is ignored",

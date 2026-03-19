@@ -269,7 +269,7 @@ func FindBinaryDir(versionDir, binaryName string) (string, error) {
 		if err != nil {
 			return err
 		}
-		if !info.IsDir() && info.Name() == binaryName && info.Mode()&0o111 != 0 {
+		if !info.IsDir() && info.Name() == binaryName {
 			result = filepath.Dir(path)
 			return filepath.SkipAll
 		}
