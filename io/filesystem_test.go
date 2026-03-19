@@ -76,9 +76,10 @@ func TestExtractTarGz(t *testing.T) {
 
 		content := []byte("#!/bin/sh\necho ok\n")
 		header := &tar.Header{
-			Name: "minitiad",
-			Mode: 0o755,
-			Size: int64(len(content)),
+			Name:     "minitiad",
+			Mode:     0o755,
+			Size:     int64(len(content)),
+			Typeflag: tar.TypeReg,
 		}
 		assert.NoError(t, tw.WriteHeader(header))
 		_, err = tw.Write(content)
@@ -108,9 +109,10 @@ func TestExtractTarGz(t *testing.T) {
 
 		content := []byte("bad\n")
 		header := &tar.Header{
-			Name: "../escape",
-			Mode: 0o644,
-			Size: int64(len(content)),
+			Name:     "../escape",
+			Mode:     0o644,
+			Size:     int64(len(content)),
+			Typeflag: tar.TypeReg,
 		}
 		assert.NoError(t, tw.WriteHeader(header))
 		_, err = tw.Write(content)

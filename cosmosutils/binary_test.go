@@ -343,8 +343,12 @@ func TestFindBinaryDir(t *testing.T) {
 		{
 			name: "finds binary before executable permissions are restored",
 			layout: func(root string) {
-				os.MkdirAll(root, 0o755)
-				os.WriteFile(filepath.Join(root, "minitiad"), []byte("data"), 0o644)
+				if err := os.MkdirAll(root, 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(root, "minitiad"), []byte("data"), 0o644); err != nil {
+					t.Fatal(err)
+				}
 			},
 			binaryName: "minitiad",
 			wantRel:    ".",

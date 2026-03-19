@@ -82,12 +82,7 @@ func ExtractTarGz(src string, dest string) error {
 			if err != nil {
 				return err
 			}
-			_, err = io.Copy(file, tarReader)
-			if err != nil {
-				return err
-			}
-			err = file.Close()
-			if err != nil {
+			if err := writeTarFile(file, tarReader); err != nil {
 				return err
 			}
 			if err := os.Chmod(target, os.FileMode(header.Mode)); err != nil {
@@ -98,6 +93,17 @@ func ExtractTarGz(src string, dest string) error {
 		}
 	}
 	return nil
+}
+
+func writeTarFile(file *os.File, src io.Reader) (err error) {
+	defer func() {
+		if closeErr := file.Close(); err == nil && closeErr != nil {
+			err = closeErr
+		}
+	}()
+
+	_, err = io.Copy(file, src)
+	return err
 }
 
 func safeArchivePath(destRoot, entryName string) (string, error) {
