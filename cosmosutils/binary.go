@@ -70,7 +70,7 @@ func filterPreReleases(releases []BinaryRelease) []BinaryRelease {
 func fetchReleases(url string) ([]BinaryRelease, error) {
 	httpClient := client.NewHTTPClient()
 	var releases []BinaryRelease
-	_, err := httpClient.Get(url, "", nil, &releases)
+	_, err := httpClient.Get(url, "", map[string]string{"per_page": "100"}, &releases)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch releases: %v", err)
 	}
