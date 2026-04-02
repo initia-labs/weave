@@ -603,29 +603,6 @@ func GetInitiaBinaryUrlFromLcd(httpClient *client.HTTPClient, rest string) (stri
 	return selectedVersion, url, nil
 }
 
-func getBinaryURL(version string) (string, error) {
-	goos := runtime.GOOS
-	goarch := runtime.GOARCH
-
-	switch goos {
-	case "darwin":
-		switch goarch {
-		case "amd64":
-			return fmt.Sprintf("https://github.com/initia-labs/initia/releases/download/%s/initia_%s_Darwin_x86_64.tar.gz", version, version), nil
-		case "arm64":
-			return fmt.Sprintf("https://github.com/initia-labs/initia/releases/download/%s/initia_%s_Darwin_aarch64.tar.gz", version, version), nil
-		}
-	case "linux":
-		switch goarch {
-		case "amd64":
-			return fmt.Sprintf("https://github.com/initia-labs/initia/releases/download/%s/initia_%s_Linux_x86_64.tar.gz", version, version), nil
-		case "arm64":
-			return fmt.Sprintf("https://github.com/initia-labs/initia/releases/download/%s/initia_%s_Linux_aarch64.tar.gz", version, version), nil
-		}
-	}
-	return "", fmt.Errorf("unsupported OS or architecture: %v %v", goos, goarch)
-}
-
 func GetInitiaBinaryPath(version string) (string, error) {
 	if strings.Contains(version, "@") {
 		parts := strings.Split(version, "@")

@@ -6,7 +6,7 @@ GO_SYSTEM_VERSION := $(shell go version | cut -c 14- | cut -d' ' -f1 | cut -d'.'
 REQUIRE_GO_VERSION := $(GO_VERSION)
 
 # Project version
-WEAVE_VERSION := $(shell git describe --tags)
+WEAVE_VERSION := $(shell git describe --tags 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || echo dev)
 
 # Build directory
 BUILDDIR ?= $(CURDIR)/build
