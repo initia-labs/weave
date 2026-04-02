@@ -218,6 +218,116 @@ func TestGetLatestVersionFromReleases(t *testing.T) {
 	}
 }
 
+func TestSelectCompatibleReleaseForVersion(t *testing.T) {
+	currentOS, currentArch, err := getOSArch()
+	if err != nil {
+		t.Fatalf("Failed to get OS/arch: %v", err)
+	}
+
+	assetURL := func(version string) string {
+		return fmt.Sprintf("example.com/initia_%s_%s_%s.tar.gz", version, currentOS, currentArch)
+	}
+
+	tests := []struct {
+		name           string
+		releases       []BinaryRelease
+		targetVersion  string
+		expectedTag    string
+		expectedURL    string
+		expectedErrStr string
+	}{
+		{
+			name:          "uses exact matching release when available",
+			targetVersion: "v1.3.1",
+			releases: []BinaryRelease{
+				{
+					TagName: "v1.3.1",
+					Assets: []struct {
+						BrowserDownloadURL string `json:"browser_download_url"`
+					}{
+						{BrowserDownloadURL: assetURL("v1.3.1")},
+					},
+				},
+			},
+			expectedTag: "v1.3.1",
+			expectedURL: assetURL("v1.3.1"),
+		},
+		{
+			name:          "falls back to highest patch in same minor series",
+			targetVersion: "v1.4.1",
+			releases: []BinaryRelease{
+				{
+					TagName: "v1.3.9",
+					Assets: []struct {
+						BrowserDownloadURL string `json:"browser_download_url"`
+					}{
+						{BrowserDownloadURL: assetURL("v1.3.9")},
+					},
+				},
+				{
+					TagName: "v1.4.0",
+					Assets: []struct {
+						BrowserDownloadURL string `json:"browser_download_url"`
+					}{
+						{BrowserDownloadURL: assetURL("v1.4.0")},
+					},
+				},
+				{
+					TagName: "v1.4.2",
+					Assets: []struct {
+						BrowserDownloadURL string `json:"browser_download_url"`
+					}{
+						{BrowserDownloadURL: assetURL("v1.4.2")},
+					},
+				},
+			},
+			expectedTag: "v1.4.2",
+			expectedURL: assetURL("v1.4.2"),
+		},
+		{
+			name:          "fails when no compatible downloadable release exists",
+			targetVersion: "v1.4.1",
+			releases: []BinaryRelease{
+				{
+					TagName: "v1.3.9",
+					Assets: []struct {
+						BrowserDownloadURL string `json:"browser_download_url"`
+					}{
+						{BrowserDownloadURL: assetURL("v1.3.9")},
+					},
+				},
+			},
+			expectedErrStr: "no compatible downloadable release found for chain version v1.4.1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tag, url, err := selectCompatibleReleaseForVersion(tt.releases, tt.targetVersion)
+
+			if tt.expectedErrStr != "" {
+				if err == nil {
+					t.Fatalf("expected error containing %q, got nil", tt.expectedErrStr)
+				}
+				if !strings.Contains(err.Error(), tt.expectedErrStr) {
+					t.Fatalf("expected error containing %q, got %q", tt.expectedErrStr, err.Error())
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if tag != tt.expectedTag {
+				t.Fatalf("expected tag %q, got %q", tt.expectedTag, tag)
+			}
+			if url != tt.expectedURL {
+				t.Fatalf("expected URL %q, got %q", tt.expectedURL, url)
+			}
+		})
+	}
+}
+
 func TestNormalizeVersion(t *testing.T) {
 	tests := []struct {
 		name     string
