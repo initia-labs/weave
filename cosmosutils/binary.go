@@ -233,6 +233,94 @@ func GetMinitiadBinaryUrlFromLcd(httpClient *client.HTTPClient, rest string) (vm
 	return vm, version, url, nil
 }
 
+func getPlatformAssetURL(release BinaryRelease) (string, bool, error) {
+	goos, arch, err := getOSArch()
+	if err != nil {
+		return "", false, err
+	}
+
+	searchString := fmt.Sprintf("%s_%s.tar.gz", goos, arch)
+	for _, asset := range release.Assets {
+		if strings.Contains(asset.BrowserDownloadURL, searchString) {
+			return asset.BrowserDownloadURL, true, nil
+		}
+	}
+
+	return "", false, nil
+}
+
+func majorMinorVersion(version string) (string, error) {
+	version = strings.TrimPrefix(version, "v")
+	mainVersion, _ := splitVersion(version)
+	parts := strings.Split(mainVersion, ".")
+	if len(parts) < 2 {
+		return "", fmt.Errorf("invalid semantic version: %s", version)
+	}
+	return fmt.Sprintf("%s.%s", parts[0], parts[1]), nil
+}
+
+func selectCompatibleReleaseForVersion(releases []BinaryRelease, targetVersion string) (string, string, error) {
+	if len(releases) < 1 {
+		return "", "", fmt.Errorf("no releases found")
+	}
+
+	targetVersion = normalizeVersion(targetVersion)
+	if !semverPattern.MatchString(targetVersion) {
+		return "", "", fmt.Errorf("invalid version format after normalization: %q", targetVersion)
+	}
+
+	for _, release := range releases {
+		if release.TagName != targetVersion {
+			continue
+		}
+
+		downloadURL, ok, err := getPlatformAssetURL(release)
+		if err != nil {
+			return "", "", err
+		}
+		if ok {
+			return release.TagName, downloadURL, nil
+		}
+	}
+
+	targetSeries, err := majorMinorVersion(targetVersion)
+	if err != nil {
+		return "", "", err
+	}
+
+	var selectedRelease *BinaryRelease
+	var selectedURL string
+	for _, release := range releases {
+		if !semverPattern.MatchString(release.TagName) {
+			continue
+		}
+
+		releaseSeries, err := majorMinorVersion(release.TagName)
+		if err != nil || releaseSeries != targetSeries {
+			continue
+		}
+
+		downloadURL, ok, err := getPlatformAssetURL(release)
+		if err != nil {
+			return "", "", err
+		}
+		if !ok {
+			continue
+		}
+
+		if selectedRelease == nil || CompareSemVer(release.TagName, selectedRelease.TagName) {
+			selectedRelease = &release
+			selectedURL = downloadURL
+		}
+	}
+
+	if selectedRelease != nil {
+		return selectedRelease.TagName, selectedURL, nil
+	}
+
+	return "", "", fmt.Errorf("no compatible downloadable release found for chain version %s", targetVersion)
+}
+
 func detectMinitiaVM(versionString string) string {
 	lower := strings.ToLower(versionString)
 	switch {
@@ -502,12 +590,17 @@ func GetInitiaBinaryUrlFromLcd(httpClient *client.HTTPClient, rest string) (stri
 	}
 
 	version := normalizeVersion(result.ApplicationVersion.Version)
-	url, err := getBinaryURL(version)
+	releases, err := fetchReleases("https://api.github.com/repos/initia-labs/initia/releases")
+	if err != nil {
+		return "", "", fmt.Errorf("failed to fetch initia releases: %w", err)
+	}
+
+	selectedVersion, url, err := selectCompatibleReleaseForVersion(releases, version)
 	if err != nil {
 		return "", "", err
 	}
 
-	return version, url, nil
+	return selectedVersion, url, nil
 }
 
 func getBinaryURL(version string) (string, error) {
