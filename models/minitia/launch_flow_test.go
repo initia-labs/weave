@@ -1,6 +1,8 @@
 package minitia
 
 import (
+	"context"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -8,12 +10,128 @@ import (
 	"testing"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/initia-labs/weave/analytics"
 	"github.com/initia-labs/weave/common"
 	weavecontext "github.com/initia-labs/weave/context"
+	"github.com/initia-labs/weave/models/opinit_bots"
 	"github.com/initia-labs/weave/service"
 	"github.com/initia-labs/weave/ui"
 	"github.com/test-go/testify/require"
 )
+
+type daImportTerminal struct{ initialized bool }
+
+func (m *daImportTerminal) Init() tea.Cmd                       { m.initialized = true; return nil }
+func (m *daImportTerminal) Update(tea.Msg) (tea.Model, tea.Cmd) { return m, nil }
+func (m *daImportTerminal) View() string                        { return "import complete" }
+
+// Catches producer/consumer schema mismatches and swapped or omitted imported roles.
+// The consumer receives the fake external launch's unchanged artifact, not a
+// separate hand-authored consumer fixture.
+func TestDAFlowLaunchArtifactConsumedByOPInit(t *testing.T) {
+	daIsolateViper(t)
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	oldClient, oldProperties := analytics.Client, analytics.GlobalEventProperties
+	analytics.Client = &analytics.NoOpClient{}
+	analytics.GlobalEventProperties = make(map[string]interface{})
+	t.Cleanup(func() { analytics.Client, analytics.GlobalEventProperties = oldClient, oldProperties })
+	oldTransport := http.DefaultTransport
+	http.DefaultTransport = daRoundTripFunc(func(r *http.Request) (*http.Response, error) {
+		t.Errorf("unexpected artifact import HTTP request: %s", r.URL)
+		return daJSONResponse(r, `{}`), nil
+	})
+	t.Cleanup(func() { http.DefaultTransport = oldTransport })
+	require.NoError(t, os.MkdirAll(filepath.Join(home, common.WeaveDataDirectory), 0700))
+	rollupHome := filepath.Join(home, "rollup")
+	binary := filepath.Join(home, "bin", "minimove")
+	daWriteFile(t, binary, `#!/bin/sh
+set -eu
+[ "$1" = launch ] && [ "$2" = --with-config ] && [ "$4" = --home ] && [ "$#" = 5 ]
+mkdir -p "$5/config" "$5/artifacts"
+cp "$3" "$5/artifacts/config.json"
+printf '%s\n' '{"BRIDGE_ID":"42","EXECUTOR_L1_MONITOR_HEIGHT":"10","EXECUTOR_L2_MONITOR_HEIGHT":"1"}' > "$5/artifacts/artifacts.json"
+printf '%s\n' 'inter-block-cache = true' 'minimum-gas-prices = "99umin"' > "$5/config/app.toml"
+`, 0700)
+	// Public BIP39 test vectors, assigned before producing the launch config.
+	const bridge = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+	const output = "legal winner thank year wave sausage worth useful legal winner thank yellow"
+	const batch = "letter advice cage absurd amount doctor acoustic avoid letter advice cage above"
+	const challenger = "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong"
+	s := daLaunchState()
+	s.binaryPath, s.scanLink = binary, InitiaScanTestnetURL
+	s.systemKeyBridgeExecutorMnemonic, s.systemKeyOutputSubmitterMnemonic = bridge, output
+	s.systemKeyBatchSubmitterMnemonic, s.systemKeyChallengerMnemonic = batch, challenger
+	s.systemKeyBatchSubmitterAddress = "init16pawh0v7w996jrmtzugz3hmhq0wx6ndq5pp0dr"
+	fake := &daService{}
+	oldService := newService
+	newService = func(command service.CommandName, vm string) (service.Service, error) {
+		require.Equal(t, service.Minitia, command)
+		require.Equal(t, "Move", vm)
+		return fake, nil
+	}
+	t.Cleanup(func() { newService = oldService })
+	t.Cleanup(func() { daWaitForRollytics(t, home) })
+	ctx := weavecontext.SetMinitiaHome(weavecontext.NewAppContext(s), rollupHome)
+	logs := []string{}
+	var mu sync.Mutex
+	msg := launchingMinitia(ctx, &logs, &mu)()
+	end, ok := msg.(ui.EndLoading)
+	require.True(t, ok, "launch returned %T: %+v", msg, msg)
+	launchModel := NewLaunchingNewMinitiaLoading(ctx)
+	finished, _ := launchModel.Update(end)
+	require.IsType(t, &TerminalState{}, finished)
+	artifactPath := filepath.Join(rollupHome, "artifacts", "config.json")
+	artifact, err := os.ReadFile(artifactPath)
+	require.NoError(t, err)
+	launchConfig, err := os.ReadFile(filepath.Join(home, common.WeaveDataDirectory, LaunchConfigFilename))
+	require.NoError(t, err)
+	require.Equal(t, launchConfig, artifact)
+
+	state := opinit_bots.OPInitBotsState{
+		BotInfos: []opinit_bots.BotInfo{
+			{BotName: opinit_bots.BridgeExecutor, KeyName: opinit_bots.BridgeExecutorKeyName, IsNotExist: true},
+			{BotName: opinit_bots.OutputSubmitter, KeyName: opinit_bots.OutputSubmitterKeyName, IsNotExist: true},
+			{BotName: opinit_bots.BatchSubmitter, KeyName: opinit_bots.BatchSubmitterKeyName, IsNotExist: true},
+			{BotName: opinit_bots.Challenger, KeyName: opinit_bots.ChallengerKeyName, IsNotExist: true},
+			{BotName: opinit_bots.OracleBridgeExecutor, KeyName: opinit_bots.OracleBridgeExecutorKeyName, IsNotExist: true},
+		},
+		SetupOpinitResponses: make(map[opinit_bots.BotName]string),
+	}
+	importCtx := weavecontext.SetMinitiaHome(weavecontext.NewAppContext(state), rollupHome)
+	callbackCalled := false
+	terminal := &daImportTerminal{}
+	model, err := opinit_bots.ProcessMinitiaConfig(importCtx, func(nextCtx context.Context) (tea.Model, error) {
+		callbackCalled = true
+		got := weavecontext.GetCurrentState[opinit_bots.OPInitBotsState](nextCtx)
+		require.True(t, got.AddMinitiaConfig)
+		require.Equal(t, "INITIA", got.MinitiaConfig.OpBridge.BatchSubmissionTarget)
+		require.Empty(t, got.MinitiaConfig.SystemKeys.BatchSubmitter.L1Address)
+		require.Equal(t, "init16pawh0v7w996jrmtzugz3hmhq0wx6ndq5pp0dr", got.MinitiaConfig.SystemKeys.BatchSubmitter.DAAddress)
+		for i, want := range []string{bridge, output, batch, challenger} {
+			require.Equal(t, want, got.BotInfos[i].Mnemonic, "role %s", got.BotInfos[i].BotName)
+			require.False(t, got.BotInfos[i].IsNotExist)
+			require.True(t, got.BotInfos[i].IsNewKey())
+		}
+		require.Equal(t, "Initia", got.BotInfos[2].DALayer)
+		require.Empty(t, got.BotInfos[4].Mnemonic)
+		require.True(t, got.BotInfos[4].IsNotExist)
+		return terminal, nil
+	})
+	require.NoError(t, err)
+	importer, ok := model.(*opinit_bots.ProcessingMinitiaConfig)
+	require.True(t, ok, "actual artifact discovery returned %T", model)
+	next, cmd := importer.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	require.True(t, callbackCalled, "Yes import did not reach the next model: %s", importer.View())
+	require.True(t, next == terminal)
+	require.True(t, terminal.initialized)
+	require.Nil(t, cmd)
+	after, err := os.ReadFile(artifactPath)
+	require.NoError(t, err)
+	require.Equal(t, artifact, after)
+	daWaitForRollytics(t, home)
+}
 
 type daService struct {
 	versions, homes []string
