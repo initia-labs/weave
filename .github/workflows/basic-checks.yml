@@ -9,14 +9,27 @@ on:
 jobs:
   lint:
     env:
-      GOLANGCI_LINT_VERSION: v1.62.0
-    name: golangci-lint
+      GOLANGCI_LINT_VERSION: v1.64.8
+      GOFLAGS: ${{ matrix.goflags }}
+    name: golangci-lint (${{ matrix.mode }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - mode: default
+            goflags: ''
+          - mode: celestia
+            goflags: -tags=celestia
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: ^1.24
+          go-version-file: go.mod
+      - name: Record selected Go toolchain
+        run: |
+          go version
+          echo "GOTOOLCHAIN=$(go env GOVERSION)" >> "$GITHUB_ENV"
       - uses: technote-space/get-diff-action@v6.1.2
         id: git_diff
         with:
@@ -29,11 +42,24 @@ jobs:
       - name: Download dependencies
         run: go mod download
       - name: Install golangci-lint
-        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}
+        run: |
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}
+          golangci-lint version
       - name: Run golangci-lint
         run: make lint
   unit-tests:
+    name: Unit tests (${{ matrix.mode }})
     runs-on: ubuntu-latest
+    env:
+      GOFLAGS: ${{ matrix.goflags }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - mode: default
+            goflags: ''
+          - mode: celestia
+            goflags: -tags=celestia
     services:
       docker:
         image: docker:dind
@@ -42,7 +68,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: ^1.24
+          go-version-file: go.mod
+      - name: Record selected Go toolchain
+        run: go version
       - name: Wait for Docker
         run: |
           until docker info; do
@@ -51,4 +79,4 @@ jobs:
           done
 
       - name: Run unit tests
-        run: go test -v ./...
+        run: go test -count=1 -v ./...
