@@ -48,7 +48,10 @@ func TestDAFlowLaunchArtifactConsumedByOPInit(t *testing.T) {
 	binary := filepath.Join(home, "bin", "minimove")
 	daWriteFile(t, binary, `#!/bin/sh
 set -eu
-[ "$1" = launch ] && [ "$2" = --with-config ] && [ "$4" = --home ] && [ "$#" = 5 ]
+[ "$#" = 5 ]
+[ "$1" = launch ]
+[ "$2" = --with-config ]
+[ "$4" = --home ]
 mkdir -p "$5/config" "$5/artifacts"
 cp "$3" "$5/artifacts/config.json"
 printf '%s\n' '{"BRIDGE_ID":"42","EXECUTOR_L1_MONITOR_HEIGHT":"10","EXECUTOR_L2_MONITOR_HEIGHT":"1"}' > "$5/artifacts/artifacts.json"
@@ -183,7 +186,10 @@ func TestDAFlowInitiaLaunchCompletes(t *testing.T) {
 				binary := filepath.Join(home, "bin", "minimove")
 				daWriteFile(t, binary, `#!/bin/sh
 set -eu
-[ "$1" = launch ] && [ "$2" = --with-config ] && [ "$4" = --home ] && [ "$#" = 5 ]
+[ "$#" = 5 ]
+[ "$1" = launch ]
+[ "$2" = --with-config ]
+[ "$4" = --home ]
 mkdir -p "$5/config" "$5/artifacts"
 cp "$3" "$5/artifacts/config.json"
 printf '%s\n' '{"BRIDGE_ID":"42","EXECUTOR_L1_MONITOR_HEIGHT":"10","EXECUTOR_L2_MONITOR_HEIGHT":"1"}' > "$5/artifacts/artifacts.json"
