@@ -88,7 +88,7 @@ func (m *SubModel) UpdateWithContext(ctx context.Context, parent weavecontext.Ba
 		res := strings.TrimSpace(input.Text)
 		state.botConfig[m.field.Name] = res
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.DotsSeparator, m.field.Question, m.highlights, res))
-		ctx = weavecontext.SetCurrentState(ctx, state)
+		ctx = weavecontext.SetCurrentState(parent.GetContext(), state)
 		return ctx, nil, nil // Done with this field, signal completion
 	}
 	m.TextInput = input

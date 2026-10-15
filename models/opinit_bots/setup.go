@@ -15,8 +15,10 @@ import (
 	weavecontext "github.com/initia-labs/weave/context"
 	"github.com/initia-labs/weave/cosmosutils"
 	"github.com/initia-labs/weave/crypto"
+	"github.com/initia-labs/weave/internal/features"
 	"github.com/initia-labs/weave/io"
 	"github.com/initia-labs/weave/styles"
+	"github.com/initia-labs/weave/tooltip"
 	"github.com/initia-labs/weave/types"
 	"github.com/initia-labs/weave/ui"
 )
@@ -66,15 +68,16 @@ type ProcessingMinitiaConfig struct {
 	ui.Selector[AddMinitiaKeyOption]
 	question      string
 	nextModelFunc func(ctx context.Context) (tea.Model, error)
+	validationErr error
 }
 
-func assignBotInfo(botInfo *BotInfo, minitiaConfig *types.MinitiaConfig) {
+func assignBotInfo(botInfo *BotInfo, minitiaConfig *types.MinitiaConfig, batchDALayer DALayerOption) {
 	botInfo.IsNotExist = false
 	botInfo.Mnemonic = getMnemonicForBot(botInfo.BotName, minitiaConfig)
 
 	// Set DA Layer for BatchSubmitter
 	if botInfo.BotName == BatchSubmitter {
-		botInfo.DALayer = getDALayer(minitiaConfig.SystemKeys.BatchSubmitter.L1Address)
+		botInfo.DALayer = string(batchDALayer)
 	}
 }
 
@@ -91,13 +94,6 @@ func getMnemonicForBot(botName BotName, minitiaConfig *types.MinitiaConfig) stri
 	default:
 		return ""
 	}
-}
-
-func getDALayer(address string) string {
-	if strings.HasPrefix(address, "initia") {
-		return string(InitiaLayerOption)
-	}
-	return string(CelestiaLayerOption)
 }
 
 func NewProcessingMinitiaConfig(ctx context.Context, nextModelFunc func(ctx context.Context) (tea.Model, error)) (*ProcessingMinitiaConfig, error) {
@@ -139,35 +135,39 @@ func (m *ProcessingMinitiaConfig) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.HandlePanic(err)
 		}
 
-		state := weavecontext.PushPageAndGetState[OPInitBotsState](m)
-		state.weave.PushPreviousResponse(
-			styles.RenderPreviousResponse(styles.ArrowSeparator, m.GetQuestion(), []string{artifactsDir}, string(*selected)),
-		)
-
-		switch *selected {
-		case YesAddMinitiaKeyOption:
-			analytics.TrackEvent(analytics.ImportKeysFromArtifactsSelected, analytics.NewEmptyEvent().Add(analytics.OptionEventKey, "yes"))
-			// Iterate through botInfos and add relevant keys
+		// Import into a private candidate; a rejected later key must not alter earlier ones.
+		state := weavecontext.GetCurrentState[OPInitBotsState](m.Ctx).Clone()
+		if *selected == YesAddMinitiaKeyOption {
+			layer, err := validateArtifactKeys(state.MinitiaConfig)
+			if err != nil {
+				m.validationErr = err
+				return m, nil
+			}
 			for idx := range state.BotInfos {
 				if state.BotInfos[idx].BotName != OracleBridgeExecutor {
-					assignBotInfo(&state.BotInfos[idx], state.MinitiaConfig)
+					assignBotInfo(&state.BotInfos[idx], state.MinitiaConfig, layer)
 				}
 			}
+			if err := validatePendingBotKeys(state.BotInfos); err != nil {
+				m.validationErr = err
+				return m, nil
+			}
 			state.AddMinitiaConfig = true
-			nextModel, err := m.nextModelFunc(weavecontext.SetCurrentState(m.Ctx, state))
-			if err != nil {
-				return m, m.HandlePanic(err)
-			}
-			return nextModel, nextModel.Init()
-
-		case NoAddMinitiaKeyOption:
-			analytics.TrackEvent(analytics.ImportKeysFromArtifactsSelected, analytics.NewEmptyEvent().Add(analytics.OptionEventKey, "no"))
-			nextModel, err := m.nextModelFunc(weavecontext.SetCurrentState(m.Ctx, state))
-			if err != nil {
-				return m, m.HandlePanic(err)
-			}
-			return nextModel, nextModel.Init()
 		}
+		m.validationErr = nil
+		weavecontext.PushPageAndGetState[OPInitBotsState](m)
+		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, m.GetQuestion(), []string{artifactsDir}, string(*selected)))
+		option := "no"
+		if *selected == YesAddMinitiaKeyOption {
+			option = "yes"
+		}
+		analytics.TrackEvent(analytics.ImportKeysFromArtifactsSelected, analytics.NewEmptyEvent().Add(analytics.OptionEventKey, option))
+		m.Ctx = weavecontext.SetCurrentState(m.Ctx, state)
+		nextModel, err := m.nextModelFunc(m.Ctx)
+		if err != nil {
+			return m, m.HandlePanic(err)
+		}
+		return nextModel, nextModel.Init()
 	}
 
 	return m, cmd
@@ -180,7 +180,11 @@ func (m *ProcessingMinitiaConfig) View() string {
 	if err != nil {
 		m.HandlePanic(err)
 	}
-	return m.WrapView(state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{artifactsDir}, styles.Question) + m.Selector.View())
+	view := state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{artifactsDir}, styles.Question) + m.Selector.View()
+	if m.validationErr != nil {
+		view += styles.RenderError(m.validationErr)
+	}
+	return m.WrapView(view)
 }
 
 func NextUpdateOpinitBotKey(ctx context.Context) (tea.Model, tea.Cmd) {
@@ -217,10 +221,14 @@ func NewSetupBotCheckbox(ctx context.Context) (tea.Model, error) {
 	}
 
 	question := "Which bots would you like to set/override?"
+	batchDescription := "Submits block and transactions data in batches into a chain to ensure Data Availability. Submissions can be made to Initia L1."
+	if features.CelestiaDAEnabled {
+		batchDescription = "Submits block and transactions data in batches into a chain to ensure Data Availability. Submissions can be made to Initia L1 or Celestia."
+	}
 	tooltips := []ui.Tooltip{
 		ui.NewTooltip("Bridge Executor", "Monitors the L1 and rollup transactions, facilitates token bridging and withdrawals between the minitia and Initia L1 chain, and also relays oracle price feed to rollup.", "", []string{}, []string{}, []string{}),
 		ui.NewTooltip("Output Submitter", "Submits rollup output roots to L1 for verification and potential challenges. If the submitted output remains unchallenged beyond the output finalization period, it is considered finalized and immutable.", "", []string{}, []string{}, []string{}),
-		ui.NewTooltip("Batch Submitter", "Submits block and transactions data in batches into a chain to ensure Data Availability. Currently, submissions can be made to Initia L1 or Celestia.", "", []string{}, []string{}, []string{}),
+		ui.NewTooltip("Batch Submitter", batchDescription, "", []string{}, []string{}, []string{}),
 		ui.NewTooltip("Challenger", "Prevents misconduct and invalid minitia state submissions by monitoring for output proposals and challenging any that are invalid.", "", []string{}, []string{}, []string{}),
 		ui.NewTooltip("Oracle Bridge Executor", "Relays oracle transaction from L1 to rollup. If rollup is using oracle, you need to set this field.", "", []string{}, []string{}, []string{}),
 	}
@@ -536,13 +544,14 @@ type DALayerSelector struct {
 
 // NewDALayerSelector initializes a new DALayerSelector with context
 func NewDALayerSelector(ctx context.Context, idx int) *DALayerSelector {
+	options := []DALayerOption{InitiaLayerOption}
+	tooltips := []ui.Tooltip{tooltip.InitiaDALayerTooltip}
+	if features.CelestiaDAEnabled {
+		options = append(options, CelestiaLayerOption)
+		tooltips = append(tooltips, ui.NewTooltip("Celestia", "Use Celestia for batch data availability.", "", nil, nil, nil))
+	}
 	return &DALayerSelector{
-		Selector: ui.Selector[DALayerOption]{
-			Options: []DALayerOption{
-				InitiaLayerOption,
-				CelestiaLayerOption,
-			},
-		},
+		Selector:  ui.Selector[DALayerOption]{Options: options, Tooltips: &tooltips},
 		BaseModel: weavecontext.BaseModel{Ctx: ctx},
 		question:  "Which DA Layer would you like to use?",
 		idx:       idx,
@@ -583,6 +592,7 @@ func (m *DALayerSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *DALayerSelector) View() string {
+	m.Selector.ViewTooltip(m.Ctx)
 	state := weavecontext.GetCurrentState[OPInitBotsState](m.Ctx)
 	return m.WrapView(state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{"DA Layer"}, styles.Question) + m.Selector.View())
 }
