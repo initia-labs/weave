@@ -187,7 +187,7 @@ func (m *ProcessingMinitiaConfig) View() string {
 	return m.WrapView(view)
 }
 
-func NextUpdateOpinitBotKey(ctx context.Context) (tea.Model, tea.Cmd) {
+func NextUpdateOpinitBotKey(ctx context.Context) (tea.Model, error) {
 	state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
 	for idx := 0; idx < len(state.BotInfos); idx++ {
 		if state.BotInfos[idx].IsSetup {
@@ -195,12 +195,10 @@ func NextUpdateOpinitBotKey(ctx context.Context) (tea.Model, tea.Cmd) {
 		}
 	}
 	if state.InitExecutorBot || state.InitChallengerBot {
-		model := NewSetupOPInitBotsMissingKey(ctx)
-		return model, model.Init()
+		return handleBotInitSelection(ctx, state)
 	}
 
-	model := NewSetupOPInitBots(ctx)
-	return model, model.Init()
+	return NewSetupOPInitBots(ctx), nil
 }
 
 type SetupBotCheckbox struct {
@@ -284,7 +282,11 @@ func (m *SetupBotCheckbox) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// Proceed to the next step
-		return NextUpdateOpinitBotKey(m.Ctx)
+		model, err := NextUpdateOpinitBotKey(m.Ctx)
+		if err != nil {
+			return m, m.HandlePanic(err)
+		}
+		return model, model.Init()
 	}
 
 	return m, cmd
@@ -353,7 +355,11 @@ func (m *RecoverKeySelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return NewDALayerSelector(m.Ctx, m.idx), nil
 			}
 
-			return NextUpdateOpinitBotKey(m.Ctx)
+			model, err := NextUpdateOpinitBotKey(m.Ctx)
+			if err != nil {
+				return m, m.HandlePanic(err)
+			}
+			return model, model.Init()
 		} else {
 			analytics.TrackEvent(analytics.RecoverKeySelected, analytics.NewEmptyEvent().Add(analytics.OptionEventKey, "import"))
 			state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, m.GetQuestion(), []string{string(state.BotInfos[m.idx].BotName)}, "Import existing key"))
@@ -420,7 +426,11 @@ func (m *RecoverFromMnemonic) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if state.BotInfos[m.idx].BotName == BatchSubmitter {
 			return NewDALayerSelector(m.Ctx, m.idx), nil
 		}
-		return NextUpdateOpinitBotKey(m.Ctx)
+		model, err := NextUpdateOpinitBotKey(m.Ctx)
+		if err != nil {
+			return m, m.HandlePanic(err)
+		}
+		return model, model.Init()
 	}
 
 	m.TextInput = input
@@ -585,7 +595,11 @@ func (m *DALayerSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		)
 
 		// Proceed to the next step
-		return NextUpdateOpinitBotKey(weavecontext.SetCurrentState(m.Ctx, state))
+		model, err := NextUpdateOpinitBotKey(weavecontext.SetCurrentState(m.Ctx, state))
+		if err != nil {
+			return m, m.HandlePanic(err)
+		}
+		return model, model.Init()
 	}
 
 	return m, cmd

@@ -271,7 +271,11 @@ func (m *OPInitBotInitSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					state.BotInfos[idx].IsSetup = false
 				}
 			}
-			return NextUpdateOpinitBotKey(weavecontext.SetCurrentState(m.Ctx, state))
+			model, err := NextUpdateOpinitBotKey(weavecontext.SetCurrentState(m.Ctx, state))
+			if err != nil {
+				return m, m.HandlePanic(err)
+			}
+			return model, model.Init()
 		case ChallengerOPInitBotInitOption:
 			state.InitChallengerBot = true
 			keyNames := make(map[string]bool)
@@ -289,7 +293,11 @@ func (m *OPInitBotInitSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					state.BotInfos[idx].IsSetup = false
 				}
 			}
-			return NextUpdateOpinitBotKey(weavecontext.SetCurrentState(m.Ctx, state))
+			model, err := NextUpdateOpinitBotKey(weavecontext.SetCurrentState(m.Ctx, state))
+			if err != nil {
+				return m, m.HandlePanic(err)
+			}
+			return model, model.Init()
 		}
 	}
 	return m, cmd
@@ -1011,10 +1019,7 @@ func (m *FetchL1StartHeightLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if state.L1StartHeight == 0 {
 			return NewL1StartHeightInput(weavecontext.SetCurrentState(m.Ctx, state)), nil
 		}
-		model, err := NewStartingInitBot(weavecontext.SetCurrentState(m.Ctx, state))
-		if err != nil {
-			return m, m.HandlePanic(err)
-		}
+		model := NewSetupOPInitBotsMissingKey(weavecontext.SetCurrentState(m.Ctx, state))
 		return model, model.Init()
 	}
 	return m, cmd
@@ -1066,10 +1071,7 @@ func (m *L1StartHeightInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// We can ignore the error here since it has already been validated in the input validator
 		state.L1StartHeight, _ = strconv.Atoi(input.Text)
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.DotsSeparator, m.GetQuestion(), m.highlights, input.Text))
-		model, err := NewStartingInitBot(weavecontext.SetCurrentState(m.Ctx, state))
-		if err != nil {
-			return m, m.HandlePanic(err)
-		}
+		model := NewSetupOPInitBotsMissingKey(weavecontext.SetCurrentState(m.Ctx, state))
 		return model, model.Init()
 	}
 	m.TextInput = input
@@ -1169,7 +1171,7 @@ func WaitStartingInitBot(ctx context.Context) tea.Cmd {
 		}
 
 		if state.InitExecutorBot {
-			srv, err := service.NewService(service.OPinitExecutor, "")
+			srv, err := newService(service.OPinitExecutor, "")
 			if err != nil {
 				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to initialize service: %v", err)}
 			}
@@ -1214,7 +1216,7 @@ func WaitStartingInitBot(ctx context.Context) tea.Cmd {
 				}
 			}
 		} else if state.InitChallengerBot {
-			srv, err := service.NewService(service.OPinitChallenger, "")
+			srv, err := newService(service.OPinitChallenger, "")
 			if err != nil {
 				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to initialize service: %v", err)}
 			}
@@ -1281,7 +1283,7 @@ func (m *StartingInitBot) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.HandlePanic(m.Loading.NonRetryableErr)
 	}
 	if m.Loading.Completing {
-		srv, err := service.NewService(service.OPinitExecutor, "")
+		srv, err := newService(service.OPinitExecutor, "")
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
@@ -1365,14 +1367,15 @@ func (m *SetupOPInitBotsMissingKey) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.HandlePanic(m.Loading.NonRetryableErr)
 	}
 	if m.Loading.Completing {
-		state := weavecontext.GetCurrentState[OPInitBotsState](m.Loading.EndContext)
-		oracleBotInfo := GetBotInfo(BotInfos, OracleBridgeExecutor)
+		m.Ctx = m.Loading.EndContext
+		state := weavecontext.GetCurrentState[OPInitBotsState](m.Ctx)
+		oracleBotInfo := GetBotInfo(state.BotInfos, OracleBridgeExecutor)
 		if (state.AddMinitiaConfig && !oracleBotInfo.IsNewKey()) || (!state.AddMinitiaConfig && len(state.SetupOpinitResponses) == 0) {
-			model, err := handleBotInitSelection(m.Loading.EndContext, state)
+			model, err := NewStartingInitBot(m.Ctx)
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
-			return model, nil
+			return model, model.Init()
 		}
 
 		switch msg := msg.(type) {
@@ -1403,11 +1406,11 @@ func (m *SetupOPInitBotsMissingKey) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, m.HandlePanic(fmt.Errorf("failed to write key file: %w", err))
 				}
 
-				model, err := handleBotInitSelection(m.Loading.EndContext, state)
+				model, err := NewStartingInitBot(m.Ctx)
 				if err != nil {
 					return m, m.HandlePanic(err)
 				}
-				return model, nil
+				return model, model.Init()
 			}
 		}
 	}
@@ -1416,7 +1419,7 @@ func (m *SetupOPInitBotsMissingKey) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *SetupOPInitBotsMissingKey) View() string {
 	state := weavecontext.GetCurrentState[OPInitBotsState](m.Ctx)
-	oracleBotInfo := GetBotInfo(BotInfos, OracleBridgeExecutor)
+	oracleBotInfo := GetBotInfo(state.BotInfos, OracleBridgeExecutor)
 	if state.AddMinitiaConfig && !oracleBotInfo.IsNewKey() {
 		return state.weave.Render() + "\n"
 	}
@@ -1541,7 +1544,7 @@ func InitializeExecutorWithConfig(config ExecutorConfig, keyFile io.KeyFile, opI
 	}
 
 	// Additional initialization steps for executor
-	srv, err := service.NewService(service.OPinitExecutor, "")
+	srv, err := newService(service.OPinitExecutor, "")
 	if err != nil {
 		return fmt.Errorf("failed to initialize service: %v", err)
 	}
@@ -1593,7 +1596,7 @@ func InitializeChallengerWithConfig(config ChallengerConfig, keyFile io.KeyFile,
 	}
 
 	// Additional initialization steps for executor
-	srv, err := service.NewService(service.OPinitChallenger, "")
+	srv, err := newService(service.OPinitChallenger, "")
 	if err != nil {
 		return fmt.Errorf("failed to initialize service: %v", err)
 	}
@@ -1721,7 +1724,5 @@ func PrepareKey(ctx context.Context, isExecutor bool) (tea.Model, error) {
 			return NewRecoverKeySelector(weavecontext.SetCurrentState(ctx, state), idx), nil
 		}
 	}
-	model := NewSetupOPInitBotsMissingKey(weavecontext.SetCurrentState(ctx, state))
-	return model, nil
-
+	return handleBotInitSelection(weavecontext.SetCurrentState(ctx, state), state)
 }
