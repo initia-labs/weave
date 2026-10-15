@@ -13,6 +13,7 @@ import (
 	"github.com/initia-labs/weave/analytics"
 	"github.com/initia-labs/weave/config"
 	weavecontext "github.com/initia-labs/weave/context"
+	"github.com/initia-labs/weave/internal/features"
 	"github.com/initia-labs/weave/styles"
 	"github.com/initia-labs/weave/types"
 	"github.com/initia-labs/weave/ui"
@@ -519,7 +520,11 @@ func TestOpBridgeBatchSubmissionTargetSelect_Update(t *testing.T) {
 	nextModel := thisModel.(*OracleEnableSelect)
 	state := weavecontext.GetCurrentState[LaunchState](nextModel.Ctx)
 	assert.IsType(t, &OracleEnableSelect{}, thisModel)
-	assert.Equal(t, "CELESTIA", state.opBridgeBatchSubmissionTarget)
+	expectedTarget := "INITIA"
+	if features.CelestiaDAEnabled {
+		expectedTarget = "CELESTIA"
+	}
+	assert.Equal(t, expectedTarget, state.opBridgeBatchSubmissionTarget)
 	assert.Nil(t, cmd)
 
 	ctx = weavecontext.NewAppContext(state)

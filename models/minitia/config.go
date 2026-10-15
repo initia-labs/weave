@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/initia-labs/weave/common"
+	"github.com/initia-labs/weave/types"
 )
 
 // Create a simple data structure for the template
@@ -108,4 +109,49 @@ INTERNAL_TX_BATCH_SIZE=20              # default: 10
 	}
 
 	return nil
+}
+
+func buildLaunchConfig(state LaunchState) *types.MinitiaConfig {
+	return &types.MinitiaConfig{
+		L1Config: &types.L1Config{
+			ChainID:   state.l1ChainId,
+			RpcUrl:    state.l1RPC,
+			GasPrices: DefaultL1GasPrices,
+		},
+		L2Config: &types.L2Config{
+			ChainID: state.chainId,
+			Denom:   state.gasDenom,
+			Moniker: state.moniker,
+		},
+		OpBridge: &types.OpBridge{
+			OutputSubmissionInterval:    state.opBridgeSubmissionInterval,
+			OutputFinalizationPeriod:    state.opBridgeOutputFinalizationPeriod,
+			OutputSubmissionStartHeight: 1,
+			BatchSubmissionTarget:       state.opBridgeBatchSubmissionTarget,
+			EnableOracle:                state.enableOracle,
+		},
+		SystemKeys: &types.SystemKeys{
+			Validator: types.NewSystemAccount(
+				state.systemKeyOperatorMnemonic,
+				state.systemKeyOperatorAddress,
+			),
+			BridgeExecutor: types.NewSystemAccount(
+				state.systemKeyBridgeExecutorMnemonic,
+				state.systemKeyBridgeExecutorAddress,
+			),
+			OutputSubmitter: types.NewSystemAccount(
+				state.systemKeyOutputSubmitterMnemonic,
+				state.systemKeyOutputSubmitterAddress,
+			),
+			BatchSubmitter: types.NewBatchSubmitterAccount(
+				state.systemKeyBatchSubmitterMnemonic,
+				state.systemKeyBatchSubmitterAddress,
+			),
+			Challenger: types.NewSystemAccount(
+				state.systemKeyChallengerMnemonic,
+				state.systemKeyChallengerAddress,
+			),
+		},
+		GenesisAccounts: &state.genesisAccounts,
+	}
 }

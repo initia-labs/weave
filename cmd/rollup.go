@@ -98,6 +98,9 @@ func minitiaLaunchCommand() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("failed to load config: %w", err)
 				}
+				if err := minitia.ValidateLaunchDA(minitiaConfig); err != nil {
+					return err
+				}
 				cmd.SetContext(context.WithValue(cmd.Context(), minitiaConfigKey{}, minitiaConfig))
 			}
 

@@ -24,6 +24,7 @@ import (
 	weavecontext "github.com/initia-labs/weave/context"
 	"github.com/initia-labs/weave/cosmosutils"
 	"github.com/initia-labs/weave/crypto"
+	"github.com/initia-labs/weave/internal/features"
 	"github.com/initia-labs/weave/io"
 	"github.com/initia-labs/weave/registry"
 	"github.com/initia-labs/weave/service"
@@ -300,16 +301,18 @@ func (m *NetworkSelect) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.HandlePanic(fmt.Errorf("invalid network option: %v", *selected))
 		}
 
-		celestiaRegistry, err := registry.GetChainRegistry(celestiaType)
-		if err != nil {
-			return m, m.HandlePanic(err)
+		if features.CelestiaDAEnabled {
+			celestiaRegistry, err := registry.GetChainRegistry(celestiaType)
+			if err != nil {
+				return m, m.HandlePanic(err)
+			}
+			rpcAddress, err = celestiaRegistry.GetFirstActiveRpc()
+			if err != nil {
+				return m, m.HandlePanic(err)
+			}
+			state.daRPC = rpcAddress
+			state.daChainId = celestiaRegistry.GetChainId()
 		}
-		rpcAddress, err = celestiaRegistry.GetFirstActiveRpc()
-		if err != nil {
-			return m, m.HandlePanic(err)
-		}
-		state.daRPC = rpcAddress
-		state.daChainId = celestiaRegistry.GetChainId()
 
 		return NewVMTypeSelect(weavecontext.SetCurrentState(m.Ctx, state)), nil
 	}
@@ -769,13 +772,14 @@ const (
 )
 
 func NewOpBridgeBatchSubmissionTargetSelect(ctx context.Context) *OpBridgeBatchSubmissionTargetSelect {
-	tooltips := ui.NewTooltipSlice(tooltip.OpBridgeBatchSubmissionTargetTooltip, 2)
+	options := []OpBridgeBatchSubmissionTargetOption{Initia}
+	if features.CelestiaDAEnabled {
+		options = []OpBridgeBatchSubmissionTargetOption{Celestia, Initia}
+	}
+	tooltips := ui.NewTooltipSlice(tooltip.OpBridgeBatchSubmissionTargetTooltip, len(options))
 	return &OpBridgeBatchSubmissionTargetSelect{
 		Selector: ui.Selector[OpBridgeBatchSubmissionTargetOption]{
-			Options: []OpBridgeBatchSubmissionTargetOption{
-				Celestia,
-				Initia,
-			},
+			Options:  options,
 			Tooltips: &tooltips,
 		},
 		BaseModel:  weavecontext.BaseModel{Ctx: ctx},
@@ -803,9 +807,7 @@ func (m *OpBridgeBatchSubmissionTargetSelect) Update(msg tea.Msg) (tea.Model, te
 		state := weavecontext.PushPageAndGetState[LaunchState](m)
 		state.opBridgeBatchSubmissionTarget = common.TransformFirstWordUpperCase(string(*selected))
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, m.GetQuestion(), m.highlights, string(*selected)))
-		if *selected == Celestia {
-			state.batchSubmissionIsCelestia = true
-		}
+		state.batchSubmissionIsCelestia = *selected == Celestia
 		return NewOracleEnableSelect(weavecontext.SetCurrentState(m.Ctx, state)), nil
 	}
 
@@ -2837,48 +2839,21 @@ func launchingMinitia(ctx context.Context, streamingLogs *[]string, streamingLog
 		var configFilePath string
 		if state.launchFromExistingConfig {
 			configFilePath = state.existingConfigPath
+			configBz, err := os.ReadFile(configFilePath)
+			if err != nil {
+				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to read launch config: %w", err)}
+			}
+			var minitiaConfig types.MinitiaConfig
+			if err := json.Unmarshal(configBz, &minitiaConfig); err != nil {
+				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to decode launch config: %w", err)}
+			}
+			if err := ValidateLaunchDA(&minitiaConfig); err != nil {
+				return ui.NonRetryableErrorLoading{Err: err}
+			}
 		} else {
-			minitiaConfig := &types.MinitiaConfig{
-				L1Config: &types.L1Config{
-					ChainID:   state.l1ChainId,
-					RpcUrl:    state.l1RPC,
-					GasPrices: DefaultL1GasPrices,
-				},
-				L2Config: &types.L2Config{
-					ChainID: state.chainId,
-					Denom:   state.gasDenom,
-					Moniker: state.moniker,
-				},
-				OpBridge: &types.OpBridge{
-					OutputSubmissionInterval:    state.opBridgeSubmissionInterval,
-					OutputFinalizationPeriod:    state.opBridgeOutputFinalizationPeriod,
-					OutputSubmissionStartHeight: 1,
-					BatchSubmissionTarget:       state.opBridgeBatchSubmissionTarget,
-					EnableOracle:                state.enableOracle,
-				},
-				SystemKeys: &types.SystemKeys{
-					Validator: types.NewSystemAccount(
-						state.systemKeyOperatorMnemonic,
-						state.systemKeyOperatorAddress,
-					),
-					BridgeExecutor: types.NewSystemAccount(
-						state.systemKeyBridgeExecutorMnemonic,
-						state.systemKeyBridgeExecutorAddress,
-					),
-					OutputSubmitter: types.NewSystemAccount(
-						state.systemKeyOutputSubmitterMnemonic,
-						state.systemKeyOutputSubmitterAddress,
-					),
-					BatchSubmitter: types.NewBatchSubmitterAccount(
-						state.systemKeyBatchSubmitterMnemonic,
-						state.systemKeyBatchSubmitterAddress,
-					),
-					Challenger: types.NewSystemAccount(
-						state.systemKeyChallengerMnemonic,
-						state.systemKeyChallengerAddress,
-					),
-				},
-				GenesisAccounts: &state.genesisAccounts,
+			minitiaConfig := buildLaunchConfig(state)
+			if err := ValidateLaunchDA(minitiaConfig); err != nil {
+				return ui.NonRetryableErrorLoading{Err: err}
 			}
 
 			configBz, err := json.MarshalIndent(minitiaConfig, "", " ")
@@ -2965,7 +2940,7 @@ func launchingMinitia(ctx context.Context, streamingLogs *[]string, streamingLog
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("command execution failed: %v", err)}
 		}
 
-		appConfigPath := filepath.Join(userHome, common.MinitiaConfigPath, "app.toml")
+		appConfigPath := filepath.Join(minitiaHome, "config", "app.toml")
 		if err = config.UpdateTomlValue(appConfigPath, "inter-block-cache", "false"); err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to set inter-block-cache: %v", err)}
 		}
@@ -2973,7 +2948,7 @@ func launchingMinitia(ctx context.Context, streamingLogs *[]string, streamingLog
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to set minimum-gas-prices: %v", err)}
 		}
 
-		srv, err := service.NewService(service.Minitia, state.vmType)
+		srv, err := newService(service.Minitia, state.vmType)
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to initialize service: %v", err)}
 		}
@@ -3070,7 +3045,7 @@ func (m *LaunchingNewMinitiaLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		state.weave.PushPreviousResponse(scanText)
 
-		srv, err := service.NewService(service.Minitia, state.vmType)
+		srv, err := newService(service.Minitia, state.vmType)
 		if err != nil {
 			state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.NoSeparator, "Invalid OS: only Linux and Darwin are supported", []string{}, fmt.Sprintf("%v", err)))
 		}
