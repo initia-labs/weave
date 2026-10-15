@@ -70,6 +70,9 @@ func GenerateMnemonicKeyfile(rawConfig []byte, botName string) (weaveio.KeyFile,
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal executor config: %v", err)
 		}
+		if err := ValidateExecutorDA(config); err != nil {
+			return nil, err
+		}
 
 		bridgeExecutor, err := weaveio.GenerateKey("init", crypto.CosmosAddressType)
 		if err != nil {

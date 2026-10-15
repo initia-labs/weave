@@ -648,6 +648,12 @@ func EnsureOPInitBotsBinary(ctx context.Context) tea.Cmd {
 func WaitSetupOPInitBots(ctx context.Context) tea.Cmd {
 	return func() tea.Msg {
 		state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
+		if err := validatePendingBotKeys(state.BotInfos); err != nil {
+			return ui.NonRetryableErrorLoading{Err: err}
+		}
+		if err := validateExecutorStateDA(state); err != nil {
+			return ui.NonRetryableErrorLoading{Err: err}
+		}
 		userHome, err := os.UserHomeDir()
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get user home directory: %v", err)}

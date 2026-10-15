@@ -168,16 +168,11 @@ func OPInitBotInitSelectExecutor(ctx context.Context) (tea.Model, error) {
 			return nil, fmt.Errorf("failed to read executor.json file: %v", err)
 		}
 
-		var botConfigChainId BotConfigChainId
-
-		err = json.Unmarshal(file, &botConfigChainId)
-		if err != nil {
+		var config ExecutorConfig
+		if err := json.Unmarshal(file, &config); err != nil {
 			return nil, fmt.Errorf("failed to parse executor.json file: %v", err)
 		}
-		state.botConfig["l1_node.chain_id"] = botConfigChainId.L1Node.ChainID
-		state.botConfig["l2_node.chain_id"] = botConfigChainId.L2Node.ChainID
-		state.botConfig["da_node.chain_id"] = botConfigChainId.DANode.ChainID
-		state.daIsCelestia = botConfigChainId.DANode.Bech32Prefix == "celestia"
+		applyExistingExecutorConfig(&state, config)
 		model, err := NewUseCurrentConfigSelector(weavecontext.SetCurrentState(ctx, state), "executor")
 		if err != nil {
 			return nil, err
@@ -395,16 +390,20 @@ func (m *DeleteDBSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.HandlePanic(err)
 			}
 
-			var botConfigChainId BotConfigChainId
-
-			err = json.Unmarshal(file, &botConfigChainId)
-			if err != nil {
-				return m, m.HandlePanic(err)
+			if m.bot == "executor" {
+				var config ExecutorConfig
+				if err := json.Unmarshal(file, &config); err != nil {
+					return m, m.HandlePanic(err)
+				}
+				applyExistingExecutorConfig(&state, config)
+			} else {
+				var config ChallengerConfig
+				if err := json.Unmarshal(file, &config); err != nil {
+					return m, m.HandlePanic(err)
+				}
+				state.botConfig["l1_node.chain_id"] = config.L1Node.ChainID
+				state.botConfig["l2_node.chain_id"] = config.L2Node.ChainID
 			}
-			state.botConfig["l1_node.chain_id"] = botConfigChainId.L1Node.ChainID
-			state.botConfig["l2_node.chain_id"] = botConfigChainId.L2Node.ChainID
-			state.botConfig["da_node.chain_id"] = botConfigChainId.DANode.ChainID
-			state.daIsCelestia = botConfigChainId.DANode.Bech32Prefix == "celestia"
 			model, err := NewUseCurrentConfigSelector(weavecontext.SetCurrentState(m.Ctx, state), m.bot)
 			if err != nil {
 				return m, m.HandlePanic(err)
@@ -438,8 +437,9 @@ func (m *DeleteDBSelector) View() string {
 type UseCurrentConfigSelector struct {
 	ui.Selector[string]
 	weavecontext.BaseModel
-	question   string
-	configPath string
+	question      string
+	configPath    string
+	validationErr error
 }
 
 func NewUseCurrentConfigSelector(ctx context.Context, bot string) (*UseCurrentConfigSelector, error) {
@@ -475,6 +475,13 @@ func (m *UseCurrentConfigSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	selected, cmd := m.Select(msg)
 	if selected != nil {
+		if *selected == "use current file" {
+			if err := validateExecutorStateDA(weavecontext.GetCurrentState[OPInitBotsState](m.Ctx)); err != nil {
+				m.validationErr = err
+				return m, nil
+			}
+		}
+		m.validationErr = nil
 		state := weavecontext.PushPageAndGetState[OPInitBotsState](m)
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, m.GetQuestion(), []string{m.configPath}, *selected))
 		analytics.TrackEvent(analytics.UseCurrentConfigSelected, analytics.NewEmptyEvent().Add(analytics.OptionEventKey, *selected))
@@ -514,7 +521,11 @@ func (m *UseCurrentConfigSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *UseCurrentConfigSelector) View() string {
 	state := weavecontext.GetCurrentState[OPInitBotsState](m.Ctx)
-	return m.WrapView(state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{m.configPath}, styles.Question) + m.Selector.View())
+	view := state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{m.configPath}, styles.Question) + m.Selector.View()
+	if m.validationErr != nil {
+		view += styles.RenderError(m.validationErr)
+	}
+	return m.WrapView(view)
 }
 
 type PrefillMinitiaConfigOption string
@@ -1091,9 +1102,11 @@ func NewStartingInitBot(ctx context.Context) (tea.Model, error) {
 
 func WaitStartingInitBot(ctx context.Context) tea.Cmd {
 	return func() tea.Msg {
-		time.Sleep(1500 * time.Millisecond)
-
 		state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
+		if err := validateExecutorStateDA(state); err != nil {
+			return ui.NonRetryableErrorLoading{Err: err}
+		}
+		time.Sleep(1500 * time.Millisecond)
 		configMap := state.botConfig
 
 		if state.isDeleteDB {
@@ -1474,6 +1487,12 @@ func (m *SetupOPInitBotsMissingKey) View() string {
 func WaitSetupOPInitBotsMissingKey(ctx context.Context) tea.Cmd {
 	return func() tea.Msg {
 		state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
+		if err := validatePendingBotKeys(state.BotInfos); err != nil {
+			return ui.NonRetryableErrorLoading{Err: err}
+		}
+		if err := validateExecutorStateDA(state); err != nil {
+			return ui.NonRetryableErrorLoading{Err: err}
+		}
 		userHome, err := os.UserHomeDir()
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get user home directory: %v", err)}
@@ -1515,6 +1534,9 @@ func WaitSetupOPInitBotsMissingKey(ctx context.Context) tea.Cmd {
 }
 
 func InitializeExecutorWithConfig(config ExecutorConfig, keyFile io.KeyFile, opInitHome, userHome string) error {
+	if err := ValidateExecutorDA(config); err != nil {
+		return err
+	}
 	binaryPath, err := ensureOPInitBotsBinary(userHome)
 	if err != nil {
 		return err
@@ -1527,7 +1549,7 @@ func InitializeExecutorWithConfig(config ExecutorConfig, keyFile io.KeyFile, opI
 	if err != nil {
 		return err
 	}
-	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, BatchSubmitterKeyName, keyFile.GetMnemonic(BatchSubmitterKeyName), config.DANode.Bech32Prefix != "init", opInitHome)
+	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, BatchSubmitterKeyName, keyFile.GetMnemonic(BatchSubmitterKeyName), config.DANode.Bech32Prefix == "celestia", opInitHome)
 	if err != nil {
 		return err
 	}
@@ -1552,7 +1574,7 @@ func InitializeExecutorWithConfig(config ExecutorConfig, keyFile io.KeyFile, opI
 	}
 
 	// If DA is Celestia, copy keys for DA node
-	if config.DANode.Bech32Prefix != "init" {
+	if config.DANode.Bech32Prefix == "celestia" {
 		daKeyPath := filepath.Join(opInitHome, config.DANode.ChainID)
 		err = io.CopyDirectory(weaveDummyKeyPath, daKeyPath)
 		if err != nil {

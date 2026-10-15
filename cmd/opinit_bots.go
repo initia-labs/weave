@@ -170,6 +170,21 @@ func handleWithConfig(cmd *cobra.Command, userHome, opInitHome, configPath, keyF
 	if err != nil {
 		return err
 	}
+	switch botName {
+	case "executor":
+		var config opinit_bots.ExecutorConfig
+		if err := json.Unmarshal(fileData, &config); err != nil {
+			return err
+		}
+		if err := opinit_bots.ValidateExecutorDA(config); err != nil {
+			return err
+		}
+	case "challenger":
+		var config opinit_bots.ChallengerConfig
+		if err := json.Unmarshal(fileData, &config); err != nil {
+			return err
+		}
+	}
 
 	var keyFile weaveio.KeyFile
 	if isGenerateKeyFile {
