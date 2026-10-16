@@ -64,12 +64,12 @@ func setupKeys(t *testing.T) func() {
 		testutil.PressSpace,
 		testutil.PressDown,
 		testutil.PressSpace,
-		testutil.PressEnter,
-		testutil.PressEnter,
-		testutil.PressEnter,
-		testutil.PressEnter,
-		testutil.PressEnter,
-		testutil.PressEnter,
+		testutil.PressEnter, // confirm the four selected roles
+		testutil.PressEnter, // generate Bridge Executor key
+		testutil.PressEnter, // generate Output Submitter key
+		testutil.PressEnter, // generate Batch Submitter key
+		testutil.PressEnter, // select Initia DA (first option in both builds)
+		testutil.PressEnter, // generate Challenger key
 	}
 
 	finalModel := testutil.RunProgramWithSteps(t, firstModel, steps)
@@ -77,8 +77,16 @@ func setupKeys(t *testing.T) func() {
 	// Check the final state here
 	assert.IsType(t, &opinit_bots.TerminalState{}, finalModel)
 
-	if _, ok := finalModel.(*opinit_bots.TerminalState); ok {
-		assert.True(t, ok)
+	if terminal, ok := finalModel.(*opinit_bots.TerminalState); ok {
+		state := weavecontext.GetCurrentState[opinit_bots.OPInitBotsState](terminal.Ctx)
+		foundBatch := false
+		for _, info := range state.BotInfos {
+			if info.BotName == opinit_bots.BatchSubmitter {
+				foundBatch = true
+				assert.Equal(t, "Initia", info.DALayer)
+			}
+		}
+		assert.True(t, foundBatch, "Batch Submitter state must be present")
 	}
 
 	// Check if OPInit home has been created
@@ -106,6 +114,9 @@ func TestOPInitBotsSetup(t *testing.T) {
 	defer cleanup()
 }
 
+// This historical example remains disabled. Re-enabling requires an explicit
+// executor DA selection after gas denom, then the height -> missing-key loader
+// -> key results -> initialization flow and current disposable RPC fixtures.
 // func TestOPInitBotsInit(t *testing.T) {
 // 	cleanup := setupKeys(t)
 // 	defer cleanup()

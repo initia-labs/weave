@@ -9,8 +9,9 @@ import (
 
 	"github.com/initia-labs/weave/analytics"
 	weavecontext "github.com/initia-labs/weave/context"
-	"github.com/initia-labs/weave/registry"
+	"github.com/initia-labs/weave/internal/features"
 	"github.com/initia-labs/weave/types"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMain(m *testing.M) {
@@ -19,7 +20,8 @@ func TestMain(m *testing.M) {
 	os.Exit(exitCode)
 }
 func TestUseCurrentConfigSelector_Update_UseCurrentFile(t *testing.T) {
-	ctx := weavecontext.NewAppContext(NewOPInitBotsState())
+	daFlowFixtures(t)
+	ctx := weavecontext.NewAppContext(daFlowState())
 	model, _ := NewUseCurrentConfigSelector(ctx, "test-bot")
 
 	// Simulate selecting "use current file"
@@ -35,7 +37,8 @@ func TestUseCurrentConfigSelector_Update_UseCurrentFile(t *testing.T) {
 }
 
 func TestUseCurrentConfigSelector_Update_ReplaceWithMinitiaConfig(t *testing.T) {
-	ctx := weavecontext.NewAppContext(NewOPInitBotsState())
+	daFlowFixtures(t)
+	ctx := weavecontext.NewAppContext(daFlowState())
 	state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
 	state.MinitiaConfig = &types.MinitiaConfig{} // Assume MinitiaConfig is defined
 	ctx = weavecontext.SetCurrentState(ctx, state)
@@ -55,7 +58,8 @@ func TestUseCurrentConfigSelector_Update_ReplaceWithMinitiaConfig(t *testing.T) 
 }
 
 func TestUseCurrentConfigSelector_Update_ReplaceWithL1PrefillSelector(t *testing.T) {
-	ctx := weavecontext.NewAppContext(NewOPInitBotsState())
+	daFlowFixtures(t)
+	ctx := weavecontext.NewAppContext(daFlowState())
 	state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
 	state.InitExecutorBot = true // Example setup, assume InitExecutorBot is true
 	ctx = weavecontext.SetCurrentState(ctx, state)
@@ -75,7 +79,8 @@ func TestUseCurrentConfigSelector_Update_ReplaceWithL1PrefillSelector(t *testing
 }
 
 func TestPrefillMinitiaConfig_Update_PrefillYes(t *testing.T) {
-	ctx := weavecontext.NewAppContext(NewOPInitBotsState())
+	daFlowFixtures(t)
+	ctx := weavecontext.NewAppContext(daFlowState())
 	state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
 	state.MinitiaConfig = &types.MinitiaConfig{
 		L1Config: &types.L1Config{
@@ -93,17 +98,25 @@ func TestPrefillMinitiaConfig_Update_PrefillYes(t *testing.T) {
 	}
 	state.InitExecutorBot = true
 	ctx = weavecontext.SetCurrentState(ctx, state)
-
+	if features.CelestiaDAEnabled {
+		daCelestiaRegistryFixture()
+	}
 	model, _ := NewPrefillMinitiaConfig(ctx)
 
-	nextModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyEnter}) // Confirm selection with Enter
+	nextModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if !features.CelestiaDAEnabled {
+		require.Same(t, model, nextModel)
+		require.Nil(t, cmd)
+		require.Contains(t, model.View(), "Celestia DA is disabled")
+		return
+	}
 
 	// Expect transition to FieldInputModel for Executor with defaultExecutorFields
 	if m, ok := nextModel.(*FieldInputModel); !ok {
 		t.Errorf("Expected model to be of type *FieldInputModel, but got %T", nextModel)
 	} else {
 		state := weavecontext.GetCurrentState[OPInitBotsState](m.Ctx)
-		gasField, _ := getField(defaultExecutorFields, "l2_node.gas_denom")
+		gasField := m.subModels[4].field
 		assert.Equal(t, "l1-chain-id", state.botConfig["l1_node.chain_id"])
 		assert.Equal(t, "http://l1-rpc-url", state.botConfig["l1_node.rpc_address"])
 		assert.Equal(t, "0.01", state.botConfig["l1_node.gas_price"])
@@ -113,7 +126,8 @@ func TestPrefillMinitiaConfig_Update_PrefillYes(t *testing.T) {
 }
 
 func TestPrefillMinitiaConfig_Update_PrefillNo(t *testing.T) {
-	ctx := weavecontext.NewAppContext(NewOPInitBotsState())
+	daFlowFixtures(t)
+	ctx := weavecontext.NewAppContext(daFlowState())
 	state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
 	state.MinitiaConfig = &types.MinitiaConfig{}
 	ctx = weavecontext.SetCurrentState(ctx, state)
@@ -134,7 +148,8 @@ func TestPrefillMinitiaConfig_Update_PrefillNo(t *testing.T) {
 }
 
 func TestPrefillMinitiaConfig_Update_PrefillYes_NonCelestia(t *testing.T) {
-	ctx := weavecontext.NewAppContext(NewOPInitBotsState())
+	daFlowFixtures(t)
+	ctx := weavecontext.NewAppContext(daFlowState())
 	state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
 	state.MinitiaConfig = &types.MinitiaConfig{
 		L1Config: &types.L1Config{
@@ -181,7 +196,8 @@ func TestPrefillMinitiaConfig_Update_PrefillYes_NonCelestia(t *testing.T) {
 }
 
 func TestSetDALayer_Update_SelectInitia(t *testing.T) {
-	ctx := weavecontext.NewAppContext(NewOPInitBotsState())
+	daFlowFixtures(t)
+	ctx := weavecontext.NewAppContext(daFlowState())
 	state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
 	state.botConfig = map[string]string{
 		"l1_node.chain_id":    "initiation-2",
@@ -208,13 +224,16 @@ func TestSetDALayer_Update_SelectInitia(t *testing.T) {
 }
 
 func TestSetDALayer_Update_SelectCelestia(t *testing.T) {
-	ctx := weavecontext.NewAppContext(NewOPInitBotsState())
+	daFlowFixtures(t)
+	ctx := weavecontext.NewAppContext(daFlowState())
 	state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
 	state.botConfig = map[string]string{}
 	state.botConfig["l1_node.chain_id"] = "initiation-2"
 	ctx = weavecontext.SetCurrentState(ctx, state)
 
-	chainRegistry, _ := registry.GetChainRegistry(registry.CelestiaTestnet)
+	if features.CelestiaDAEnabled {
+		daCelestiaRegistryFixture()
+	}
 	model, _ := NewSetDALayer(ctx)
 
 	// Simulate selecting "Celestia"
@@ -226,8 +245,13 @@ func TestSetDALayer_Update_SelectCelestia(t *testing.T) {
 		t.Errorf("Expected model to be of type *FetchL1StartHeightLoading, but got %T", nextModel)
 	} else {
 		state := weavecontext.GetCurrentState[OPInitBotsState](m.Ctx)
-		assert.Equal(t, chainRegistry.ChainId, state.botConfig["da_node.chain_id"])
-		assert.Equal(t, chainRegistry.Bech32Prefix, state.botConfig["da_node.bech32_prefix"])
+		if !features.CelestiaDAEnabled {
+			require.Equal(t, "init", state.botConfig["da_node.bech32_prefix"])
+			require.False(t, state.daIsCelestia)
+			return
+		}
+		assert.Equal(t, "celestia-main", state.botConfig["da_node.chain_id"])
+		assert.Equal(t, "celestia", state.botConfig["da_node.bech32_prefix"])
 		assert.Equal(t, DefaultCelestiaGasPrices, state.botConfig["da_node.gas_price"])
 		assert.True(t, state.daIsCelestia) // Ensure daIsCelestia is true for Celestia
 	}

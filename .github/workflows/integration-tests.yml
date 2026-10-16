@@ -6,11 +6,57 @@ on:
       - main
   pull_request:
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  da-flow-tests:
+    name: DA flows (${{ matrix.os }}, ${{ matrix.mode }})
+    runs-on: ${{ matrix.os }}
+    env:
+      GOFLAGS: ${{ matrix.goflags }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        mode: [default, celestia]
+        include:
+          - mode: default
+            goflags: ''
+          - mode: celestia
+            goflags: -tags=celestia
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Record selected Go toolchain
+        run: go version
+      - name: Run DA policy, success flows and existing service dispatch
+        run: go test -count=1 -v ./common ./models/minitia ./models/opinit_bots ./cmd -run '^Test(DAPolicy|DAFlow|ServiceLifecycle)'
+
+  da-cli-e2e:
+    name: DA CLI E2E (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Record selected Go toolchain
+        run: go version
+      # The test builds both default and celestia binaries itself.
+      - name: Run actual CLI policy tests for both builds
+        run: go test -count=1 -v -tags=e2e ./cmd -run '^TestCelestiaPolicyE2E$'
+
   integration-tests-ubuntu:
     name: Run Integration Tests on Ubuntu
     runs-on: ubuntu-latest
@@ -20,12 +66,15 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: ^1.23
+          go-version-file: go.mod
+
+      - name: Record selected Go toolchain
+        run: go version
 
       - name: Run Integration Tests
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: go test -v ./... -tags=integration
+        run: go test -count=1 -v -tags=integration ./...
 
   integration-tests-macos:
     name: Run Integration Tests on macOS
@@ -37,9 +86,12 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: ^1.23
+          go-version-file: go.mod
+
+      - name: Record selected Go toolchain
+        run: go version
 
       - name: Run Integration Tests
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: go test -v ./... -tags=integration
+        run: go test -count=1 -v -tags=integration ./...

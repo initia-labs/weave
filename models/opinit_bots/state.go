@@ -68,6 +68,8 @@ func (state OPInitBotsState) Clone() OPInitBotsState {
 		dbPath:               state.dbPath,
 		isDeleteDB:           state.isDeleteDB,
 		AddMinitiaConfig:     state.AddMinitiaConfig,
+		UsePrefilledMinitia:  state.UsePrefilledMinitia,
+		daIsCelestia:         state.daIsCelestia,
 		L1StartHeight:        state.L1StartHeight,
 	}
 

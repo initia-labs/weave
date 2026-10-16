@@ -60,6 +60,8 @@ type ExecutorConfig struct {
 	DisableDeleteFutureWithdrawal bool         `json:"disable_delete_future_withdrawal"`
 }
 
+// GenerateMnemonicKeyfile creates mnemonic keys for an executor or challenger.
+// Executor DA settings are validated before any keys are generated.
 func GenerateMnemonicKeyfile(rawConfig []byte, botName string) (weaveio.KeyFile, error) {
 	keyFile := weaveio.NewKeyFile()
 
@@ -69,6 +71,9 @@ func GenerateMnemonicKeyfile(rawConfig []byte, botName string) (weaveio.KeyFile,
 		err := json.Unmarshal(rawConfig, &config)
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal executor config: %v", err)
+		}
+		if err := ValidateExecutorDA(config); err != nil {
+			return nil, err
 		}
 
 		bridgeExecutor, err := weaveio.GenerateKey("init", crypto.CosmosAddressType)
@@ -106,5 +111,54 @@ func GenerateMnemonicKeyfile(rawConfig []byte, botName string) (weaveio.KeyFile,
 		return keyFile, nil
 	default:
 		return nil, fmt.Errorf("unsupported bot name: %s", botName)
+	}
+}
+
+func buildExecutorConfig(state OPInitBotsState, version int) ExecutorConfig {
+	configMap := state.botConfig
+	return ExecutorConfig{
+		Version: version,
+		Server: ServerConfig{
+			Address:      configMap["listen_address"],
+			AllowOrigins: "*",
+			AllowHeaders: "Origin, Content-Type, Accept",
+			AllowMethods: "GET",
+		},
+		L1Node: NodeSettings{
+			ChainID:       configMap["l1_node.chain_id"],
+			RPCAddress:    configMap["l1_node.rpc_address"],
+			Bech32Prefix:  "init",
+			GasPrice:      configMap["l1_node.gas_price"],
+			GasAdjustment: 1.5,
+			TxTimeout:     60,
+		},
+		L2Node: NodeSettings{
+			ChainID:       configMap["l2_node.chain_id"],
+			RPCAddress:    configMap["l2_node.rpc_address"],
+			Bech32Prefix:  "init",
+			GasPrice:      "0" + configMap["l2_node.gas_denom"],
+			GasAdjustment: 1.5,
+			TxTimeout:     60,
+		},
+		DANode: NodeSettings{
+			ChainID:       configMap["da_node.chain_id"],
+			RPCAddress:    configMap["da_node.rpc_address"],
+			Bech32Prefix:  configMap["da_node.bech32_prefix"],
+			GasPrice:      configMap["da_node.gas_price"],
+			GasAdjustment: 1.5,
+			TxTimeout:     60,
+		},
+		BridgeExecutor:                BridgeExecutorKeyName,
+		OracleBridgeExecutor:          OracleBridgeExecutorKeyName,
+		MaxChunks:                     5000,
+		MaxChunkSize:                  300000,
+		MaxSubmissionTime:             3600,
+		L1StartHeight:                 state.L1StartHeight,
+		L2StartHeight:                 1,
+		BatchStartHeight:              1,
+		DisableDeleteFutureWithdrawal: false,
+		DisableAutoSetL1Height:        true,
+		DisableBatchSubmitter:         false,
+		DisableOutputSubmitter:        false,
 	}
 }

@@ -98,6 +98,9 @@ func minitiaLaunchCommand() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("failed to load config: %w", err)
 				}
+				if err := minitia.ValidateLaunchDA(minitiaConfig); err != nil {
+					return err
+				}
 				cmd.SetContext(context.WithValue(cmd.Context(), minitiaConfigKey{}, minitiaConfig))
 			}
 
@@ -204,7 +207,7 @@ func minitiaStartCommand() *cobra.Command {
 				return err
 			}
 
-			s, err := service.NewService(service.Minitia, "")
+			s, err := newService(service.Minitia, "")
 			if err != nil {
 				return err
 			}
@@ -235,7 +238,7 @@ func minitiaStopCommand() *cobra.Command {
 		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, RollupHelperText),
 		PreRunE: isInitiated(service.Minitia),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := service.NewService(service.Minitia, "")
+			s, err := newService(service.Minitia, "")
 			if err != nil {
 				return err
 			}
@@ -259,7 +262,7 @@ func minitiaRestartCommand() *cobra.Command {
 		Long:    fmt.Sprintf("%s.\n\n%s", shortDescription, RollupHelperText),
 		PreRunE: isInitiated(service.Minitia),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			s, err := service.NewService(service.Minitia, "")
+			s, err := newService(service.Minitia, "")
 			if err != nil {
 				return err
 			}
@@ -288,7 +291,7 @@ func minitiaLogCommand() *cobra.Command {
 				return err
 			}
 
-			s, err := service.NewService(service.Minitia, "")
+			s, err := newService(service.Minitia, "")
 			if err != nil {
 				return err
 			}

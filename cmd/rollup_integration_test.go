@@ -11,9 +11,19 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/initia-labs/weave/context"
+	"github.com/initia-labs/weave/internal/features"
 	"github.com/initia-labs/weave/models/minitia"
 	"github.com/initia-labs/weave/testutil"
 )
+
+// Rollup DA options are [Initia L1] by default and [Celestia, Initia L1]
+// with the celestia build tag. Both builds still show the selection screen.
+func selectInitiaRollupDA(steps testutil.Steps) testutil.Steps {
+	if features.CelestiaDAEnabled {
+		steps = append(steps, testutil.PressDown)
+	}
+	return append(steps, testutil.PressEnter)
+}
 
 func TestMinitiaLaunchWithExisting(t *testing.T) {
 	t.Skip("Skipping minitia launch with existing test")
@@ -29,22 +39,23 @@ func TestMinitiaLaunchWithExisting(t *testing.T) {
 	assert.NotNil(t, err)
 
 	steps := testutil.Steps{
-		testutil.WaitFetching,                   // wait checking for the existing rollup app
-		testutil.PressEnter,                     // press enter to select Testnet
-		testutil.PressEnter,                     // press enter to select Move vm for the rollup
-		testutil.WaitFetching,                   // wait for the fetching of the latest Move rollup version
-		testutil.TypeText("rollup-1"),           // type in the rollup chain id
-		testutil.PressEnter,                     // press enter to confirm the rollup chain id
-		testutil.PressTab,                       // press tab to use the default gas denom
-		testutil.PressEnter,                     // press enter to confirm using the default gas denom
-		testutil.PressTab,                       // press tab to use the default moniker
-		testutil.PressEnter,                     // press enter to confirm using the default moniker
-		testutil.PressTab,                       // press tab to use the default submission interval
-		testutil.PressEnter,                     // press enter to confirm using the default submission interval
-		testutil.PressTab,                       // press tab to use the default output submission period
-		testutil.PressEnter,                     // press enter to confirm using the default output submission period
-		testutil.PressDown,                      // press down once to select Initia L1 as the DA layer
-		testutil.PressEnter,                     // press enter to confirm selecting Initia L1 as the DA layer
+		testutil.WaitFetching,         // wait checking for the existing rollup app
+		testutil.PressEnter,           // press enter to select Testnet
+		testutil.PressEnter,           // press enter to select Move vm for the rollup
+		testutil.WaitFetching,         // wait for the fetching of the latest Move rollup version
+		testutil.TypeText("rollup-1"), // type in the rollup chain id
+		testutil.PressEnter,           // press enter to confirm the rollup chain id
+		testutil.PressTab,             // press tab to use the default gas denom
+		testutil.PressEnter,           // press enter to confirm using the default gas denom
+		testutil.PressTab,             // press tab to use the default moniker
+		testutil.PressEnter,           // press enter to confirm using the default moniker
+		testutil.PressTab,             // press tab to use the default submission interval
+		testutil.PressEnter,           // press enter to confirm using the default submission interval
+		testutil.PressTab,             // press tab to use the default output submission period
+		testutil.PressEnter,           // press enter to confirm using the default output submission period
+	}
+	steps = selectInitiaRollupDA(steps)
+	steps = append(steps, testutil.Steps{
 		testutil.PressEnter,                     // press enter to confirm enabling the oracle
 		testutil.PressEnter,                     // press enter to generate keys for system keys
 		testutil.WaitFetching,                   // wait for the fetching of gas station
@@ -70,7 +81,7 @@ func TestMinitiaLaunchWithExisting(t *testing.T) {
 		testutil.PressEnter,                     // press enter to confirm continuing
 		testutil.TypeText("y"),                  // type in y to confirm the broadcast of transactions
 		testutil.PressEnter,                     // press enter to confirm transactions broadcast
-	}
+	}...)
 
 	finalModel := testutil.RunProgramWithSteps(t, firstModel, steps)
 
@@ -114,6 +125,7 @@ func TestMinitiaLaunchWithExisting(t *testing.T) {
 	testutil.CompareJsonValue(t, artifactsConfigPath, "l2_config.denom", "umin")
 	testutil.CompareJsonValue(t, artifactsConfigPath, "l2_config.moniker", "operator")
 	testutil.CompareJsonValue(t, artifactsConfigPath, "op_bridge.enable_oracle", true)
+	testutil.CompareJsonValue(t, artifactsConfigPath, "op_bridge.batch_submission_target", "INITIA")
 
 	// Try again with existing Minitia home
 	ctx = context.NewAppContext(*minitia.NewLaunchState())
@@ -143,9 +155,12 @@ func TestMinitiaLaunchWithExisting(t *testing.T) {
 		testutil.PressEnter,           // press enter to confirm using the default submission interval
 		testutil.PressTab,             // press tab to use the default output submission period
 		testutil.PressEnter,           // press enter to confirm using the default output submission period
-		testutil.PressEnter,           // press enter to confirm enabling the oracle
-		testutil.PressDown,            // press down once to select importing existing keys
-		testutil.PressEnter,           // press enter to confirm importing existing keys
+	}
+	steps = selectInitiaRollupDA(steps)
+	steps = append(steps, testutil.Steps{
+		testutil.PressEnter, // press enter to confirm enabling the oracle
+		testutil.PressDown,  // press down once to select importing existing keys
+		testutil.PressEnter, // press enter to confirm importing existing keys
 		testutil.TypeText("lonely fly lend protect mix order legal organ fruit donkey dog state"), // type in the mnemonic for the operator
 		testutil.PressEnter, // press enter to confirm the mnemonic
 		testutil.TypeText("boy salmon resist afford dog cereal first myth require enough sunny cargo"), // type in the mnemonic for the bridge executor
@@ -169,7 +184,7 @@ func TestMinitiaLaunchWithExisting(t *testing.T) {
 		testutil.WaitFetching,           // wait for the key recovery
 		testutil.TypeText("y"),          // type in y to confirm the broadcast of transactions
 		testutil.PressEnter,             // press enter to confirm transactions broadcast
-	}
+	}...)
 
 	finalModel = testutil.RunProgramWithSteps(t, firstModel, steps)
 	defer testutil.ClearTestDir(TestMinitiaHome)
@@ -178,4 +193,5 @@ func TestMinitiaLaunchWithExisting(t *testing.T) {
 	testutil.CompareJsonValue(t, artifactsConfigPath, "l2_config.chain_id", "rollup-2")
 	testutil.CompareJsonValue(t, artifactsConfigPath, "l2_config.denom", "uroll")
 	testutil.CompareJsonValue(t, artifactsConfigPath, "l2_config.moniker", "computer")
+	testutil.CompareJsonValue(t, artifactsConfigPath, "op_bridge.batch_submission_target", "INITIA")
 }

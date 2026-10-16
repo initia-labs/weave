@@ -1,6 +1,7 @@
 package tooltip
 
 import (
+	"github.com/initia-labs/weave/internal/features"
 	"github.com/initia-labs/weave/ui"
 )
 
@@ -14,7 +15,7 @@ var (
 	// OP Bridge Tooltips
 	OpBridgeSubmissionIntervalTooltip       = ui.NewTooltip("Submission Interval", "The interval at which to submit the rollup output root to Initia L1.", "", []string{}, []string{}, []string{})
 	OpBridgeOutputFinalizationPeriodTooltip = ui.NewTooltip("Output Finalization Period", "The time period during which submitted output roots can be challenged before being considered final. After this period, the output becomes immutable.", "", []string{}, []string{}, []string{})
-	OpBridgeBatchSubmissionTargetTooltip    = ui.NewTooltip("Batch Submission Target", "The target chain for submitting rollup blocks and transaction data to ensure Data Availability. Currently, submissions can be made to Initia L1 or Celestia.\n\nFor production use, we recommend Celestia.", "", []string{}, []string{}, []string{})
+	OpBridgeBatchSubmissionTargetTooltip    = ui.NewTooltip("Batch Submission Target", batchSubmissionTargetDescription(), "", []string{}, []string{}, []string{})
 	EnableOracleTooltip                     = ui.NewTooltip("Oracle", "Enabling the Oracle feature allows the rollup and contracts deployed on the rollup to access asset price data relayed from the Initia L1.", "", []string{}, []string{}, []string{})
 
 	// System Key Tooltips
@@ -40,3 +41,10 @@ var (
 	// FeeWhitelistAccoutsInputTooltip
 	FeeWhitelistAccountsInputTooltip = ui.NewTooltip("Fee whitelist accounts", "Fee-whitelisted accounts are exempt from paying transaction fees, allowing specific accounts to perform transactions without incurring costs. Note that Rollup Operator, Bridge Executor, and Challenger are automatically included in this list.", "", []string{}, []string{}, []string{})
 )
+
+func batchSubmissionTargetDescription() string {
+	if features.CelestiaDAEnabled {
+		return "The target chain for submitting rollup blocks and transaction data to ensure Data Availability. Currently, submissions can be made to Initia L1 or Celestia.\n\nFor production use, we recommend Celestia."
+	}
+	return "The target chain for submitting rollup blocks and transaction data to ensure Data Availability. This build supports submissions to Initia L1."
+}

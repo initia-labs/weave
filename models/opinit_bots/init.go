@@ -18,6 +18,7 @@ import (
 	weavecontext "github.com/initia-labs/weave/context"
 	"github.com/initia-labs/weave/cosmosutils"
 	"github.com/initia-labs/weave/crypto"
+	"github.com/initia-labs/weave/internal/features"
 	"github.com/initia-labs/weave/io"
 	"github.com/initia-labs/weave/registry"
 	"github.com/initia-labs/weave/service"
@@ -63,32 +64,6 @@ var defaultChallengerFields = []*Field{
 	// L2 Node Configuration
 	{Name: "l2_node.chain_id", Type: StringField, Question: "Specify rollup chain ID", Highlights: []string{"rollup chain ID"}, Placeholder: "Enter chain ID ex. rollup-1", ValidateFn: common.ValidateEmptyString},
 	{Name: "l2_node.rpc_address", Type: StringField, Question: "Specify rollup RPC endpoint", Highlights: []string{"rollup RPC endpoint"}, Placeholder: `Press tab to use "http://localhost:26657"`, DefaultValue: "http://localhost:26657", ValidateFn: common.ValidateURL, Tooltip: &tooltip.RollupRPCEndpointTooltip},
-}
-
-func getField(fields []*Field, name string) (*Field, error) {
-	for _, field := range fields {
-		if field.Name == name {
-			return field, nil
-		}
-	}
-	return nil, fmt.Errorf("field %s not found", name)
-}
-
-func setFieldPrefillValue(fields []*Field, name, value string) error {
-	field, err := getField(fields, name)
-	if err != nil {
-		return fmt.Errorf("error setting prefill value for %s: %v", name, err)
-	}
-	field.PrefillValue = value
-	return nil
-}
-func setFieldPlaceholder(fields []*Field, name, placeholder string) error {
-	field, err := getField(fields, name)
-	if err != nil {
-		return fmt.Errorf("error setting placeholder for %s: %v", name, err)
-	}
-	field.Placeholder = placeholder
-	return nil
 }
 
 func NewOPInitBotInitSelector(ctx context.Context) (tea.Model, error) {
@@ -168,16 +143,11 @@ func OPInitBotInitSelectExecutor(ctx context.Context) (tea.Model, error) {
 			return nil, fmt.Errorf("failed to read executor.json file: %v", err)
 		}
 
-		var botConfigChainId BotConfigChainId
-
-		err = json.Unmarshal(file, &botConfigChainId)
-		if err != nil {
+		var config ExecutorConfig
+		if err := json.Unmarshal(file, &config); err != nil {
 			return nil, fmt.Errorf("failed to parse executor.json file: %v", err)
 		}
-		state.botConfig["l1_node.chain_id"] = botConfigChainId.L1Node.ChainID
-		state.botConfig["l2_node.chain_id"] = botConfigChainId.L2Node.ChainID
-		state.botConfig["da_node.chain_id"] = botConfigChainId.DANode.ChainID
-		state.daIsCelestia = botConfigChainId.DANode.Bech32Prefix == "celestia"
+		applyExistingExecutorConfig(&state, config)
 		model, err := NewUseCurrentConfigSelector(weavecontext.SetCurrentState(ctx, state), "executor")
 		if err != nil {
 			return nil, err
@@ -301,7 +271,11 @@ func (m *OPInitBotInitSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					state.BotInfos[idx].IsSetup = false
 				}
 			}
-			return NextUpdateOpinitBotKey(weavecontext.SetCurrentState(m.Ctx, state))
+			model, err := NextUpdateOpinitBotKey(weavecontext.SetCurrentState(m.Ctx, state))
+			if err != nil {
+				return m, m.HandlePanic(err)
+			}
+			return model, model.Init()
 		case ChallengerOPInitBotInitOption:
 			state.InitChallengerBot = true
 			keyNames := make(map[string]bool)
@@ -319,7 +293,11 @@ func (m *OPInitBotInitSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					state.BotInfos[idx].IsSetup = false
 				}
 			}
-			return NextUpdateOpinitBotKey(weavecontext.SetCurrentState(m.Ctx, state))
+			model, err := NextUpdateOpinitBotKey(weavecontext.SetCurrentState(m.Ctx, state))
+			if err != nil {
+				return m, m.HandlePanic(err)
+			}
+			return model, model.Init()
 		}
 	}
 	return m, cmd
@@ -395,16 +373,20 @@ func (m *DeleteDBSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.HandlePanic(err)
 			}
 
-			var botConfigChainId BotConfigChainId
-
-			err = json.Unmarshal(file, &botConfigChainId)
-			if err != nil {
-				return m, m.HandlePanic(err)
+			if m.bot == "executor" {
+				var config ExecutorConfig
+				if err := json.Unmarshal(file, &config); err != nil {
+					return m, m.HandlePanic(err)
+				}
+				applyExistingExecutorConfig(&state, config)
+			} else {
+				var config ChallengerConfig
+				if err := json.Unmarshal(file, &config); err != nil {
+					return m, m.HandlePanic(err)
+				}
+				state.botConfig["l1_node.chain_id"] = config.L1Node.ChainID
+				state.botConfig["l2_node.chain_id"] = config.L2Node.ChainID
 			}
-			state.botConfig["l1_node.chain_id"] = botConfigChainId.L1Node.ChainID
-			state.botConfig["l2_node.chain_id"] = botConfigChainId.L2Node.ChainID
-			state.botConfig["da_node.chain_id"] = botConfigChainId.DANode.ChainID
-			state.daIsCelestia = botConfigChainId.DANode.Bech32Prefix == "celestia"
 			model, err := NewUseCurrentConfigSelector(weavecontext.SetCurrentState(m.Ctx, state), m.bot)
 			if err != nil {
 				return m, m.HandlePanic(err)
@@ -438,8 +420,9 @@ func (m *DeleteDBSelector) View() string {
 type UseCurrentConfigSelector struct {
 	ui.Selector[string]
 	weavecontext.BaseModel
-	question   string
-	configPath string
+	question      string
+	configPath    string
+	validationErr error
 }
 
 func NewUseCurrentConfigSelector(ctx context.Context, bot string) (*UseCurrentConfigSelector, error) {
@@ -475,6 +458,13 @@ func (m *UseCurrentConfigSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	selected, cmd := m.Select(msg)
 	if selected != nil {
+		if *selected == "use current file" {
+			if err := validateExecutorStateDA(weavecontext.GetCurrentState[OPInitBotsState](m.Ctx)); err != nil {
+				m.validationErr = err
+				return m, nil
+			}
+		}
+		m.validationErr = nil
 		state := weavecontext.PushPageAndGetState[OPInitBotsState](m)
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, m.GetQuestion(), []string{m.configPath}, *selected))
 		analytics.TrackEvent(analytics.UseCurrentConfigSelected, analytics.NewEmptyEvent().Add(analytics.OptionEventKey, *selected))
@@ -514,7 +504,11 @@ func (m *UseCurrentConfigSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *UseCurrentConfigSelector) View() string {
 	state := weavecontext.GetCurrentState[OPInitBotsState](m.Ctx)
-	return m.WrapView(state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{m.configPath}, styles.Question) + m.Selector.View())
+	view := state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{m.configPath}, styles.Question) + m.Selector.View()
+	if m.validationErr != nil {
+		view += styles.RenderError(m.validationErr)
+	}
+	return m.WrapView(view)
 }
 
 type PrefillMinitiaConfigOption string
@@ -527,7 +521,8 @@ const (
 type PrefillMinitiaConfig struct {
 	ui.Selector[PrefillMinitiaConfigOption]
 	weavecontext.BaseModel
-	question string
+	question      string
+	validationErr error
 }
 
 func NewPrefillMinitiaConfig(ctx context.Context) (*PrefillMinitiaConfig, error) {
@@ -566,85 +561,83 @@ func (m *PrefillMinitiaConfig) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.HandlePanic(err)
 		}
 
-		state := weavecontext.PushPageAndGetState[OPInitBotsState](m)
-		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, m.GetQuestion(), []string{artifactsDir}, string(*selected)))
-
-		switch *selected {
-		case PrefillMinitiaConfigYes:
-			analytics.TrackEvent(analytics.PrefillFromArtifactsSelected, analytics.NewEmptyEvent().Add(analytics.OptionEventKey, true))
-			state.UsePrefilledMinitia = true
-			minitiaConfig := state.MinitiaConfig
-			state.botConfig["l1_node.chain_id"] = minitiaConfig.L1Config.ChainID
-			state.botConfig["l1_node.rpc_address"] = minitiaConfig.L1Config.RpcUrl
-			state.botConfig["l1_node.gas_price"] = minitiaConfig.L1Config.GasPrices
-			if err = setFieldPrefillValue(defaultExecutorFields, "l1_node.rpc_address", minitiaConfig.L1Config.RpcUrl); err != nil {
-				return m, m.HandlePanic(err)
+		state := weavecontext.GetCurrentState[OPInitBotsState](m.Ctx).Clone()
+		var fields []*Field
+		terminal := NewFetchL1StartHeightLoading
+		if *selected == PrefillMinitiaConfigYes {
+			config := state.MinitiaConfig
+			if config == nil || config.L1Config == nil {
+				m.validationErr = fmt.Errorf("missing l1_config in artifact")
+				return m, nil
 			}
-			if err = setFieldPrefillValue(defaultExecutorFields, "l2_node.chain_id", minitiaConfig.L2Config.ChainID); err != nil {
-				return m, m.HandlePanic(err)
+			if config.L2Config == nil {
+				m.validationErr = fmt.Errorf("missing l2_config in artifact")
+				return m, nil
 			}
-			if err = setFieldPrefillValue(defaultExecutorFields, "l2_node.gas_denom", minitiaConfig.L2Config.Denom); err != nil {
-				return m, m.HandlePanic(err)
-			}
-			if err = setFieldPlaceholder(defaultExecutorFields, "l2_node.gas_denom", fmt.Sprintf("Press tab to use \"%s\"", minitiaConfig.L2Config.Denom)); err != nil {
-				return m, m.HandlePanic(err)
-			}
-
-			if err = setFieldPrefillValue(defaultChallengerFields, "l1_node.rpc_address", minitiaConfig.L1Config.RpcUrl); err != nil {
-				return m, m.HandlePanic(err)
-			}
-			if err = setFieldPrefillValue(defaultChallengerFields, "l2_node.chain_id", minitiaConfig.L2Config.ChainID); err != nil {
-				return m, m.HandlePanic(err)
-			}
-
-			if minitiaConfig.OpBridge.BatchSubmissionTarget == "CELESTIA" {
-				var network registry.ChainType
-				l1ChainRegistry, err := registry.GetChainRegistry(registry.InitiaL1Testnet)
-				if err != nil {
-					return m, m.HandlePanic(err)
-				}
-				if l1ChainRegistry.GetChainId() == minitiaConfig.L1Config.ChainID {
-					network = registry.CelestiaTestnet
-				} else {
-					network = registry.CelestiaMainnet
-				}
-
-				chainRegistry, err := registry.GetChainRegistry(network)
-				if err != nil {
-					return m, m.HandlePanic(err)
-				}
-
-				state.botConfig["da_node.chain_id"] = chainRegistry.GetChainId()
-				rpcAddress, err := chainRegistry.GetFirstActiveRpc()
-				if err != nil {
-					return m, m.HandlePanic(err)
-				}
-				state.botConfig["da_node.rpc_address"] = rpcAddress
-				state.botConfig["da_node.bech32_prefix"] = chainRegistry.GetBech32Prefix()
-				state.botConfig["da_node.gas_price"] = DefaultCelestiaGasPrices
-				state.daIsCelestia = true
-			} else {
-				state.botConfig["da_node.chain_id"] = state.botConfig["l1_node.chain_id"]
-				state.botConfig["da_node.rpc_address"] = state.botConfig["l1_node.rpc_address"]
-				state.botConfig["da_node.bech32_prefix"] = "init"
-				state.botConfig["da_node.gas_price"] = state.botConfig["l1_node.gas_price"]
-			}
-			m.Ctx = weavecontext.SetCurrentState(m.Ctx, state)
+			state.botConfig["l1_node.chain_id"] = config.L1Config.ChainID
+			state.botConfig["l1_node.rpc_address"] = config.L1Config.RpcUrl
+			state.botConfig["l1_node.gas_price"] = config.L1Config.GasPrices
+			fields = defaultChallengerFields
 			if state.InitExecutorBot {
-				return NewFieldInputModel(m.Ctx, defaultExecutorFields, NewFetchL1StartHeightLoading), cmd
-			} else if state.InitChallengerBot {
-				return NewFieldInputModel(m.Ctx, defaultChallengerFields, NewFetchL1StartHeightLoading), cmd
-
+				layer, err := resolveArtifactDALayer(config)
+				if err != nil {
+					m.validationErr = err
+					return m, nil
+				}
+				prefix, err := pendingBatchPrefix(BotInfo{DALayer: string(layer)})
+				if err != nil {
+					m.validationErr = err
+					return m, nil
+				}
+				state.botConfig["da_node.bech32_prefix"] = prefix
+				// Validate policy and active key agreement before Celestia registry/RPC lookup.
+				if err := validateExecutorStateDA(state); err != nil {
+					m.validationErr = err
+					return m, nil
+				}
+				if layer == CelestiaLayerOption {
+					if err := setCelestiaDA(&state); err != nil {
+						m.validationErr = err
+						return m, nil
+					}
+				} else {
+					setInitiaDA(&state)
+				}
+				fields = defaultExecutorFields
+				terminal = finalizeExecutorDA
 			}
-		case PrefillMinitiaConfigNo:
-			analytics.TrackEvent(analytics.PrefillFromArtifactsSelected, analytics.NewEmptyEvent().Add(analytics.OptionEventKey, false))
-			model, err := NewL1PrefillSelector(weavecontext.SetCurrentState(m.Ctx, state))
+			state.UsePrefilledMinitia = true
+		} else {
+			state.UsePrefilledMinitia = false
+		}
+		m.validationErr = nil
+		weavecontext.PushPageAndGetState[OPInitBotsState](m)
+		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, m.GetQuestion(), []string{artifactsDir}, string(*selected)))
+		m.Ctx = weavecontext.SetCurrentState(m.Ctx, state)
+		analytics.TrackEvent(analytics.PrefillFromArtifactsSelected, analytics.NewEmptyEvent().Add(analytics.OptionEventKey, *selected == PrefillMinitiaConfigYes))
+		if *selected == PrefillMinitiaConfigNo {
+			model, err := NewL1PrefillSelector(m.Ctx)
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
 			return model, cmd
 		}
-
+		model := NewFieldInputModel(m.Ctx, fields, terminal)
+		// Each input owns its prefills; defaults shared by later/previous screens stay unchanged.
+		for idx := range model.subModels {
+			field := model.subModels[idx].field
+			switch field.Name {
+			case "l1_node.rpc_address":
+				field.PrefillValue = state.MinitiaConfig.L1Config.RpcUrl
+			case "l2_node.chain_id":
+				field.PrefillValue = state.MinitiaConfig.L2Config.ChainID
+			case "l2_node.gas_denom":
+				field.PrefillValue = state.MinitiaConfig.L2Config.Denom
+				field.Placeholder = fmt.Sprintf("Press tab to use %q", state.MinitiaConfig.L2Config.Denom)
+			}
+			model.subModels[idx] = NewSubModel(field)
+		}
+		return model, cmd
 	}
 
 	return m, cmd
@@ -656,7 +649,11 @@ func (m *PrefillMinitiaConfig) View() string {
 	if err != nil {
 		m.HandlePanic(err)
 	}
-	return m.WrapView(state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{artifactsDir}, styles.Question) + m.Selector.View())
+	view := state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{artifactsDir}, styles.Question) + m.Selector.View()
+	if m.validationErr != nil {
+		view += styles.RenderError(m.validationErr)
+	}
+	return m.WrapView(view)
 }
 
 type L1PrefillOption string
@@ -740,43 +737,23 @@ func (m *L1PrefillSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		state.botConfig["l1_node.chain_id"] = chainRegistry.GetChainId()
 		state.botConfig["l1_node.gas_price"] = minGasPrice
 
-		if err := setFieldPrefillValue(defaultExecutorFields, "l1_node.rpc_address", rpcAddress); err != nil {
-			return m, m.HandlePanic(err)
-		}
-		if err := setFieldPrefillValue(defaultChallengerFields, "l1_node.rpc_address", rpcAddress); err != nil {
-			return m, m.HandlePanic(err)
-		}
-
+		state.UsePrefilledMinitia = false
 		m.Ctx = weavecontext.SetCurrentState(m.Ctx, state)
+		fields := defaultChallengerFields
+		terminal := NewFetchL1StartHeightLoading
 		if state.InitExecutorBot {
-			var network registry.ChainType
-			l1ChainRegistry, err := registry.GetChainRegistry(registry.InitiaL1Testnet)
-			if err != nil {
-				return m, m.HandlePanic(fmt.Errorf("initia testnet registry: %w", err))
-			}
-			if l1ChainRegistry.GetChainId() == state.botConfig["l1_node.chain_id"] {
-				network = registry.CelestiaTestnet
-			} else {
-				network = registry.CelestiaMainnet
-			}
-
-			celestiaChainRegistry, err := registry.GetChainRegistry(network)
-			if err != nil {
-				return nil, m.HandlePanic(fmt.Errorf("celestia registry: %w", err))
-			}
-			state.botConfig["da_node.chain_id"] = celestiaChainRegistry.GetChainId()
-			rpcAddress, err := celestiaChainRegistry.GetFirstActiveRpc()
-			if err != nil {
-				return m, m.HandlePanic(err)
-			}
-			state.botConfig["da_node.rpc_address"] = rpcAddress
-			state.botConfig["da_node.bech32_prefix"] = celestiaChainRegistry.GetBech32Prefix()
-			state.botConfig["da_node.gas_price"] = DefaultCelestiaGasPrices
-			state.daIsCelestia = true
-			return NewFieldInputModel(m.Ctx, defaultExecutorFields, NewFetchL1StartHeightLoading), cmd
-		} else if state.InitChallengerBot {
-			return NewFieldInputModel(m.Ctx, defaultChallengerFields, NewFetchL1StartHeightLoading), cmd
+			fields = defaultExecutorFields
+			terminal = NewSetDALayer
 		}
+		model := NewFieldInputModel(m.Ctx, fields, terminal)
+		for idx := range model.subModels {
+			if model.subModels[idx].field.Name == "l1_node.rpc_address" {
+				field := model.subModels[idx].field
+				field.PrefillValue = rpcAddress
+				model.subModels[idx] = NewSubModel(field)
+			}
+		}
+		return model, cmd
 
 	}
 
@@ -798,47 +775,80 @@ const (
 type SetDALayer struct {
 	ui.Selector[DALayerNetwork]
 	weavecontext.BaseModel
-	question string
-
-	chainRegistry *registry.ChainRegistry
+	question      string
+	validationErr error
 }
 
 func NewSetDALayer(ctx context.Context) (tea.Model, error) {
-	tooltips := []ui.Tooltip{
-		tooltip.InitiaDALayerTooltip,
+	options := []DALayerNetwork{Initia}
+	tooltips := []ui.Tooltip{tooltip.InitiaDALayerTooltip}
+	if features.CelestiaDAEnabled {
+		options = append(options, Celestia)
+		tooltips = append(tooltips, ui.NewTooltip("Celestia", "Use Celestia for batch data availability on the network matching your L1 selection.", "", nil, nil, nil))
 	}
+	cursor := 0
 	state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
-	var network registry.ChainType
-	l1ChainRegistry, err := registry.GetChainRegistry(registry.InitiaL1Testnet)
-	if err != nil {
-		return nil, fmt.Errorf("initia testnet registry: %w", err)
+	for _, info := range state.BotInfos {
+		if info.BotName == BatchSubmitter && info.IsNewKey() {
+			for idx, option := range options {
+				if string(option) == info.DALayer {
+					cursor = idx
+				}
+			}
+		}
 	}
-	if l1ChainRegistry.GetChainId() == state.botConfig["l1_node.chain_id"] {
-		network = registry.CelestiaTestnet
-		tooltips = append(tooltips, tooltip.CelestiaTestnetDALayerTooltip)
-	} else {
-		network = registry.CelestiaMainnet
-		tooltips = append(tooltips, tooltip.CelestiaMainnetDALayerTooltip)
-	}
-
-	chainRegistry, err := registry.GetChainRegistry(network)
-	if err != nil {
-		return nil, fmt.Errorf("celestia registry: %w", err)
-	}
-
 	return &SetDALayer{
-		Selector: ui.Selector[DALayerNetwork]{
-			Options: []DALayerNetwork{
-				Initia,
-				Celestia,
-			},
-			CannotBack: true,
-			Tooltips:   &tooltips,
-		},
-		BaseModel:     weavecontext.BaseModel{Ctx: ctx, CannotBack: true},
-		question:      "Which DA Layer would you like to use?",
-		chainRegistry: chainRegistry,
+		Selector:  ui.Selector[DALayerNetwork]{Options: options, Cursor: cursor, Tooltips: &tooltips},
+		BaseModel: weavecontext.BaseModel{Ctx: ctx},
+		question:  "Which DA Layer would you like to use?",
 	}, nil
+}
+
+func setInitiaDA(state *OPInitBotsState) {
+	state.botConfig["da_node.chain_id"] = state.botConfig["l1_node.chain_id"]
+	state.botConfig["da_node.rpc_address"] = state.botConfig["l1_node.rpc_address"]
+	state.botConfig["da_node.bech32_prefix"] = "init"
+	state.botConfig["da_node.gas_price"] = state.botConfig["l1_node.gas_price"]
+	state.daIsCelestia = false
+}
+
+func setCelestiaDA(state *OPInitBotsState) error {
+	if err := common.ValidateNewDAPrefix("celestia"); err != nil {
+		return err
+	}
+	l1, err := registry.GetChainRegistry(registry.InitiaL1Testnet)
+	if err != nil {
+		return fmt.Errorf("initia testnet registry: %w", err)
+	}
+	network := registry.CelestiaMainnet
+	if l1.GetChainId() == state.botConfig["l1_node.chain_id"] {
+		network = registry.CelestiaTestnet
+	}
+	chain, err := registry.GetChainRegistry(network)
+	if err != nil {
+		return fmt.Errorf("celestia registry: %w", err)
+	}
+	rpc, err := chain.GetFirstActiveRpc()
+	if err != nil {
+		return err
+	}
+	state.botConfig["da_node.chain_id"] = chain.GetChainId()
+	state.botConfig["da_node.rpc_address"] = rpc
+	state.botConfig["da_node.bech32_prefix"] = "celestia"
+	state.botConfig["da_node.gas_price"] = DefaultCelestiaGasPrices
+	state.daIsCelestia = true
+	return nil
+}
+
+func finalizeExecutorDA(ctx context.Context) (tea.Model, error) {
+	state := weavecontext.GetCurrentState[OPInitBotsState](ctx).Clone()
+	if state.botConfig["da_node.bech32_prefix"] == "init" {
+		setInitiaDA(&state)
+	}
+	if err := validateExecutorStateDA(state); err != nil {
+		return nil, err
+	}
+	return NewFetchL1StartHeightLoading(weavecontext.SetCurrentState(ctx, state))
 }
 
 func (m *SetDALayer) GetQuestion() string {
@@ -856,33 +866,40 @@ func (m *SetDALayer) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	selected, cmd := m.Select(msg)
 	if selected != nil {
 
-		state := weavecontext.PushPageAndGetState[OPInitBotsState](m)
+		state := weavecontext.GetCurrentState[OPInitBotsState](m.Ctx).Clone()
+		prefix, err := pendingBatchPrefix(BotInfo{DALayer: string(*selected)})
+		if err != nil {
+			m.validationErr = err
+			return m, nil
+		}
+		if err := common.ValidateNewDAPrefix(prefix); err != nil {
+			m.validationErr = err
+			return m, nil
+		}
+		state.botConfig["da_node.bech32_prefix"] = prefix
+		if err := validateExecutorStateDA(state); err != nil {
+			m.validationErr = err
+			return m, nil
+		}
+		if *selected == Celestia {
+			if err := setCelestiaDA(&state); err != nil {
+				m.validationErr = err
+				return m, nil
+			}
+		} else {
+			setInitiaDA(&state)
+		}
+		m.validationErr = nil
+		weavecontext.PushPageAndGetState[OPInitBotsState](m)
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.ArrowSeparator, m.GetQuestion(), []string{"DA Layer"}, string(*selected)))
 		analytics.TrackEvent(analytics.DALayerSelected, analytics.NewEmptyEvent().Add(analytics.OptionEventKey, string(*selected)))
-
-		switch *selected {
-		case Initia:
-			state.botConfig["da_node.chain_id"] = state.botConfig["l1_node.chain_id"]
-			state.botConfig["da_node.rpc_address"] = state.botConfig["l1_node.rpc_address"]
-			state.botConfig["da_node.bech32_prefix"] = "init"
-			state.botConfig["da_node.gas_price"] = state.botConfig["l1_node.gas_price"]
-		case Celestia:
-			state.botConfig["da_node.chain_id"] = m.chainRegistry.GetChainId()
-			rpcAddress, err := m.chainRegistry.GetFirstActiveRpc()
-			if err != nil {
-				return m, m.HandlePanic(err)
-			}
-			state.botConfig["da_node.rpc_address"] = rpcAddress
-			state.botConfig["da_node.bech32_prefix"] = m.chainRegistry.GetBech32Prefix()
-			state.botConfig["da_node.gas_price"] = DefaultCelestiaGasPrices
-			state.daIsCelestia = true
-		}
-		model, err := NewFetchL1StartHeightLoading(weavecontext.SetCurrentState(m.Ctx, state))
+		m.Ctx = weavecontext.SetCurrentState(m.Ctx, state)
+		model, err := finalizeExecutorDA(m.Ctx)
 		if err != nil {
-			return m, m.HandlePanic(err)
+			m.validationErr = err
+			return m, nil
 		}
 		return model, model.Init()
-
 	}
 
 	return m, cmd
@@ -891,7 +908,11 @@ func (m *SetDALayer) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *SetDALayer) View() string {
 	state := weavecontext.GetCurrentState[OPInitBotsState](m.Ctx)
 	m.Selector.ViewTooltip(m.Ctx)
-	return m.WrapView(state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{"DA Layer"}, styles.Question) + m.Selector.View())
+	view := state.weave.Render() + styles.RenderPrompt(m.GetQuestion(), []string{"DA Layer"}, styles.Question) + m.Selector.View()
+	if m.validationErr != nil {
+		view += styles.RenderError(m.validationErr)
+	}
+	return m.WrapView(view)
 }
 
 type FetchL1StartHeightLoading struct {
@@ -998,10 +1019,7 @@ func (m *FetchL1StartHeightLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if state.L1StartHeight == 0 {
 			return NewL1StartHeightInput(weavecontext.SetCurrentState(m.Ctx, state)), nil
 		}
-		model, err := NewStartingInitBot(weavecontext.SetCurrentState(m.Ctx, state))
-		if err != nil {
-			return m, m.HandlePanic(err)
-		}
+		model := NewSetupOPInitBotsMissingKey(weavecontext.SetCurrentState(m.Ctx, state))
 		return model, model.Init()
 	}
 	return m, cmd
@@ -1053,10 +1071,7 @@ func (m *L1StartHeightInput) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// We can ignore the error here since it has already been validated in the input validator
 		state.L1StartHeight, _ = strconv.Atoi(input.Text)
 		state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.DotsSeparator, m.GetQuestion(), m.highlights, input.Text))
-		model, err := NewStartingInitBot(weavecontext.SetCurrentState(m.Ctx, state))
-		if err != nil {
-			return m, m.HandlePanic(err)
-		}
+		model := NewSetupOPInitBotsMissingKey(weavecontext.SetCurrentState(m.Ctx, state))
 		return model, model.Init()
 	}
 	m.TextInput = input
@@ -1091,9 +1106,11 @@ func NewStartingInitBot(ctx context.Context) (tea.Model, error) {
 
 func WaitStartingInitBot(ctx context.Context) tea.Cmd {
 	return func() tea.Msg {
-		time.Sleep(1500 * time.Millisecond)
-
 		state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
+		if err := validateExecutorStateDA(state); err != nil {
+			return ui.NonRetryableErrorLoading{Err: err}
+		}
+		time.Sleep(1500 * time.Millisecond)
 		configMap := state.botConfig
 
 		if state.isDeleteDB {
@@ -1154,7 +1171,7 @@ func WaitStartingInitBot(ctx context.Context) tea.Cmd {
 		}
 
 		if state.InitExecutorBot {
-			srv, err := service.NewService(service.OPinitExecutor, "")
+			srv, err := newService(service.OPinitExecutor, "")
 			if err != nil {
 				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to initialize service: %v", err)}
 			}
@@ -1172,51 +1189,7 @@ func WaitStartingInitBot(ctx context.Context) tea.Cmd {
 				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to load l1_node.chain_id version: %v", err)}
 			}
 
-			config := ExecutorConfig{
-				Version: version,
-				Server: ServerConfig{
-					Address:      configMap["listen_address"],
-					AllowOrigins: "*",
-					AllowHeaders: "Origin, Content-Type, Accept",
-					AllowMethods: "GET",
-				},
-				L1Node: NodeSettings{
-					ChainID:       configMap["l1_node.chain_id"],
-					RPCAddress:    configMap["l1_node.rpc_address"],
-					Bech32Prefix:  "init",
-					GasPrice:      configMap["l1_node.gas_price"],
-					GasAdjustment: 1.5,
-					TxTimeout:     60,
-				},
-				L2Node: NodeSettings{
-					ChainID:       configMap["l2_node.chain_id"],
-					RPCAddress:    configMap["l2_node.rpc_address"],
-					Bech32Prefix:  "init",
-					GasPrice:      "0" + configMap["l2_node.gas_denom"],
-					GasAdjustment: 1.5,
-					TxTimeout:     60,
-				},
-				DANode: NodeSettings{
-					ChainID:       configMap["da_node.chain_id"],
-					RPCAddress:    configMap["da_node.rpc_address"],
-					Bech32Prefix:  configMap["da_node.bech32_prefix"],
-					GasPrice:      configMap["da_node.gas_price"],
-					GasAdjustment: 1.5,
-					TxTimeout:     60,
-				},
-				BridgeExecutor:                BridgeExecutorKeyName,
-				OracleBridgeExecutor:          OracleBridgeExecutorKeyName,
-				MaxChunks:                     5000,
-				MaxChunkSize:                  300000,
-				MaxSubmissionTime:             3600,
-				L1StartHeight:                 state.L1StartHeight,
-				L2StartHeight:                 1,
-				BatchStartHeight:              1,
-				DisableDeleteFutureWithdrawal: false,
-				DisableAutoSetL1Height:        true,
-				DisableBatchSubmitter:         false,
-				DisableOutputSubmitter:        false,
-			}
+			config := buildExecutorConfig(state, version)
 			configBz, err := json.MarshalIndent(config, "", " ")
 			if err != nil {
 				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to marshal config: %v", err)}
@@ -1243,7 +1216,7 @@ func WaitStartingInitBot(ctx context.Context) tea.Cmd {
 				}
 			}
 		} else if state.InitChallengerBot {
-			srv, err := service.NewService(service.OPinitChallenger, "")
+			srv, err := newService(service.OPinitChallenger, "")
 			if err != nil {
 				return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to initialize service: %v", err)}
 			}
@@ -1310,7 +1283,7 @@ func (m *StartingInitBot) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.HandlePanic(m.Loading.NonRetryableErr)
 	}
 	if m.Loading.Completing {
-		srv, err := service.NewService(service.OPinitExecutor, "")
+		srv, err := newService(service.OPinitExecutor, "")
 		if err != nil {
 			return m, m.HandlePanic(err)
 		}
@@ -1394,14 +1367,15 @@ func (m *SetupOPInitBotsMissingKey) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.HandlePanic(m.Loading.NonRetryableErr)
 	}
 	if m.Loading.Completing {
-		state := weavecontext.GetCurrentState[OPInitBotsState](m.Loading.EndContext)
-		oracleBotInfo := GetBotInfo(BotInfos, OracleBridgeExecutor)
+		m.Ctx = m.Loading.EndContext
+		state := weavecontext.GetCurrentState[OPInitBotsState](m.Ctx)
+		oracleBotInfo := GetBotInfo(state.BotInfos, OracleBridgeExecutor)
 		if (state.AddMinitiaConfig && !oracleBotInfo.IsNewKey()) || (!state.AddMinitiaConfig && len(state.SetupOpinitResponses) == 0) {
-			model, err := handleBotInitSelection(m.Loading.EndContext, state)
+			model, err := NewStartingInitBot(m.Ctx)
 			if err != nil {
 				return m, m.HandlePanic(err)
 			}
-			return model, nil
+			return model, model.Init()
 		}
 
 		switch msg := msg.(type) {
@@ -1432,11 +1406,11 @@ func (m *SetupOPInitBotsMissingKey) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, m.HandlePanic(fmt.Errorf("failed to write key file: %w", err))
 				}
 
-				model, err := handleBotInitSelection(m.Loading.EndContext, state)
+				model, err := NewStartingInitBot(m.Ctx)
 				if err != nil {
 					return m, m.HandlePanic(err)
 				}
-				return model, nil
+				return model, model.Init()
 			}
 		}
 	}
@@ -1445,7 +1419,7 @@ func (m *SetupOPInitBotsMissingKey) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *SetupOPInitBotsMissingKey) View() string {
 	state := weavecontext.GetCurrentState[OPInitBotsState](m.Ctx)
-	oracleBotInfo := GetBotInfo(BotInfos, OracleBridgeExecutor)
+	oracleBotInfo := GetBotInfo(state.BotInfos, OracleBridgeExecutor)
 	if state.AddMinitiaConfig && !oracleBotInfo.IsNewKey() {
 		return state.weave.Render() + "\n"
 	}
@@ -1474,6 +1448,12 @@ func (m *SetupOPInitBotsMissingKey) View() string {
 func WaitSetupOPInitBotsMissingKey(ctx context.Context) tea.Cmd {
 	return func() tea.Msg {
 		state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
+		if err := validatePendingBotKeys(state.BotInfos); err != nil {
+			return ui.NonRetryableErrorLoading{Err: err}
+		}
+		if err := validateExecutorStateDA(state); err != nil {
+			return ui.NonRetryableErrorLoading{Err: err}
+		}
 		userHome, err := os.UserHomeDir()
 		if err != nil {
 			return ui.NonRetryableErrorLoading{Err: fmt.Errorf("failed to get user home directory: %v", err)}
@@ -1514,7 +1494,12 @@ func WaitSetupOPInitBotsMissingKey(ctx context.Context) tea.Cmd {
 	}
 }
 
+// InitializeExecutorWithConfig recovers executor keys and writes config and service
+// files. DA settings are validated before any downloads or persistent changes.
 func InitializeExecutorWithConfig(config ExecutorConfig, keyFile io.KeyFile, opInitHome, userHome string) error {
+	if err := ValidateExecutorDA(config); err != nil {
+		return err
+	}
 	binaryPath, err := ensureOPInitBotsBinary(userHome)
 	if err != nil {
 		return err
@@ -1527,7 +1512,7 @@ func InitializeExecutorWithConfig(config ExecutorConfig, keyFile io.KeyFile, opI
 	if err != nil {
 		return err
 	}
-	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, BatchSubmitterKeyName, keyFile.GetMnemonic(BatchSubmitterKeyName), config.DANode.Bech32Prefix != "init", opInitHome)
+	_, err = cosmosutils.OPInitRecoverKeyFromMnemonic(binaryPath, BatchSubmitterKeyName, keyFile.GetMnemonic(BatchSubmitterKeyName), config.DANode.Bech32Prefix == "celestia", opInitHome)
 	if err != nil {
 		return err
 	}
@@ -1552,7 +1537,7 @@ func InitializeExecutorWithConfig(config ExecutorConfig, keyFile io.KeyFile, opI
 	}
 
 	// If DA is Celestia, copy keys for DA node
-	if config.DANode.Bech32Prefix != "init" {
+	if config.DANode.Bech32Prefix == "celestia" {
 		daKeyPath := filepath.Join(opInitHome, config.DANode.ChainID)
 		err = io.CopyDirectory(weaveDummyKeyPath, daKeyPath)
 		if err != nil {
@@ -1561,7 +1546,7 @@ func InitializeExecutorWithConfig(config ExecutorConfig, keyFile io.KeyFile, opI
 	}
 
 	// Additional initialization steps for executor
-	srv, err := service.NewService(service.OPinitExecutor, "")
+	srv, err := newService(service.OPinitExecutor, "")
 	if err != nil {
 		return fmt.Errorf("failed to initialize service: %v", err)
 	}
@@ -1613,7 +1598,7 @@ func InitializeChallengerWithConfig(config ChallengerConfig, keyFile io.KeyFile,
 	}
 
 	// Additional initialization steps for executor
-	srv, err := service.NewService(service.OPinitChallenger, "")
+	srv, err := newService(service.OPinitChallenger, "")
 	if err != nil {
 		return fmt.Errorf("failed to initialize service: %v", err)
 	}
@@ -1741,7 +1726,5 @@ func PrepareKey(ctx context.Context, isExecutor bool) (tea.Model, error) {
 			return NewRecoverKeySelector(weavecontext.SetCurrentState(ctx, state), idx), nil
 		}
 	}
-	model := NewSetupOPInitBotsMissingKey(weavecontext.SetCurrentState(ctx, state))
-	return model, nil
-
+	return handleBotInitSelection(weavecontext.SetCurrentState(ctx, state), state)
 }

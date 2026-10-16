@@ -9,11 +9,12 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	weavecontext "github.com/initia-labs/weave/context"
+	"github.com/initia-labs/weave/internal/features"
 	"github.com/initia-labs/weave/types"
 )
 
 func TestProcessingMinitiaConfig_Update_AddKeys(t *testing.T) {
-	ctx := weavecontext.NewAppContext(NewOPInitBotsState())
+	ctx := weavecontext.NewAppContext(daFlowState())
 	state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
 
 	// Set up mock BotInfos and MinitiaConfig in the state
@@ -26,10 +27,10 @@ func TestProcessingMinitiaConfig_Update_AddKeys(t *testing.T) {
 	}
 	state.MinitiaConfig = &types.MinitiaConfig{
 		SystemKeys: &types.SystemKeys{
-			BridgeExecutor:  &types.SystemAccount{Mnemonic: "mnemonic1"},
-			OutputSubmitter: &types.SystemAccount{Mnemonic: "mnemonic2"},
-			BatchSubmitter:  &types.SystemAccount{Mnemonic: "mnemonic3", L1Address: "initia123"},
-			Challenger:      &types.SystemAccount{Mnemonic: "mnemonic4"},
+			BridgeExecutor:  &types.SystemAccount{Mnemonic: daMnemonic},
+			OutputSubmitter: &types.SystemAccount{Mnemonic: daMnemonic},
+			BatchSubmitter:  &types.SystemAccount{Mnemonic: daMnemonic, DAAddress: daInitAddress},
+			Challenger:      &types.SystemAccount{Mnemonic: daMnemonic},
 		},
 	}
 
@@ -49,10 +50,10 @@ func TestProcessingMinitiaConfig_Update_AddKeys(t *testing.T) {
 		state := weavecontext.GetCurrentState[OPInitBotsState](setupModel.Ctx)
 
 		// Validate that BotInfos have been updated
-		assert.Equal(t, "mnemonic1", state.BotInfos[0].Mnemonic)
-		assert.Equal(t, "mnemonic2", state.BotInfos[1].Mnemonic)
-		assert.Equal(t, "mnemonic3", state.BotInfos[2].Mnemonic)
-		assert.Equal(t, "mnemonic4", state.BotInfos[3].Mnemonic)
+		assert.Equal(t, daMnemonic, state.BotInfos[0].Mnemonic)
+		assert.Equal(t, daMnemonic, state.BotInfos[1].Mnemonic)
+		assert.Equal(t, daMnemonic, state.BotInfos[2].Mnemonic)
+		assert.Equal(t, daMnemonic, state.BotInfos[3].Mnemonic)
 		assert.Equal(t, string(InitiaLayerOption), state.BotInfos[2].DALayer) // BatchSubmitter DA Layer check
 	} else {
 		t.Errorf("Expected model to be of type *SetupBotCheckbox, but got %T", nextModel)
@@ -60,7 +61,7 @@ func TestProcessingMinitiaConfig_Update_AddKeys(t *testing.T) {
 }
 
 func TestProcessingMinitiaConfig_Update_SkipKeys(t *testing.T) {
-	ctx := weavecontext.NewAppContext(NewOPInitBotsState())
+	ctx := weavecontext.NewAppContext(daFlowState())
 	state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
 
 	// Initialize state with empty BotInfos and MinitiaConfig
@@ -98,7 +99,7 @@ func TestProcessingMinitiaConfig_Update_SkipKeys(t *testing.T) {
 }
 
 func TestSetupBotCheckbox_SelectBots(t *testing.T) {
-	ctx := weavecontext.NewAppContext(NewOPInitBotsState())
+	ctx := weavecontext.NewAppContext(daFlowState())
 	state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
 
 	// Setup initial BotInfos in state
@@ -139,7 +140,7 @@ func TestSetupBotCheckbox_SelectBots(t *testing.T) {
 }
 
 func TestSetupBotCheckbox_NoSelection(t *testing.T) {
-	ctx := weavecontext.NewAppContext(NewOPInitBotsState())
+	ctx := weavecontext.NewAppContext(daFlowState())
 	state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
 
 	// Setup initial BotInfos in state
@@ -172,7 +173,7 @@ func TestSetupBotCheckbox_NoSelection(t *testing.T) {
 }
 
 func TestRecoverKeySelector_GenerateNewKey(t *testing.T) {
-	ctx := weavecontext.NewAppContext(NewOPInitBotsState())
+	ctx := weavecontext.NewAppContext(daFlowState())
 	state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
 
 	// Set up BotInfos in state
@@ -201,7 +202,7 @@ func TestRecoverKeySelector_GenerateNewKey(t *testing.T) {
 }
 
 func TestRecoverKeySelector_GenerateNewKey_BatchSubmitter(t *testing.T) {
-	ctx := weavecontext.NewAppContext(NewOPInitBotsState())
+	ctx := weavecontext.NewAppContext(daFlowState())
 	state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
 
 	// Set up BotInfos in state
@@ -229,7 +230,7 @@ func TestRecoverKeySelector_GenerateNewKey_BatchSubmitter(t *testing.T) {
 }
 
 func TestRecoverKeySelector_ImportExistingKey(t *testing.T) {
-	ctx := weavecontext.NewAppContext(NewOPInitBotsState())
+	ctx := weavecontext.NewAppContext(daFlowState())
 	state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
 
 	// Set up BotInfos in state
@@ -257,7 +258,7 @@ func TestRecoverKeySelector_ImportExistingKey(t *testing.T) {
 }
 
 func TestRecoverFromMnemonic_ValidInput(t *testing.T) {
-	ctx := weavecontext.NewAppContext(NewOPInitBotsState())
+	ctx := weavecontext.NewAppContext(daFlowState())
 	state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
 
 	// Set up BotInfos in state
@@ -287,7 +288,7 @@ func TestRecoverFromMnemonic_ValidInput(t *testing.T) {
 }
 
 func TestRecoverFromMnemonic_ValidInput_BatchSubmitter(t *testing.T) {
-	ctx := weavecontext.NewAppContext(NewOPInitBotsState())
+	ctx := weavecontext.NewAppContext(daFlowState())
 	state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
 
 	// Set up BotInfos in state
@@ -316,7 +317,7 @@ func TestRecoverFromMnemonic_ValidInput_BatchSubmitter(t *testing.T) {
 }
 
 func TestRecoverFromMnemonic_InvalidInput(t *testing.T) {
-	ctx := weavecontext.NewAppContext(NewOPInitBotsState())
+	ctx := weavecontext.NewAppContext(daFlowState())
 	state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
 
 	// Set up BotInfos in state
@@ -344,7 +345,7 @@ func TestRecoverFromMnemonic_InvalidInput(t *testing.T) {
 }
 
 func TestDALayerSelector_SelectInitiaLayer(t *testing.T) {
-	ctx := weavecontext.NewAppContext(NewOPInitBotsState())
+	ctx := weavecontext.NewAppContext(daFlowState())
 	state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
 
 	// Set up BotInfos in state
@@ -370,7 +371,7 @@ func TestDALayerSelector_SelectInitiaLayer(t *testing.T) {
 }
 
 func TestDALayerSelector_SelectCelestiaLayer(t *testing.T) {
-	ctx := weavecontext.NewAppContext(NewOPInitBotsState())
+	ctx := weavecontext.NewAppContext(daFlowState())
 	state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
 
 	// Set up BotInfos in state
@@ -390,7 +391,11 @@ func TestDALayerSelector_SelectCelestiaLayer(t *testing.T) {
 	if opInitModel, ok := nextModel.(*SetupOPInitBots); ok {
 		state := weavecontext.GetCurrentState[OPInitBotsState](opInitModel.Ctx)
 
-		assert.Equal(t, string(CelestiaLayerOption), state.BotInfos[0].DALayer) // Check that DALayer is set to Celestia
+		if features.CelestiaDAEnabled {
+			assert.Equal(t, "Celestia", state.BotInfos[0].DALayer)
+		} else {
+			assert.Equal(t, "Initia", state.BotInfos[0].DALayer)
+		} // Check that DALayer is set to Celestia
 	} else {
 		t.Errorf("Expected model to transition to *SetupOPInitBots, but got %T", nextModel)
 	}

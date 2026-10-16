@@ -56,6 +56,8 @@ func (m *FieldInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 
+		// The history retains this model; keep its last input editable on return.
+		m.currentIndex = len(m.subModels) - 1
 		model, err := m.newTerminalModel(m.Ctx)
 		if err != nil {
 			return m, m.HandlePanic(err)

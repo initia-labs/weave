@@ -170,6 +170,21 @@ func handleWithConfig(cmd *cobra.Command, userHome, opInitHome, configPath, keyF
 	if err != nil {
 		return err
 	}
+	switch botName {
+	case "executor":
+		var config opinit_bots.ExecutorConfig
+		if err := json.Unmarshal(fileData, &config); err != nil {
+			return err
+		}
+		if err := opinit_bots.ValidateExecutorDA(config); err != nil {
+			return err
+		}
+	case "challenger":
+		var config opinit_bots.ChallengerConfig
+		if err := json.Unmarshal(fileData, &config); err != nil {
+			return err
+		}
+	}
 
 	var keyFile weaveio.KeyFile
 	if isGenerateKeyFile {
@@ -367,7 +382,7 @@ func OPInitBotsStartCommand() *cobra.Command {
 
 			botName := args[0]
 			bot := service.CommandName(botName)
-			s, err := service.NewService(bot, "")
+			s, err := newService(bot, "")
 			if err != nil {
 				return err
 			}
@@ -406,7 +421,7 @@ func OPInitBotsStopCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			botName := args[0]
 			bot := service.CommandName(botName)
-			s, err := service.NewService(bot, "")
+			s, err := newService(bot, "")
 			if err != nil {
 				return err
 			}
@@ -432,7 +447,7 @@ func OPInitBotsRestartCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			botName := args[0]
 			bot := service.CommandName(botName)
-			s, err := service.NewService(bot, "")
+			s, err := newService(bot, "")
 			if err != nil {
 				return err
 			}
@@ -463,7 +478,7 @@ func OPInitBotsLogCommand() *cobra.Command {
 
 			botName := args[0]
 			bot := service.CommandName(botName)
-			s, err := service.NewService(bot, "")
+			s, err := newService(bot, "")
 			if err != nil {
 				return err
 			}
