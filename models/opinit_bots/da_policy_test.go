@@ -138,6 +138,8 @@ func daWrite(t *testing.T, path, content string, mode fs.FileMode) {
 	t.Helper()
 	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0700))
 	require.NoError(t, os.WriteFile(path, []byte(content), mode))
+	// Preserve the requested fixture permissions regardless of the process umask.
+	require.NoError(t, os.Chmod(path, mode))
 }
 
 type daFileSnapshot struct {
