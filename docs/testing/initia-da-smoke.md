@@ -303,14 +303,106 @@ else:
 (out / 'batch-records.json').write_text(json.dumps(records, indent=2))
 print('matched successful MsgRecordBatch:', len(records))
 ```
-Save the following as `$SMOKE_ROOT/check-marker-batch.py`. It excludes genesis
-batches, checks the marker's successful L2 result/hash/block/chain, finds a matching
-batch range, verifies every chunk checksum and gzip frame boundary, and requires
-the actual marker transaction bytes in a block frame. This is a focused bank-send
-inclusion oracle, not a full runtime batch reconstruction implementation.
+Save the following as `$SMOKE_ROOT/check-marker-batch.py`. Run the collector
+above first to filter successful L1 messages by bridge ID and submitter. The
+checker excludes genesis batches, verifies the marker's successful L2 result and
+hash, and validates chunk checksums, gzip framing, and the complete consecutive
+block range. Each protobuf block must have the expected chain ID and height; the
+marker must equal `Data.txs[index]` at its RPC-reported index, and the final commit
+height must equal the batch end. Bytes appearing elsewhere in a frame do not count.
+
+This is a focused bank-send inclusion oracle that trusts the isolated RPC results;
+it does not reconstruct all runtime transactions or verify validator signatures.
+Use ordinary `python3`, without `-O` or `PYTHONOPTIMIZE`: the checker rejects
+optimization because it would disable assertions. On validation failure, inspect
+the payload and the recorded runtime version; do not remove the checks.
 
 ```python
 import base64, gzip, hashlib, json, os, pathlib, struct
+if not __debug__:
+    raise RuntimeError("Do not run this oracle with Python optimization enabled")
+def protobuf_fields(data):
+    """Decode only protobuf wire fields needed by this external smoke oracle."""
+    offset = 0
+
+    def uvarint():
+        nonlocal offset
+        value = 0
+        for shift in range(0, 70, 7):
+            if offset >= len(data):
+                raise ValueError('truncated protobuf varint')
+            byte = data[offset]
+            offset += 1
+            if shift == 63 and byte > 1:
+                raise ValueError('overflowing protobuf varint')
+            value |= (byte & 127) << shift
+            if byte < 128:
+                return value
+        raise ValueError('oversize protobuf varint')
+
+    fields = {}
+    while offset < len(data):
+        tag = uvarint()
+        number, wire = tag >> 3, tag & 7
+        if number == 0 or number >= (1 << 29):
+            raise ValueError('invalid protobuf field number')
+        if wire == 0:
+            value = uvarint()
+        elif wire in (1, 2, 5):
+            length = uvarint() if wire == 2 else (8 if wire == 1 else 4)
+            if offset + length > len(data):
+                raise ValueError('truncated protobuf field')
+            value = data[offset:offset + length]
+            offset += length
+        else:
+            raise ValueError('unsupported protobuf wire type')
+        fields.setdefault(number, []).append((wire, value))
+    return fields
+
+
+def one_field(fields, number, wire):
+    matches = fields.get(number, [])
+    if len(matches) != 1 or matches[0][0] != wire:
+        raise ValueError(f'expected exactly one field {number} with wire type {wire}')
+    return matches[0][1]
+
+
+def verify_block_frames(frames, start, end, marker, raw_tx, rpc_block):
+    # CometBFT block.proto: Block(header=1, data=2), Header(chain_id=2,
+    # height=3), Data(txs=1). The last frame is the Commit(height=1).
+    if not (0 < start <= end) or len(frames) != end - start + 2:
+        raise ValueError('batch does not contain exactly its declared block range plus commit')
+    marker_height = int(marker['height'])
+    marker_index = int(marker['index'])
+    rpc_txs = rpc_block['data']['txs']
+    if not (0 <= marker_index < len(rpc_txs)):
+        raise ValueError('marker RPC transaction index is outside its block')
+    if base64.b64decode(rpc_txs[marker_index], validate=True) != raw_tx:
+        raise ValueError('marker RPC index differs from actual transaction bytes')
+    found = False
+    for height, frame in enumerate(frames[:-1], start):
+        fields = protobuf_fields(frame)
+        header = protobuf_fields(one_field(fields, 1, 2))
+        if one_field(header, 2, 2).decode('utf-8') != os.environ['L2_ID']:
+            raise ValueError('batch block chain ID mismatch')
+        if one_field(header, 3, 0) != height:
+            raise ValueError('batch block height/range mismatch')
+        data = protobuf_fields(one_field(fields, 2, 2))
+        tx_fields = data.get(1, [])
+        if any(wire != 2 for wire, _ in tx_fields):
+            raise ValueError('invalid transaction field wire type')
+        txs = [value for _, value in tx_fields]
+        if height == marker_height:
+            if marker_index >= len(txs) or txs[marker_index] != raw_tx:
+                raise ValueError('marker is not the exact transaction at its block index')
+            found = True
+    commit = protobuf_fields(frames[-1])
+    if one_field(commit, 1, 0) != end:
+        raise ValueError('final commit height differs from batch end')
+    if not found:
+        raise ValueError('no marker block in the decoded batch')
+
+
 out = pathlib.Path(os.environ['EVIDENCE'])
 phase = os.environ['MARKER_PHASE']
 marker = json.loads((out / f'marker-{phase}.json').read_text())['result']
@@ -353,8 +445,7 @@ for (start, end), (checksums, header_rec) in headers.items():
         frames.append(payload[offset:offset+length])
         offset += length
     assert len(frames) >= 2  # At least one block and the final commit.
-    if not any(raw_tx in frame for frame in frames[:-1]):
-        continue
+    verify_block_frames(frames, start, end, marker, raw_tx, block)
     proof = dict(phase=phase, bridge_id=os.environ['BRIDGE_ID'], submitter=os.environ['BATCH_ADDR'],
                  marker_hash=marker['hash'], marker_l2_height=int(marker['height']),
                  batch_start=start, batch_end=end, header=header_rec,
