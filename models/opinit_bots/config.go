@@ -60,6 +60,8 @@ type ExecutorConfig struct {
 	DisableDeleteFutureWithdrawal bool         `json:"disable_delete_future_withdrawal"`
 }
 
+// GenerateMnemonicKeyfile creates mnemonic keys for an executor or challenger.
+// Executor DA settings are validated before any keys are generated.
 func GenerateMnemonicKeyfile(rawConfig []byte, botName string) (weaveio.KeyFile, error) {
 	keyFile := weaveio.NewKeyFile()
 

@@ -2,6 +2,7 @@ package minitia
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -158,6 +159,39 @@ func (s *daService) Stop() error                                      { return n
 func (s *daService) Restart() error                                   { return nil }
 func (s *daService) GetServiceFile() (string, error)                  { return "", nil }
 func (s *daService) GetServiceBinaryAndHome() (string, string, error) { return "", "", nil }
+
+func TestDAFlowInitiaLaunchServiceFactoryErrorCompletes(t *testing.T) {
+	daIsolateViper(t)
+	oldClient, oldSessionID, oldProperties := analytics.Client, analytics.SessionID, analytics.GlobalEventProperties
+	analytics.Client = &analytics.NoOpClient{}
+	analytics.GlobalEventProperties = make(map[string]interface{})
+	t.Cleanup(func() {
+		analytics.Client, analytics.SessionID, analytics.GlobalEventProperties = oldClient, oldSessionID, oldProperties
+	})
+
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	state := daLaunchState()
+	ctx := weavecontext.SetMinitiaHome(weavecontext.NewAppContext(state), filepath.Join(home, ".minitia"))
+	factoryErr := fmt.Errorf("unsupported test platform")
+	oldService := newService
+	newService = func(command service.CommandName, vm string) (service.Service, error) {
+		require.Equal(t, service.Minitia, command)
+		require.Equal(t, "Move", vm)
+		return nil, factoryErr
+	}
+	t.Cleanup(func() { newService = oldService })
+
+	model := NewLaunchingNewMinitiaLoading(ctx)
+	finished, cmd := model.Update(ui.EndLoading{Ctx: ctx})
+	require.IsType(t, &TerminalState{}, finished)
+	require.Contains(t, finished.View(), "Invalid OS: only Linux and Darwin are supported")
+	require.Contains(t, finished.View(), factoryErr.Error())
+	require.NotContains(t, finished.View(), "Failed to start rollup service")
+	require.NotNil(t, cmd)
+	require.IsType(t, tea.QuitMsg{}, cmd())
+}
+
 func daWriteFile(t *testing.T, path, body string, mode os.FileMode) {
 	t.Helper()
 	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0700))

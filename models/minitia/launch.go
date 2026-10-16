@@ -3048,9 +3048,7 @@ func (m *LaunchingNewMinitiaLoading) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		srv, err := newService(service.Minitia, state.vmType)
 		if err != nil {
 			state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.NoSeparator, "Invalid OS: only Linux and Darwin are supported", []string{}, fmt.Sprintf("%v", err)))
-		}
-
-		if err = srv.Start(); err != nil {
+		} else if err = srv.Start(); err != nil {
 			state.weave.PushPreviousResponse(styles.RenderPreviousResponse(styles.NoSeparator, "Failed to start rollup service", []string{}, fmt.Sprintf("%v", err)))
 		}
 

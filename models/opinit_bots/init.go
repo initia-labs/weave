@@ -1494,6 +1494,8 @@ func WaitSetupOPInitBotsMissingKey(ctx context.Context) tea.Cmd {
 	}
 }
 
+// InitializeExecutorWithConfig recovers executor keys and writes config and service
+// files. DA settings are validated before any downloads or persistent changes.
 func InitializeExecutorWithConfig(config ExecutorConfig, keyFile io.KeyFile, opInitHome, userHome string) error {
 	if err := ValidateExecutorDA(config); err != nil {
 		return err

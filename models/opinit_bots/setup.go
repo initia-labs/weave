@@ -187,6 +187,8 @@ func (m *ProcessingMinitiaConfig) View() string {
 	return m.WrapView(view)
 }
 
+// NextUpdateOpinitBotKey selects the next key setup or bot initialization model,
+// propagating errors from initialization selection.
 func NextUpdateOpinitBotKey(ctx context.Context) (tea.Model, error) {
 	state := weavecontext.GetCurrentState[OPInitBotsState](ctx)
 	for idx := 0; idx < len(state.BotInfos); idx++ {
