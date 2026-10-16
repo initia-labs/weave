@@ -220,7 +220,9 @@ normally needed when the bridge interval is 30s.
 ## Submit a marker and prove its inclusion in Initia DA
 
 Confirm `keys add --recover --keyring-backend test --home ...` and `tx bank send`
-using the selected minitiad's help. Recover the dedicated genesis marker account
+using `"$L2_BIN" keys add --help` and `"$L2_BIN" tx bank send --help` for the
+selected binary. MiniMove v1.1.15 documents `--note` (previously `--memo`), so both
+marker commands below use `--note`. Recover the dedicated genesis marker account
 into MARKER_HOME, and set a valid new recipient and chain-appropriate gas prices.
 
 ```bash
@@ -233,7 +235,7 @@ export L1_FROM
 "$L2_BIN" tx bank send "$MARKER_KEY" "$RECIPIENT" "1$L2_DENOM" \
   --home "$MARKER_HOME" --keyring-backend test --node "$L2_RPC" \
   --chain-id "$L2_ID" --gas auto --gas-adjustment 1.5 --gas-prices "$L2_GAS_PRICES" \
-  --broadcast-mode sync --memo weave-da-smoke-before --yes --output json > "$EVIDENCE/marker-before-broadcast.json"
+  --broadcast-mode sync --note weave-da-smoke-before --yes --output json > "$EVIDENCE/marker-before-broadcast.json"
 MARKER_HASH="$(jq -er '.txhash' "$EVIDENCE/marker-before-broadcast.json")"
 export MARKER_HASH
 ```
@@ -500,7 +502,7 @@ advance and submit a new distinct marker, then save that included result.
 "$L2_BIN" tx bank send "$MARKER_KEY" "$RECIPIENT" "1$L2_DENOM" \
   --home "$MARKER_HOME" --keyring-backend test --node "$L2_RPC" \
   --chain-id "$L2_ID" --gas auto --gas-adjustment 1.5 --gas-prices "$L2_GAS_PRICES" \
-  --broadcast-mode sync --memo weave-da-smoke-after --yes --output json > "$EVIDENCE/marker-after-broadcast.json"
+  --broadcast-mode sync --note weave-da-smoke-after --yes --output json > "$EVIDENCE/marker-after-broadcast.json"
 MARKER_HASH="$(jq -er '.txhash' "$EVIDENCE/marker-after-broadcast.json")"
 save_marker after "$MARKER_HASH"
 test "$(jq -r '.result.height' "$EVIDENCE/marker-after.json")" -gt \
